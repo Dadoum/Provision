@@ -1,13 +1,11 @@
-#include <iostream>
 #include <filesystem>
 #include <string>
 #include <unistd.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <hybris/common/dlfcn.h>
 #include <hybris/common/hooks.h>
-#include <fstream>
 #include <vector>
+#include <cstring>
 #include "LibraryLoader.h"
 
 void* ld_android;
@@ -40,6 +38,18 @@ void* androidAppMusic;
 // https://stackoverflow.com/questions/10723403/char-array-to-hex-string-c
 char const hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',   'B','C','D','E','F'};
 
+const char* logs[] = {
+		"UNKNOWN",
+		"DEFAULT",
+		"VERBOSE",
+		"DEBUG",
+		"INFO",
+		"WARN",
+		"ERROR",
+		"FATAL",
+		"SILENT"
+};
+
 std::string byte_2_str(char* bytes, int size) {
 	std::string str;
 	for (int i = 0; i < size; ++i) {
@@ -54,21 +64,16 @@ bool hookedAlwaysTrue(int stub) {
 	return true;
 }
 
-void debuglog (int priority,char *param_2,char *param_3,uint param_4,char *param_5,
-							 std::string const& param_6, int param_7) {
-	std::string param = param_5;
-	printf("%s\n", param_5);
+void __android_log_write (int prio, const char *tag, const char *text) {
+	printf("[%s] [%s]: %s\n", logs[prio], tag, text);
 }
 
 void* hooks(const char *symbol_name, const char *requester) {
-	std::string symbol = symbol_name;
-	std::string rqst = requester;
-	if (symbol == "_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityE") {
+	if (strcmp(symbol_name, "_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityE") == 0) {
 		return (void*) hookedAlwaysTrue;
 	}
-	else if (symbol.find("DebugLogInternal") != std::string::npos){
-		puts(symbol.c_str());
-		return (void*) debuglog;
+	else if (strcmp(symbol_name, "__android_log_write") == 0){
+		return (void*) __android_log_write;
 	}
 	return NULL;
 }
@@ -76,6 +81,7 @@ void* hooks(const char *symbol_name, const char *requester) {
 void initLibs() {
 	printf("Initialisation des bibliothèques...\n");
 	fflush(stdout);
+	hybris_set_hook_callback(hooks);
 	ld_android			= LibraryLoader::loadLibrary("lib32/ld-android.so"				);
 	libdl				= LibraryLoader::loadLibrary("lib32/libdl.so"					);
 	libc				= LibraryLoader::loadLibrary("lib32/libc.so"					);
@@ -97,7 +103,6 @@ void initLibs() {
 	icui18n 			= LibraryLoader::loadLibrary("lib32/libicui18n_sv_apple.so"	);
 	daapkit 			= LibraryLoader::loadLibrary("lib32/libdaapkit.so"				);
 	coreFoundation		= LibraryLoader::loadLibrary("lib32/libCoreFoundation.so"		);
-	hybris_set_hook_callback(hooks);
 	mediaPlatform 		= LibraryLoader::loadLibrary("lib32/libmediaplatform.so"		);
 	storeServicesCore	= LibraryLoader::loadLibrary("lib32/libstoreservicescore.so"	);
 	mediaLibraryCore	= LibraryLoader::loadLibrary("lib32/libmedialibrarycore.so"	);
