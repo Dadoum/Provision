@@ -16,14 +16,6 @@ cmake ..
 make
 ```
 
-Puis installez le linker de libhybris avec:
-
-```bash
-# On est toujours dans le dossier build
-sudo mkdir -p /usr/local/share/Provision/hybris/lib/libhybris/linker/
-sudo cp libhybris-prefix/src/libhybris-build/common/q/.libs/q.so /usr/local/share/Provision/hybris/lib/libhybris/linker/q.so
-```
-
 ## Exécution
 
 Créez un dossier lib32 à coté de l'exécutable.

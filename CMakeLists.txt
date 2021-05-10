@@ -19,28 +19,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(libjnivm)
 
 FetchContent_Declare(
-        androidh
-        SVN_REPOSITORY https://github.com/ubports/android-headers/trunk/29
-)
-FetchContent_GetProperties(androidh
-        SOURCE_DIR androidh_SOURCE_DIR)
-
-if(NOT androidh_POPULATED)
-    FetchContent_Populate(androidh)
-endif()
-
-ExternalProject_Add(
         libhybris
-        GIT_REPOSITORY https://github.com/libhybris/libhybris
+        GIT_REPOSITORY https://github.com/Dadoum/libhybris
         GIT_TAG master
-        CONFIGURE_COMMAND CFLAGS=-m32 CXXFLAGS=-m32 ../libhybris/hybris/autogen.sh --with-android-headers=${androidh_SOURCE_DIR} --enable-wayland --enable-arch=x86 --prefix=${INSTALL_PREFIX}/hybris
-        BUILD_COMMAND make
-        INSTALL_COMMAND ""
 )
+FetchContent_MakeAvailable(libhybris)
 
-ExternalProject_Get_property(libhybris SOURCE_DIR BINARY_DIR)
-target_link_directories(Provision PUBLIC ${BINARY_DIR}/common/.libs/)
-target_include_directories(Provision PUBLIC ${SOURCE_DIR}/hybris/include)
-
-add_dependencies(Provision libhybris jnivm)
-target_link_libraries(Provision hybris-common jnivm)
+add_dependencies(Provision hybris jnivm)
+target_link_libraries(Provision hybris jnivm)

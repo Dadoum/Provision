@@ -16,14 +16,6 @@ cmake ..
 make
 ```
 
-Then, install libhybris linker with these commands:
-
-```bash
-# We're still in build folder
-sudo mkdir -p /usr/local/share/Provision/hybris/lib/libhybris/linker/
-sudo cp libhybris-prefix/src/libhybris-build/common/q/.libs/q.so /usr/local/share/Provision/hybris/lib/libhybris/linker/q.so
-```
-
 ## Running
 
 Create a lib32 folder next to executable
