@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.17)
+project(Provision)
+
+set(CMAKE_CXX_STANDARD 17)
+include_directories(libjnivm/include)
+add_executable(Provision main.cpp LibraryLoader.cpp)
+set(CMAKE_C_FLAGS "-m32")
+set(CMAKE_CXX_FLAGS "-m32")
+add_subdirectory(libjnivm)
+target_link_libraries(Provision hybris-common jnivm)
+target_link_directories(Provision PUBLIC /opt/hybris32/lib)
+target_include_directories(Provision PUBLIC /opt/hybris32/include)
