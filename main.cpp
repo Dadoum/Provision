@@ -67,6 +67,7 @@ void* hooks(const char *symbol_name, const char *requester) {
 		return (void*) hookedAlwaysTrue;
 	}
 	else if (symbol.find("DebugLogInternal") != std::string::npos){
+		puts(symbol.c_str());
 		return (void*) debuglog;
 	}
 	return NULL;
