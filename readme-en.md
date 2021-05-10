@@ -18,7 +18,7 @@ make
 
 Then, install libhybris linker with these commands:
 
-```
+```bash
 # We're still in build folder
 sudo mkdir -p /usr/local/share/Provision/hybris/lib/libhybris/linker/
 sudo cp libhybris-prefix/src/libhybris-build/common/q/.libs/q.so /usr/local/share/Provision/hybris/lib/libhybris/linker/q.so
@@ -28,7 +28,7 @@ sudo cp libhybris-prefix/src/libhybris-build/common/q/.libs/q.so /usr/local/shar
 
 Create a lib32 folder next to executable
 
-```
+```bash
 # We're still in build folder
 sudo mkdir ./lib32
 ```
@@ -67,6 +67,6 @@ libandroidappmusic.so
 
 Place these library in the new lib32 folder and run the executable:
 
-```
+```bash
 ./Provision
 ```
