@@ -12,13 +12,12 @@
 #include <string>
 
 #include <dlfcn.h>
-#include <map>
 #include <stdio.h>
 
 jnivm::VM vm;
 bool isInitialized = false;
 
-std::map<const char*, void*> hooked_functions = { };
+std::unordered_map<std::string, void*> hooked_functions;
 
 void *hook_callback(const char *symbol_name, const char *requester) {
 	return hooked_functions[symbol_name];
@@ -33,7 +32,7 @@ void LibraryHelper::init() {
 	hybris_set_hook_callback(hook_callback);
 }
 
-void *LibraryHelper::loadLibrary(std::string path) {
+void *LibraryHelper::loadLibrary(std::string const& path) {
 	if (!isInitialized) {
 		LibraryHelper::init();
 		isInitialized = true;
@@ -63,6 +62,6 @@ void *LibraryHelper::loadLibrary(std::string path) {
 	return handle;
 }
 
-void LibraryHelper::hook(std::string symbol, void *replacement) {
-	hooked_functions[symbol.c_str()] = replacement;
+void LibraryHelper::hook(std::string const& symbol, void *replacement) {
+	hooked_functions[symbol] = replacement;
 }

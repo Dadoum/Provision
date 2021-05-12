@@ -10,8 +10,8 @@
 class LibraryHelper {
   public:
 	static void init();
-	static void *loadLibrary(std::string path);
-	static void hook(std::string symbol, void *replacement);
+	static void *loadLibrary(std::string const& path);
+	static void hook(std::string const& symbol, void *replacement);
 };
 
 #endif // PROVISION_LIBRARYHELPER_HPP

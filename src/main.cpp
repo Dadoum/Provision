@@ -58,58 +58,11 @@ std::string byte_2_str(char *bytes, int size) {
 	return str;
 }
 
-bool hookedAlwaysTrue(int stub) { return true; }
+bool logEnabledForPriority() { return true; }
 
 void __android_log_write(int prio, const char *tag, const char *text) {
 	printf(">>> Journal d'Android >>> [%s] [%s]: %s\n", logs[prio], tag, text);
 	fflush(stdout);
-}
-
-int resolveErrorCode(int i) {
-	int i2;
-	int i3;
-	int ab = abs(i);
-	int i4 = (ab >> 24) & 255;
-	int i5 = (ab >> 16) & 255;
-	int i6 = (ab >> 8) & 255;
-	int i7 = ab & 255;
-	if (i4 != 0) {
-		i2 = i4 | 0;
-		i3 = 8;
-	} else {
-		i2 = 0;
-		i3 = 0;
-	}
-	if (i5 != 0) {
-		i2 |= i5 << i3;
-		i3 += 8;
-	}
-	if (i6 != 0) {
-		i2 |= i6 << i3;
-		i3 += 8;
-	}
-	return i7 != 0 ? i2 | (i7 << i3) : i2;
-}
-
-int Sph98paBcz(char *id, int i) {
-	auto orig =
-		(int (*)(char *, int))hybris_dlsym(storeServicesCore, "Sph98paBcz");
-	int ret = orig(id, i);
-	if (ret != 0) {
-		printf("Sph98paBcz a échoué, code %d. \n", resolveErrorCode(ret));
-		fflush(stdout);
-	}
-	return ret;
-}
-
-int bsawCXd() {
-	auto orig = (int (*)())hybris_dlsym(storeServicesCore, "bsawCXd");
-	int ret = orig();
-	if (ret != 0) {
-		printf("bsawCXd a échoué, code %d. \n", resolveErrorCode(ret));
-		fflush(stdout);
-	}
-	return ret;
 }
 
 inline void checkLibrary(void* handle) {
@@ -123,7 +76,7 @@ inline void checkLibrary(void* handle) {
 
 void initLibs() {
 	LibraryHelper::hook("__android_log_write", (void*) __android_log_write);
-	LibraryHelper::hook("_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityE", (void*) hookedAlwaysTrue);
+	LibraryHelper::hook("_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityE", (void*) logEnabledForPriority);
 	printf("Initialisation des bibliothèques...\n");
 	fflush(stdout);
 	ld_android = LibraryHelper::loadLibrary("lib32/ld-android.so");
