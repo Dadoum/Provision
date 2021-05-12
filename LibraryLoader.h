@@ -4,12 +4,12 @@
 
 #ifndef PROVISION_LIBRARYLOADER_H
 #define PROVISION_LIBRARYLOADER_H
+
 #include <string>
 
 class LibraryLoader {
-public:
-	static void* loadLibrary(std::string path);
+  public:
+	static void *loadLibrary(std::string path);
 };
 
-
-#endif //PROVISION_LIBRARYLOADER_H
+#endif // PROVISION_LIBRARYLOADER_H

@@ -3,16 +3,19 @@
 //
 #include "LibraryLoader.h"
 
-#include <string>
-#include <stdio.h>
-#include <dlfcn.h>
 #include <hybris/common/dlfcn.h>
+
 #include <jni.h>
 #include <jnivm.h>
 
+#include <string>
+
+#include <dlfcn.h>
+#include <stdio.h>
+
 jnivm::VM vm;
 
-void* LibraryLoader::loadLibrary(std::string path) {
+void *LibraryLoader::loadLibrary(std::string path) {
 	printf("Chargement de %s... ", path.c_str());
 	fflush(stdout);
 	void *handle = hybris_dlopen(path.c_str(), RTLD_LAZY);
@@ -22,7 +25,8 @@ void* LibraryLoader::loadLibrary(std::string path) {
 		return NULL;
 	}
 
-	auto JNI_OnLoad = (jint(*)(JavaVM* vm, void* reserved)) hybris_dlsym(handle, "JNI_OnLoad");
+	auto JNI_OnLoad = (jint(*)(JavaVM * vm, void *reserved))
+		hybris_dlsym(handle, "JNI_OnLoad");
 	if (JNI_OnLoad) {
 		printf("invocation de JNI_OnLoad... ", path.c_str());
 		fflush(stdout);
