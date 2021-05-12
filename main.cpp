@@ -6,6 +6,7 @@
 #include <hybris/common/hooks.h>
 #include <vector>
 #include <cstring>
+#include <iostream>
 #include "LibraryLoader.h"
 
 void* ld_android;
@@ -39,15 +40,15 @@ void* androidAppMusic;
 char const hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',   'B','C','D','E','F'};
 
 const char* logs[] = {
-		"UNKNOWN",
-		"DEFAULT",
-		"VERBOSE",
-		"DEBUG",
-		"INFO",
-		"WARN",
-		"ERROR",
+		"INCONNU",
+		"DÉFAUT",
+		"VERBEUX",
+		"DÉBOGGAGE",
+		"INFORMATION",
+		"AVERTISSEMENT",
+		"ERREUR",
 		"FATAL",
-		"SILENT"
+		"SILENCIEUX"
 };
 
 std::string byte_2_str(char* bytes, int size) {
@@ -65,7 +66,53 @@ bool hookedAlwaysTrue(int stub) {
 }
 
 void __android_log_write (int prio, const char *tag, const char *text) {
-	printf("[%s] [%s]: %s\n", logs[prio], tag, text);
+	printf(">>> Journal d'Android >>> [%s] [%s]: %s\n", logs[prio], tag, text);
+}
+
+int resolveErrorCode(int i) {
+	int i2;
+	int i3;
+	int ab = abs(i);
+	int i4 = (ab >> 24) & 255;
+	int i5 = (ab >> 16) & 255;
+	int i6 = (ab >> 8) & 255;
+	int i7 = ab & 255;
+	if (i4 != 0) {
+		i2 = i4 | 0;
+		i3 = 8;
+	} else {
+		i2 = 0;
+		i3 = 0;
+	}
+	if (i5 != 0) {
+		i2 |= i5 << i3;
+		i3 += 8;
+	}
+	if (i6 != 0) {
+		i2 |= i6 << i3;
+		i3 += 8;
+	}
+	return i7 != 0 ? i2 | (i7 << i3) : i2;
+}
+
+int Sph98paBcz(char* id, int i) {
+	auto orig = (int(*)(char*, int)) hybris_dlsym(storeServicesCore, "Sph98paBcz");
+	int ret = orig(id, i);
+	if (ret != 0) {
+		printf("Sph98paBcz a échoué, code %d. \n", resolveErrorCode(ret));
+		fflush(stdout);
+	}
+	return 0;
+}
+
+int bsawCXd() {
+	auto orig = (int(*)()) hybris_dlsym(storeServicesCore, "bsawCXd");
+	int ret = orig();
+	if (ret != 0) {
+		printf("bsawCXd a échoué, code %d. \n", resolveErrorCode(ret));
+		fflush(stdout);
+	}
+	return ret;
 }
 
 void* hooks(const char *symbol_name, const char *requester) {
@@ -75,6 +122,12 @@ void* hooks(const char *symbol_name, const char *requester) {
 	else if (strcmp(symbol_name, "__android_log_write") == 0){
 		return (void*) __android_log_write;
 	}
+	else if (strcmp(symbol_name, "Sph98paBcz") == 0) {
+		return (void*) Sph98paBcz;
+	}
+	else if (strcmp(symbol_name, "bsawCXd") == 0) {
+		return (void*) bsawCXd;
+	}
 	return NULL;
 }
 
@@ -82,6 +135,34 @@ void initLibs() {
 	printf("Initialisation des bibliothèques...\n");
 	fflush(stdout);
 	hybris_set_hook_callback(hooks);
+#if __x86_64__
+	ld_android			= LibraryLoader::loadLibrary("lib64/ld-android.so"				);
+	libdl				= LibraryLoader::loadLibrary("lib64/libdl.so"					);
+	libc				= LibraryLoader::loadLibrary("lib64/libc.so"					);
+	cpp_shared			= LibraryLoader::loadLibrary("lib64/libc++.so"					);
+	log 				= LibraryLoader::loadLibrary("lib64/liblog.so"					);
+	m 					= LibraryLoader::loadLibrary("lib64/libm.so"					);
+	z 					= LibraryLoader::loadLibrary("lib64/libz.so"					);
+	android				= LibraryLoader::loadLibrary("lib64/libandroid.so"				);
+	xml2				= LibraryLoader::loadLibrary("lib64/libxml2.so"				);
+	stdcpp				= LibraryLoader::loadLibrary("lib64/libstdc++.so"				);
+	curl 				= LibraryLoader::loadLibrary("lib64/libcurl.so"				);
+	coreAdi 			= LibraryLoader::loadLibrary("lib64/libCoreADI.so"				);
+	coreLskd 			= LibraryLoader::loadLibrary("lib64/libCoreLSKD.so"			);
+	coreFp	 			= LibraryLoader::loadLibrary("lib64/libCoreFP.so"				);
+	blocks	 			= LibraryLoader::loadLibrary("lib64/libBlocksRuntime.so"		);
+	dispatch 			= LibraryLoader::loadLibrary("lib64/libdispatch.so"			);
+	icudata 			= LibraryLoader::loadLibrary("lib64/libicudata_sv_apple.so"	);
+	icuuc 				= LibraryLoader::loadLibrary("lib64/libicuuc_sv_apple.so"		);
+	icui18n 			= LibraryLoader::loadLibrary("lib64/libicui18n_sv_apple.so"	);
+	daapkit 			= LibraryLoader::loadLibrary("lib64/libdaapkit.so"				);
+	coreFoundation		= LibraryLoader::loadLibrary("lib64/libCoreFoundation.so"		);
+	mediaPlatform 		= LibraryLoader::loadLibrary("lib64/libmediaplatform.so"		);
+	storeServicesCore	= LibraryLoader::loadLibrary("lib64/libstoreservicescore.so"	);
+	mediaLibraryCore	= LibraryLoader::loadLibrary("lib64/libmedialibrarycore.so"	);
+	openSLES			= LibraryLoader::loadLibrary("lib64/libOpenSLES.so"			);
+	androidAppMusic		= LibraryLoader::loadLibrary("lib64/libandroidappmusic.so"		);
+#else
 	ld_android			= LibraryLoader::loadLibrary("lib32/ld-android.so"				);
 	libdl				= LibraryLoader::loadLibrary("lib32/libdl.so"					);
 	libc				= LibraryLoader::loadLibrary("lib32/libc.so"					);
@@ -108,6 +189,7 @@ void initLibs() {
 	mediaLibraryCore	= LibraryLoader::loadLibrary("lib32/libmedialibrarycore.so"	);
 	openSLES			= LibraryLoader::loadLibrary("lib32/libOpenSLES.so"			);
 	androidAppMusic		= LibraryLoader::loadLibrary("lib32/libandroidappmusic.so"		);
+#endif
 
 	if (!ld_android ||
 		!libdl ||
@@ -185,8 +267,9 @@ int main() {
 	fflush(stdout);
 	auto RequestContext__ctor = (void(*)(void* self, std::string databasePath)) hybris_dlsym(storeServicesCore, "_ZN17storeservicescore14RequestContextC1ERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
 
-	std::string str;
-	str += getenv("HOME");
+	std::string home;
+	home += getenv("HOME");
+	std::string str = home;
 	str += "/.config/hxsign/";
 	std::filesystem::path file = std::filesystem::absolute(str);
 	if (std::filesystem::exists(file) || std::filesystem::create_directory(file)) {
@@ -195,6 +278,9 @@ int main() {
 	else {
 		str = ":memory:";
 	}
+
+	void* context;
+	(*RequestContext__ctor)(&context, str);
 
 	printf(" > Génération d'un identifiant unique...\n");
 	fflush(stdout);
@@ -301,10 +387,11 @@ int main() {
 	printf("  > Création de l'identifiant de l'appareil (objet natif: DeviceGUID)\n");
 	fflush(stdout);
 	{
+		const std::string savedGuid = "";
 		{
 			auto FootHill__config = (int (*)(std::string const &savedGuid)) hybris_dlsym(androidAppMusic,
 																						 "_ZN14FootHillConfig6configERKNSt6__ndk112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE");
-			(*FootHill__config)(androidId);
+			(*FootHill__config)(savedGuid);
 			fflush(stdout);
 		}
 
@@ -315,13 +402,15 @@ int main() {
 			auto guid = (*DeviceGUID__ctor)();
 
 			if (guid != NULL) {
-				const std::string savedGuid = "";
-				auto DeviceGUID__configure = (void* (*)(std::string const &, std::string const &, unsigned int const &,
+				auto DeviceGUID__configure = (void* (*)(std::string const &, void*, unsigned int const &,
 													  bool const &)) hybris_dlsym(storeServicesCore,
 																				  "_ZN17storeservicescore10DeviceGUID9configureERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_RKjRKb");
 				printf("   > Configuration du GUID... ");
+				// DeviceGUID -> ??? -> FairPlay::config(string str) -> FUN_000d6000(&&str) -> ADISetAndroidID "Sph98paBcz"(str->cstr(), str->length) ->
 				fflush(stdout);
-				auto storeErrorCode = (*DeviceGUID__configure)(androidId, savedGuid, 29, true);
+				void* strplus;
+				strplus = 0x0;
+				auto storeErrorCode = (*DeviceGUID__configure)(androidId, (void*) &savedGuid, 29, true);
 				if (storeErrorCode == 0) {
 					auto DeviceGUID__guid = (std::shared_ptr<void>(*)(void* self)) hybris_dlsym(storeServicesCore, "_ZN17storeservicescore10DeviceGUID4guidEv");
 					auto dataptr = (*DeviceGUID__guid)(guid.get());
@@ -341,9 +430,10 @@ int main() {
 				else {
 					auto StoreErrorCondition_errorCode = (int (*)(void* const &)) hybris_dlsym(storeServicesCore,
 																						"_ZNK17storeservicescore19StoreErrorCondition9errorCodeEv");
-					auto StoreErrorCondition_errorDescription = (const std::string (*)(void*)) hybris_dlsym(storeServicesCore,
-																						"_ZNK17storeservicescore19StoreErrorCondition16errorDescriptionEv");
-					printf("échec. Erreur %d: %s \n", StoreErrorCondition_errorCode(storeErrorCode), StoreErrorCondition_errorDescription(storeErrorCode).c_str());
+					auto StoreErrorCondition_errorDescription = (const std::string& (*)(void*)) hybris_dlsym(storeServicesCore,
+																						"_ZNK17storeservicescore19StoreErrorCondition4whatEv");
+					auto stringDesc = StoreErrorCondition_errorDescription(storeErrorCode);
+					printf("échec. Erreur %d: %s \n", StoreErrorCondition_errorCode(storeErrorCode), stringDesc.c_str());
 				}
 			}
 		}
@@ -362,13 +452,13 @@ int main() {
 			{
 				auto filePath_ctor = (void(*)(void* self, std::string databasePath)) hybris_dlsym(mediaPlatform,"_ZN13mediaplatform8FilePathC1ERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
 
-				(*filePath_ctor)(filePath[0], "/home/dadoum/.config/hxsign");
-				(filePath_ctor)(filePath[1], "/home/dadoum/.config/hxsign/cache");
-				(filePath_ctor)(filePath[2], "/home/dadoum/.config/hxsign");
+				(filePath_ctor)(&filePath[0], home + "/.config/hxsign");
+				(filePath_ctor)(&filePath[1], home + "/.config/hxsign/cache");
+				(filePath_ctor)(&filePath[2], home + "/.config/hxsign");
 
 				{
 					auto contentBundle_ctor = (void (*)(void* self, void*, void*, void*, std::vector<std::string>*)) hybris_dlsym(mediaPlatform,"_ZN13mediaplatform13ContentBundleC1ERKNS_8FilePathES3_S3_RKNSt6__ndk16vectorINS4_12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEENS9_ISB_EEEE");
-					std::vector<std::string> langs = { "en" };
+					std::vector<std::string> langs = { "fr" };
 					(*contentBundle_ctor)(contentBundle, &filePath[0], &filePath[1], &filePath[2], &langs);
 				}
 			}
@@ -388,9 +478,12 @@ int main() {
 		setFairPlayDirectoryPath(requestContextConfig, "/home/dadoum/.config/hxsign/fairPlay");
 	}
 
+	{
+		auto RequestContext__init	 		= (void(*)(void* self, std::shared_ptr<void*> const& config)) hybris_dlsym(storeServicesCore, "_ZN17storeservicescore14RequestContext4initERKNSt6__ndk110shared_ptrINS_20RequestContextConfigEEE"	);
+		auto shared = std::make_shared<void*>(requestContextConfig);
+		RequestContext__init(&context, shared);
+	}
 
-	void* context;
-	(*RequestContext__ctor)(&context, str);
 
 	cleanup();
 	return 0;
