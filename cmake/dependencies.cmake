@@ -1,3 +1,6 @@
+# ==============================================================================
+# Fetching external libraries
+
 include(FetchContent)
 
 FetchContent_Declare(
