@@ -5,7 +5,12 @@ set(CMAKE_CXX_STANDARD 17)
 include(FetchContent)
 include(ExternalProject)
 
-add_executable(Provision main.cpp LibraryLoader.cpp)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+
+add_executable(Provision ${SOURCES})
+
+target_include_directories(Provision PUBLIC "include/")
+
 set(CMAKE_C_FLAGS "-m32")
 set(CMAKE_CXX_FLAGS "-m32")
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/share/Provision)
