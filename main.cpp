@@ -510,65 +510,67 @@ int main() {
 
 		{
 
-			{auto filePath_ctor =
-				 (void (*)(void *self, std::string databasePath))hybris_dlsym(
-					 mediaPlatform,
-					 "_ZN13mediaplatform8FilePathC1ERKNSt6__ndk112basic_"
-					 "stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
+			auto filePath_ctor =
+				(void (*)(void *self, std::string databasePath))hybris_dlsym(
+					mediaPlatform,
+					"_ZN13mediaplatform8FilePathC1ERKNSt6__ndk112basic_"
+					"stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
 
-		(filePath_ctor)(&filePath[0], home + "/.config/hxsign");
-		(filePath_ctor)(&filePath[1], home + "/.config/hxsign/cache");
-		(filePath_ctor)(&filePath[2], home + "/.config/hxsign");
+			(filePath_ctor)(&filePath[0], home + "/.config/hxsign");
+			(filePath_ctor)(&filePath[1], home + "/.config/hxsign/cache");
+			(filePath_ctor)(&filePath[2], home + "/.config/hxsign");
+
+			{
+				auto contentBundle_ctor = (void (*)(void *self, void *, void *,
+													void *,
+													std::vector<std::string> *))
+					hybris_dlsym(mediaPlatform,
+								 "_ZN13mediaplatform13ContentBundleC1ERKNS_"
+								 "8FilePathES3_S3_"
+								 "RKNSt6__ndk16vectorINS4_12basic_stringIcNS4_"
+								 "11char_"
+								 "traitsIcEENS4_9allocatorIcEEEENS9_ISB_EEEE");
+				std::vector<std::string> langs = {"fr"};
+				(*contentBundle_ctor)(contentBundle, &filePath[0], &filePath[1],
+									  &filePath[2], &langs);
+			}
+		}
 
 		{
-			auto contentBundle_ctor = (void (*)(
-				void *self, void *, void *, void *, std::vector<std::string> *))
-				hybris_dlsym(
-					mediaPlatform,
-					"_ZN13mediaplatform13ContentBundleC1ERKNS_8FilePathES3_S3_"
-					"RKNSt6__ndk16vectorINS4_12basic_stringIcNS4_11char_"
-					"traitsIcEENS4_9allocatorIcEEEENS9_ISB_EEEE");
-			std::vector<std::string> langs = {"fr"};
-			(*contentBundle_ctor)(contentBundle, &filePath[0], &filePath[1],
-								  &filePath[2], &langs);
+			auto setContentBundle =
+				(void (*)(void *self, std::shared_ptr<void *> contentBundle))
+					hybris_dlsym(storeServicesCore,
+								 "_ZN17storeservicescore20RequestContextConfig1"
+								 "6setContentBundle"
+								 "ERKNSt6__ndk110shared_"
+								 "ptrIN13mediaplatform13ContentBundleEEE");
+			setContentBundle(requestContextConfig,
+							 std::make_shared<void *>(contentBundle));
 		}
 	}
-}
 
-{
-	auto setContentBundle =
-		(void (*)(void *self, std::shared_ptr<void *> contentBundle))
-			hybris_dlsym(
-				storeServicesCore,
-				"_ZN17storeservicescore20RequestContextConfig16setContentBundle"
-				"ERKNSt6__ndk110shared_ptrIN13mediaplatform13ContentBundleEEE");
-	setContentBundle(requestContextConfig,
-					 std::make_shared<void *>(contentBundle));
-}
-}
-
-printf("  > Finalisation de la configuration... \n");
-fflush(stdout);
-{
-	auto setFairPlayDirectoryPath =
-		(void (*)(void *self, std::string const &fairPlayDirectoryPath))
+	printf("  > Finalisation de la configuration... \n");
+	fflush(stdout);
+	{
+		auto setFairPlayDirectoryPath = (void (*)(
+			void *self, std::string const &fairPlayDirectoryPath))
 			hybris_dlsym(storeServicesCore,
 						 "_ZN17storeservicescore20RequestContextConfig24setFair"
 						 "PlayDirectoryPathERKNSt6__ndk112basic_stringIcNS1_"
 						 "11char_traitsIcEENS1_9allocatorIcEEEE");
-	setFairPlayDirectoryPath(requestContextConfig,
-							 "/home/dadoum/.config/hxsign/fairPlay");
-}
+		setFairPlayDirectoryPath(requestContextConfig,
+								 "/home/dadoum/.config/hxsign/fairPlay");
+	}
 
-{
-	auto RequestContext__init =
-		(void (*)(void *self, std::shared_ptr<void *> const &config))
+	{
+		auto RequestContext__init = (void (*)(
+			void *self, std::shared_ptr<void *> const &config))
 			hybris_dlsym(storeServicesCore,
 						 "_ZN17storeservicescore14RequestContext4initERKNSt6__"
 						 "ndk110shared_ptrINS_20RequestContextConfigEEE");
-	auto shared = std::make_shared<void *>(requestContextConfig);
-	RequestContext__init(&context, shared);
-}
+		auto shared = std::make_shared<void *>(requestContextConfig);
+		RequestContext__init(&context, shared);
+	}
 
 	cleanup();
 	return 0;
