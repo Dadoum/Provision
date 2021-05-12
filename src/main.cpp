@@ -1,7 +1,6 @@
-#include "LibraryLoader.h"
+#include "LibraryHelper.hpp"
 
 #include <hybris/common/dlfcn.h>
-#include <hybris/common/hooks.h>
 
 #include <cstring>
 #include <filesystem>
@@ -113,20 +112,6 @@ int bsawCXd() {
 	return ret;
 }
 
-void *hooks(const char *symbol_name, const char *requester) {
-	if (strcmp(symbol_name, "_ZN13mediaplatform26DebugLogEnabledForPriorityENS_"
-							"11LogPriorityE") == 0) {
-		return (void *)hookedAlwaysTrue;
-	} else if (strcmp(symbol_name, "__android_log_write") == 0) {
-		return (void *)__android_log_write;
-	} else if (strcmp(symbol_name, "Sph98paBcz") == 0) {
-		return (void *)Sph98paBcz;
-	} else if (strcmp(symbol_name, "bsawCXd") == 0) {
-		return (void *)bsawCXd;
-	}
-	return NULL;
-}
-
 inline void checkLibrary(void* handle) {
 	if (!handle) {
 		printf("Certaines bibliothèques n'ont pas pu être chargées, annulation "
@@ -137,60 +122,63 @@ inline void checkLibrary(void* handle) {
 }
 
 void initLibs() {
+	LibraryHelper::hook("__android_log_write", (void*) __android_log_write);
+	LibraryHelper::hook("_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityE", (void*) hookedAlwaysTrue);
 	printf("Initialisation des bibliothèques...\n");
 	fflush(stdout);
-	hybris_set_hook_callback(hooks);
-	ld_android = LibraryLoader::loadLibrary("lib32/ld-android.so");
+	ld_android = LibraryHelper::loadLibrary("lib32/ld-android.so");
 	checkLibrary(ld_android);
-	libdl = LibraryLoader::loadLibrary("lib32/libdl.so");
+	libdl = LibraryHelper::loadLibrary("lib32/libdl.so");
 	checkLibrary(libdl);
-	libc = LibraryLoader::loadLibrary("lib32/libc.so");
+	libc = LibraryHelper::loadLibrary("lib32/libc.so");
 	checkLibrary(libc);
-	cpp_shared = LibraryLoader::loadLibrary("lib32/libc++_shared.so");
+	cpp_shared = LibraryHelper::loadLibrary("lib32/libc++_shared.so");
 	checkLibrary(cpp_shared);
-	log = LibraryLoader::loadLibrary("lib32/liblog.so");
+	log = LibraryHelper::loadLibrary("lib32/liblog.so");
 	checkLibrary(log);
-	m = LibraryLoader::loadLibrary("lib32/libm.so");
+	m = LibraryHelper::loadLibrary("lib32/libm.so");
 	checkLibrary(m);
-	z = LibraryLoader::loadLibrary("lib32/libz.so");
+	z = LibraryHelper::loadLibrary("lib32/libz.so");
 	checkLibrary(z);
-	android = LibraryLoader::loadLibrary("lib32/libandroid.so");
+	android = LibraryHelper::loadLibrary("lib32/libandroid.so");
 	checkLibrary(android);
-	xml2 = LibraryLoader::loadLibrary("lib32/libxml2.so");
+	xml2 = LibraryHelper::loadLibrary("lib32/libxml2.so");
 	checkLibrary(xml2);
-	stdcpp = LibraryLoader::loadLibrary("lib32/libstdc++.so");
+	stdcpp = LibraryHelper::loadLibrary("lib32/libstdc++.so");
 	checkLibrary(stdcpp);
-	curl = LibraryLoader::loadLibrary("lib32/libcurl.so");
+	curl = LibraryHelper::loadLibrary("lib32/libcurl.so");
 	checkLibrary(curl);
-	coreAdi = LibraryLoader::loadLibrary("lib32/libCoreADI.so");
+	coreAdi = LibraryHelper::loadLibrary("lib32/libCoreADI.so");
 	checkLibrary(coreAdi);
-	coreLskd = LibraryLoader::loadLibrary("lib32/libCoreLSKD.so");
+	coreLskd = LibraryHelper::loadLibrary("lib32/libCoreLSKD.so");
 	checkLibrary(coreLskd);
-	coreFp = LibraryLoader::loadLibrary("lib32/libCoreFP.so");
+	coreFp = LibraryHelper::loadLibrary("lib32/libCoreFP.so");
 	checkLibrary(coreFp);
-	blocks = LibraryLoader::loadLibrary("lib32/libBlocksRuntime.so");
+	blocks = LibraryHelper::loadLibrary("lib32/libBlocksRuntime.so");
 	checkLibrary(blocks);
-	dispatch = LibraryLoader::loadLibrary("lib32/libdispatch.so");
+	dispatch = LibraryHelper::loadLibrary("lib32/libdispatch.so");
 	checkLibrary(dispatch);
-	icudata = LibraryLoader::loadLibrary("lib32/libicudata_sv_apple.so");
+	icudata = LibraryHelper::loadLibrary("lib32/libicudata_sv_apple.so");
 	checkLibrary(icudata);
-	icuuc = LibraryLoader::loadLibrary("lib32/libicuuc_sv_apple.so");
+	icuuc = LibraryHelper::loadLibrary("lib32/libicuuc_sv_apple.so");
 	checkLibrary(icuuc);
-	icui18n = LibraryLoader::loadLibrary("lib32/libicui18n_sv_apple.so");
+	icui18n = LibraryHelper::loadLibrary("lib32/libicui18n_sv_apple.so");
 	checkLibrary(icui18n);
-	daapkit = LibraryLoader::loadLibrary("lib32/libdaapkit.so");
+	daapkit = LibraryHelper::loadLibrary("lib32/libdaapkit.so");
 	checkLibrary(daapkit);
-	coreFoundation = LibraryLoader::loadLibrary("lib32/libCoreFoundation.so");
+	coreFoundation = LibraryHelper::loadLibrary("lib32/libCoreFoundation.so");
 	checkLibrary(coreFoundation);
-	mediaPlatform = LibraryLoader::loadLibrary("lib32/libmediaplatform.so");
+	mediaPlatform = LibraryHelper::loadLibrary("lib32/libmediaplatform.so");
 	checkLibrary(mediaPlatform);
-	storeServicesCore = LibraryLoader::loadLibrary("lib32/libstoreservicescore.so");
+	storeServicesCore =
+		LibraryHelper::loadLibrary("lib32/libstoreservicescore.so");
 	checkLibrary(storeServicesCore);
-	mediaLibraryCore = LibraryLoader::loadLibrary("lib32/libmedialibrarycore.so");
+	mediaLibraryCore =
+		LibraryHelper::loadLibrary("lib32/libmedialibrarycore.so");
 	checkLibrary(mediaLibraryCore);
-	openSLES = LibraryLoader::loadLibrary("lib32/libOpenSLES.so");
+	openSLES = LibraryHelper::loadLibrary("lib32/libOpenSLES.so");
 	checkLibrary(openSLES);
-	androidAppMusic = LibraryLoader::loadLibrary("lib32/libandroidappmusic.so");
+	androidAppMusic = LibraryHelper::loadLibrary("lib32/libandroidappmusic.so");
 	checkLibrary(androidAppMusic);
 
 	printf("Les bibliothèques ont été chargé avec succès !\n");
