@@ -21,8 +21,7 @@ bool isInitialized = false;
 std::map<const char*, void*> hooked_functions = { };
 
 void *hook_callback(const char *symbol_name, const char *requester) {
-
-	return NULL;
+	return hooked_functions[symbol_name];
 }
 
 void LibraryHelper::init() {
