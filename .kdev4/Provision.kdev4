@@ -1,0 +1,37 @@
+[Buildset]
+BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x01\x00\x00\x00\x12\x00P\x00r\x00o\x00v\x00i\x00s\x00i\x00o\x00n)
+
+[Launch]
+Launch Configurations=Launch Configuration 0
+
+[Launch][Launch Configuration 0]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=provision
+Type=Native Application
+
+[Launch][Launch Configuration 0][Data]
+Arguments=
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x12\x00P\x00r\x00o\x00v\x00i\x00s\x00i\x00o\x00n\x00\x00\x00\x12\x00p\x00r\x00o\x00v\x00i\x00s\x00i\x00o\x00n)
+Dependency Action=Build
+EnvironmentGroup=
+Executable=file:///home/dadoum/Documents/Provision
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Kill Before Executing Again=65536
+Project Target=Provision,provision
+Use External Terminal=false
+Working Directory=
+isExecutable=false
+
+[MesonManager]
+Current Build Directory Index=0
+Number of Build Directories=1
+
+[MesonManager][BuildDir 0]
+Additional meson arguments=
+Build Directory Path=/home/dadoum/Documents/Provision/builddir
+Meson Generator Backend=ninja
+Meson executable=/usr/bin/meson
+
+[Project]
+VersionControlSupport=kdevgit
