@@ -228,10 +228,23 @@ mixin template implementNativeMethod(string librarySymbol, bool isCtor = false)
 		
 		ExecuteRetType execute() 
 		{
-			static if (Params.length > 0) 
+			static if (Params.length > 1) 
 			{
 				alias CallArgs = Tuple!Params;
 				auto callArgs = CallArgs(this.handle.ptr, parameters);
+			}
+			else if (Params.length == 1)
+			{
+				static if (isStatic && !isCtor) 
+				{
+					alias CallArgs = Tuple!Params;
+					auto callArgs = parameters[0];
+				}
+				else 
+				{
+					auto callArgs = this.handle.ptr;
+				}
+			
 			}
 			else 
 			{
@@ -269,6 +282,7 @@ template TranslateToAndroidCppPriv(FuncArguments...)
     import std.typecons;
     import std.conv;
     import std.array;
+    import std.algorithm.searching;
     import std.string;
     import core.stdcpp.allocator;
 
@@ -277,7 +291,8 @@ template TranslateToAndroidCppPriv(FuncArguments...)
     {
         // Conserver les attributs ref, out...
         alias Arg = Arguments[0 .. 1];
-        static if (ParameterStorageClassTuple!Arg[0] == ParameterStorageClass.ref_) 
+        alias ArgAttributes = ParameterStorageClassTuple!FuncArguments[0 .. 1];
+        static if ([ArgAttributes].canFind(ParameterStorageClass.ref_)) 
         {
         	alias result = void function(ref AndroidClassToDlang!Arg,
         	        Parameters!(TranslateToAndroidCppPriv!(void function(Arguments[1 .. $])).result));

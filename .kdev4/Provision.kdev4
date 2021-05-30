@@ -33,5 +33,11 @@ Build Directory Path=/home/dadoum/Documents/Provision/builddir
 Meson Generator Backend=ninja
 Meson executable=/usr/bin/meson
 
+[MesonManager][BuildDir 1]
+Additional meson arguments=
+Build Directory Path=/home/dadoum/Documents/Provision/build
+Meson Generator Backend=ninja
+Meson executable=/usr/bin/meson
+
 [Project]
 VersionControlSupport=kdevgit
