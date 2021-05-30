@@ -197,15 +197,16 @@ class AndroidLibrary
         auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         if (sym == null)
         {
-            throw new LibraryLoadException(to!string(hybris_dlerror()));
+            throw new LibraryLoadException("Symbole \"" ~ symbol ~ "\" introuvable: " ~ to!string(hybris_dlerror()));
         }
         return cast(T) sym;
     }
 
+    alias ExternC(T) = SetFunctionAttributes!(T, "C", functionAttributes!T);
     public static void addGlobalHook(T)(string symbol, T replacement)
-            if (isCallable!T && functionLinkage!T == "C")
+            if (isCallable!T)
     {
-        globalHooks[symbol] = replacement;
+        globalHooks[symbol] = cast(ExternC!T) replacement;
     }
 }
 
