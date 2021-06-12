@@ -14,6 +14,14 @@ string[] priority = [
 void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
         string file = __FILE__, string func = __FUNCTION__)
 {
+	debug { } else
+	{
+		if (prio == LogPriority.débug)
+		{
+			return;
+		}
+	}
+	
     auto text = std.format.format(format, args);
     if (lineStart)
     {
@@ -21,6 +29,7 @@ void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
                 priority[cast(int) prio]);
     }
     write(text);
+    
     lineStart = text[$ - 1] == '\n';
     stdout.flush();
 }

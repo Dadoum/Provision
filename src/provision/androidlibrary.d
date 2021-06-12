@@ -8,6 +8,8 @@ import std.traits;
 import std.string;
 import core.exception;
 import provision.utils.loghelper;
+import core.sys.linux.elf;
+import core.stdc.stdint;
 
 extern (C)
 {
@@ -17,9 +19,19 @@ extern (C)
     immutable(char)* hybris_dlerror();
     void hybris_set_hook_callback(void* function(immutable(char)* symbol_name,
             immutable(char)* requester));
+    void hybris_set_skip_props(bool value);
+
+    struct VM;
+    struct JavaVM;
+
+    VM* vm_init();
+
+    JavaVM* vm_get_java_vm(VM* vm);
+
+    void destroy(VM* vm);
 }
 
-extern (C++,jnivm)
+extern (C++)
 {
     class _jobject
     {
@@ -79,130 +91,126 @@ extern (C++,jnivm)
     alias _jthrowable* jthrowable;
     alias _jobject* jweak;
 
-    struct JNIEnv;
-    class VM
-    {
-        void* GetJavaVM();
-        JNIEnv* GetJNIEnv();
-    }
+    alias uint8_t jboolean;
+    alias int8_t jbyte;
+    alias uint16_t jchar;
+    alias int16_t jshort;
+    alias int32_t jint;
+    alias int64_t jlong;
+    alias float jfloat;
+    alias double jdouble;
+    alias jint jsize;
+}
+
+enum LibraryType
+{
+	NATIVE_LINUX_LIBRARY,
+	ANDROID_LIBRARY
 }
 
 class AndroidLibrary
 {
-    public static VM vm;
+    public static VM* vm;
 
     private bool redirectingToSystem = false;
-    private void* systemLibrary;
     private void* libraryHandle;
     private string libraryName;
 
+    private static void*[AndroidLibrary] systemLibraries;
     private static void*[string] globalHooks;
-    private static void* delegate(string symbol)[string] hookFinderFunctionForLibrary;
 
     extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* l)
     {
-        string symbol = fromStringz(s);
-        string library = baseName(fromStringz(l));
-
-        auto hookFinderFunc = hookFinderFunctionForLibrary.get(library, null);
-        if (hookFinderFunc != null)
+        foreach (library; AndroidLibrary.systemLibraries)
         {
-            auto foundHook = hookFinderFunc(symbol);
-            if (foundHook != null)
+            auto sym = dlsym(library, s);
+            if (sym != null)
             {
-                return foundHook;
+                return sym;
             }
         }
 
+        string symbol = fromStringz(s);
         return globalHooks.get(symbol, null);
     }
 
     static this()
     {
-        vm = new VM();
+        vm = vm_init();
         hybris_set_hook_callback(&hookFinder);
+        hybris_set_skip_props(true);
     }
 
-    private void* findHook(string symbol)
+    public this(string libraryName, LibraryType type = LibraryType.ANDROID_LIBRARY)
     {
-        if (redirectingToSystem)
+        if (type == LibraryType.NATIVE_LINUX_LIBRARY)
         {
-            auto sym = dlsym(systemLibrary, toStringz(symbol));
-            return sym;
-        }
-        return null;
-    }
+            this.libraryName = baseName(libraryName);
+            log!(string)("Chargement de %s depuis le système... ", this.libraryName, LogPriority.verbeux);
+            import provision.glue;
 
-    public this(string libraryName, bool searchForJNI_OnLoad = true)
-    {
-        this.libraryName = baseName(libraryName);
-        log("Chargement de %s... ", this.libraryName);
-        hookFinderFunctionForLibrary[this.libraryName] = &findHook;
-        libraryHandle = hybris_dlopen(toStringz(libraryName), RTLD_NOW);
-        if (libraryHandle == null)
-        {
-            throw new LibraryLoadException(to!string(hybris_dlerror()));
+            auto systemLibrary = dlopen(toStringz(libraryName), RTLD_LAZY);
+            if (systemLibrary == null)
+            {
+                throw new LibraryLoadException(to!string(dlerror()));
+            }
+            AndroidLibrary.systemLibraries[this] = systemLibrary;
+            redirectingToSystem = true;
+            
+            logln!()("succès !", LogPriority.verbeux);
         }
-
-        if (searchForJNI_OnLoad)
+        else if (type == LibraryType.ANDROID_LIBRARY)
         {
+            this.libraryName = baseName(libraryName);
+            log!string("Chargement de %s... ", this.libraryName, LogPriority.verbeux);
+            libraryHandle = hybris_dlopen(toStringz(libraryName), RTLD_LAZY);
+            if (libraryHandle == null)
+            {
+                throw new LibraryLoadException(to!string(hybris_dlerror()));
+            }
+
             try
             {
-                auto JNI_OnLoad = loadSymbol!(int function(void*, int))("JNI_OnLoad");
-                log("invocation du JNI_OnLoad()... ");
-                version (LDC)
-                {
-                    auto backup = stdout;
-                    stdout = cast(File) null; // paliatif pour un bug incompréhensible de ldc
-                }
-                JNI_OnLoad(vm.GetJavaVM(), 0);
-                version (LDC)
-                {
-                    stdout = backup;
-                }
+                auto JNI_OnLoadFunction = loadSymbol!(jint function(JavaVM*, void*))("JNI_OnLoad");
+                log!()("invocation du JNI_OnLoad()... ", LogPriority.verbeux);
+                JNI_OnLoadFunction(vm_get_java_vm(vm), cast(void*) null);
             }
-            catch (Exception)
+            catch (Exception e)
             {
             }
-        }
-        stdout.flush();
-        logln("succès !");
-    }
 
-    public this(string libraryName, string redirectSymbolsTo, bool searchForJNI_OnLoad = true)
-    {
-        systemLibrary = dlopen(toStringz(redirectSymbolsTo), RTLD_NOW);
-        if (systemLibrary == null)
-        {
-            throw new LibraryLoadException(to!string(dlerror()));
+            logln!()("succès !", LogPriority.verbeux);
         }
-        redirectingToSystem = true;
-        this(libraryName);
+        else
+        {
+        	throw new LibraryLoadException("Type de bibliothèque inconnu");
+        }
     }
 
     ~this()
     {
-        hookFinderFunctionForLibrary.remove(libraryName);
         hybris_dlclose(libraryHandle);
         if (redirectingToSystem)
         {
             redirectingToSystem = false;
-            if (systemLibrary != null)
-                dlclose(systemLibrary);
+            if (AndroidLibrary.systemLibraries[this] != null)
+                dlclose(AndroidLibrary.systemLibraries[this]);
         }
     }
 
-    T loadSymbol(T)(string symbol) const
+    alias ExternC(T, string linkage = "C") = SetFunctionAttributes!(T, linkage,
+            functionAttributes!T);
+    ExternC!(T, linkage) loadSymbol(T, string linkage = "C")(string symbol) const
     {
         auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         if (sym == null)
         {
-            throw new LibraryLoadException("Symbole \"" ~ symbol ~ "\" introuvable: " ~ to!string(hybris_dlerror()));
+            throw new LibraryLoadException(
+                    "Symbole \"" ~ symbol ~ "\" introuvable: " ~ to!string(hybris_dlerror()));
         }
-        return cast(T) sym;
+        return cast(typeof(return)) sym;
     }
 
-    alias ExternC(T) = SetFunctionAttributes!(T, "C", functionAttributes!T);
     public static void addGlobalHook(T)(string symbol, T replacement)
             if (isCallable!T)
     {
@@ -211,6 +219,14 @@ class AndroidLibrary
 }
 
 class LibraryLoadException : Exception
+{
+    this(string msg, string file = __FILE__, size_t line = __LINE__)
+    {
+        super(msg, file, line);
+    }
+}
+
+class NotImplementedException : Exception
 {
     this(string msg, string file = __FILE__, size_t line = __LINE__)
     {

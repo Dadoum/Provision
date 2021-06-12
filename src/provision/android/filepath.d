@@ -10,6 +10,6 @@ import core.stdcpp.string;
 {
     mixin implementDefaultConstructor;
     mixin implementDestructor!"_ZN13mediaplatform8FilePathD2Ev";
-    mixin implementConstructor!(void function(ref const(NdkString)), "_ZN13mediaplatform8FilePathC2ERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
+    mixin implementConstructor!(void function(string), "_ZN13mediaplatform8FilePathC2ERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
     
 }

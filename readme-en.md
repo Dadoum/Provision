@@ -6,6 +6,12 @@ Provision is a tool which will permit to retrieve Anisette headers.
 
 ## Compiling
 
+### Dependencies
+To compile Provision, you must have installed libc++ (LLVM C++) in 32 bits !
+You'll likely have to compile it yourself, because it is not usually packaged in distributions by default.
+
+## Method
+
 Clone the project and compile it with CMake:
 
 ```bash

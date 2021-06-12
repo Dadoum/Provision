@@ -1,75 +1,103 @@
 module provision.androidclass;
 
 import provision.androidlibrary;
+import provision.utils.loghelper;
 import provision.librarybundle;
 import std.traits;
+import std.meta;
 import std.exception;
 import std.conv;
 import core.stdcpp.xutility;
-import std.meta;
+import provision.glue;
+
+struct OpaquePtr;
 
 abstract class AndroidClass
 {
-    public shared_ptr!void handle;
+    private OpaquePtr* hand;
+    @property public const(OpaquePtr * ) nativeHandle() const => hand;
 
     this()
     {
 
     }
 
-	this(shared_ptr!void ptr)
+    this(OpaquePtr* ptr)
     {
-        handle = ptr;
-    }
-    
-    this(void* ptr)
-    {
-        handle.ptr = ptr;
+        hand = ptr;
     }
 }
 
 struct AndroidClassInfo
 {
     string libraryName;
-    ulong classSize;
+    uint classSize;
+}
+
+enum PrivateConstructorOperation
+{
+    ALLOCATE,
+    WRAP_OBJECT
 }
 
 extern (C++,(StdNamespace))
 {
-
-    /// Simple binding to `std::shared_ptr`
     extern (C++,class) struct shared_ptr(T)
     {
-        static if (is(T == class) || is(T == interface))
-            private alias TPtr = T;
-        else
-            private alias TPtr = T*;
-
         ~this()
         {
         }
 
-        TPtr ptr;
+        void* ptr;
         void* _control_block;
-        alias ptr this;
-    }
-
-    /// Simple binding to `std::unique_ptr`
-    extern (C++,class) struct unique_ptr(T)
-    {
-        static if (is(T == class) || is(T == interface))
-            private alias TPtr = T;
-        else
-            private alias TPtr = T*;
-
-        TPtr ptr;
-        alias ptr this;
     }
 }
 
-extern (C++,(StdNamespace))
+AndroidClass[] toCleanup;
+
+T get(T : AndroidClass)(shared_ptr!T sharedp) => new T(
+        PrivateConstructorOperation.WRAP_OBJECT, cast(OpaquePtr * ) sharedp.ptr);
+
+shared_ptr!T create_shared(T : AndroidClass)(T instance)
 {
-    shared_ptr!T make_shared(T, Args...)(Args args);
+	alias DestructionDelegate = extern(C) void function(void*);
+    auto sharedptr = cast(shared_ptr!T*) shared_ptr_create(
+            cast(OpaquePtr*) instance.nativeHandle, cast(DestructionDelegate) (pointer) {
+		logln(T.stringof);
+        destroy(pointer);
+    });
+    return *sharedptr;
+}
+
+void destroy_shared(T)(shared_ptr!T pointer) => shared_ptr_delete(
+         * (cast(const(OpaquePtr *  * )) & pointer));
+
+template Ref(T) if (isCallable!T)
+{
+    alias Ref = SetFunctionAttributes!(T, functionLinkage!T,
+            (cast(uint) functionAttributes!T) | (cast(uint) FunctionAttribute.ref_));
+}
+
+template Const(T) if (isCallable!T)
+{
+    alias Const = SetFunctionAttributes!(T, functionLinkage!T,
+            (cast(uint) functionAttributes!T) | (cast(uint) FunctionAttribute.const_));
+}
+
+template ConstRef(T) if (isCallable!T)
+{
+    alias ConstRef = SetFunctionAttributes!(T, functionLinkage!T,
+            (cast(uint) functionAttributes!T) | (cast(uint) FunctionAttribute.ref_) | (
+                cast(uint) FunctionAttribute.const_));
+}
+
+public void cleanup()
+{
+	import std.array;
+	foreach (i, toClean; toCleanup)
+	{
+		destroy(toClean);
+	}
 }
 
 mixin template implementDefaultConstructor()
@@ -77,39 +105,27 @@ mixin template implementDefaultConstructor()
     import std.conv;
     import core.stdc.stdlib;
 
-    mixin("this(shared_ptr!void ptr) { super(ptr); } this(void* ptr) { if (ptr == null) { super(malloc(" ~ to!string(
-            getLibrary!(typeof(this)).classSize) ~ ")); } else { super(ptr); } }");
-}
-
-mixin template implementMethod(T, string functionName, string librarySymbol,
-        string[] methodModifiers = []) if (isCallable!T)
-{
-	import std.conv;
-    import std.traits;
-    import std.string;
-    import std.array;
-    import std.algorithm.searching;
-
-    enum isReferenceMethod = [__traits(getFunctionAttributes, T)].canFind("ref");
-    mixin(methodModifiers.join(' ') ~ " " ~ ReturnType!T.stringof ~ " " ~ functionName
-            ~ Parameters!T.stringof ~ " { mixin implementNativeMethod!(\"" ~ librarySymbol ~ "\", false, " ~ to!string(isReferenceMethod) ~ "); " ~ (
-                is(ReturnType!T == void) ? "" : "return ") ~ " execute(); }");
-}
-
-mixin template implementConstructor(T, string librarySymbol = "") if (isCallable!T)
-{
-    import std.typecons;
-    import std.traits;
-    import std.conv;
-
-    alias void* Void;
-    static if (!hasCtorOfType!(typeof(this), Void))
+    static if (!hasCtorOfType!(typeof(this), PrivateConstructorOperation, OpaquePtr*))
     {
-        mixin implementDefaultConstructor;
+        this(PrivateConstructorOperation op, OpaquePtr* ptr = cast(OpaquePtr*) null)
+        {
+            if (op == PrivateConstructorOperation.ALLOCATE)
+            {
+                super(cast(OpaquePtr*) malloc(getLibrary!(typeof(this)).classSize));
+            }
+            else if (op == PrivateConstructorOperation.WRAP_OBJECT)
+            {
+                super(ptr);
+            }
+            else
+            {
+                super();
+                throw new InvalidCtorCallException(
+                        "Paramètre \"op\" est incorrect ou non supporté (op = \"" ~ to!string(
+                        op) ~ "\")");
+            }
+        }
     }
-    mixin("this " ~ ParameterTypeTuple!T.stringof ~ " { this(cast(void*) null); static if (" ~ to!string(
-            librarySymbol != "") ~ ") { mixin implementNativeMethod!(\""
-            ~ librarySymbol ~ "\", true); execute(); } }");
 }
 
 bool hasCtorOfType(T, Ctor...)()
@@ -124,6 +140,41 @@ bool hasCtorOfType(T, Ctor...)()
     return false;
 }
 
+mixin template implementMethod(T, string functionName, string librarySymbol,
+        string[] methodModifiers = []) if (isCallable!T)
+{
+    import std.conv;
+    import std.traits;
+    import std.string;
+    import std.array;
+    import std.algorithm.searching;
+
+    enum isReferenceMethod = cast(bool)(functionAttributes!T & FunctionAttribute.ref_);
+    mixin(methodModifiers.join(' ') ~ " " ~ ReturnType!T.stringof ~ " " ~ functionName
+            ~ Parameters!T.stringof ~ " { mixin implementNativeMethod!(\"" ~ librarySymbol ~ "\", false, " ~ to!string(
+                isReferenceMethod) ~ "); " ~ (is(ReturnType!T == void)
+                ? "" : "return ") ~ " execute(); }");
+}
+
+mixin template implementConstructor(T, string librarySymbol = "") if (isCallable!T)
+{
+    import std.typecons;
+    import std.traits;
+    import std.conv;
+
+    mixin implementDefaultConstructor;
+
+    this(ParameterTypeTuple!T)
+    {
+        this(PrivateConstructorOperation.ALLOCATE);
+        static if (librarySymbol != "")
+        {
+            mixin implementNativeMethod!(librarySymbol, true);
+            execute();
+        }
+    }
+}
+
 mixin template implementDestructor(string librarySymbol = "")
 {
     import std.typecons;
@@ -131,34 +182,44 @@ mixin template implementDestructor(string librarySymbol = "")
     import core.stdc.stdlib;
     import std.conv;
 
-    mixin("~this() { static if (" ~ to!string(librarySymbol != "")
-            ~ ") { mixin implementNativeMethod!\"" ~ librarySymbol
-            ~ "\"; execute(); } free(handle.ptr); }");
+    ~this()
+    {
+        static if (librarySymbol != "")
+        {
+            mixin implementNativeMethod!librarySymbol;
+            execute();
+        }
+        free(cast(void*) nativeHandle);
+    }
 }
 
 /*
-exemple de code généré:
-alias extern(C) void function(void* handle) ExternCFunction;
-void execute() { 
-	(LibraryBundle.instance.libraries["libandroidappmusic"].loadSymbol!(ExternCFunction)("_ZN17storeservicescore20RequestContextConfigC2Ev"))(handle.ptr); 
-}
 Ce mixin ne devrait etre utilisé que par les autres mixin d'implémentation.
  */
-mixin template implementNativeMethod(string librarySymbol, bool isConstructor = false, bool isRef = false)
+mixin template implementNativeMethod(string librarySymbol,
+        bool isConstructor = false, bool isRef = false)
 {
     static assert(is(typeof(this) : AndroidClass), "Le type doit être derrivé d'AndroidClass !");
     import std.traits;
     import std.string;
-    import core.stdcpp.string;
     import app;
     import std.typecons;
     import std.meta;
+	import provision.android.ndkstring;
+
+    alias thisFunc = __traits(parent, {});
+    enum isStatic = __traits(isStaticFunction, thisFunc);
 
     static if (!isConstructor)
     {
-        static if (is(Unqual!(typeof(return)) : AndroidClass))
+        alias UnqualifiedReturnType = Unqual!(typeof(return));
+        static if (__traits(hasMember, typeof(return), "nativeHandle"))
         {
             alias RetType = void*;
+        }
+        else static if (is(UnqualifiedReturnType == string))
+        {
+            alias RetType = NdkString;
         }
         else
         {
@@ -170,8 +231,7 @@ mixin template implementNativeMethod(string librarySymbol, bool isConstructor = 
         alias RetType = void;
     }
 
-    static if (mixin("__traits(isStaticFunction, " ~ mixin(
-            "__traits(identifier, __traits(parent, {}))") ~ ")"))
+    static if (isStatic)
     {
         alias ObjectType = AliasSeq!();
     }
@@ -180,30 +240,132 @@ mixin template implementNativeMethod(string librarySymbol, bool isConstructor = 
         alias ObjectType = void*;
     }
 
-    alias Arguments = TranslateToAndroidCpp!(__traits(parent, {}));
+    alias Arguments = TranslateToAndroidCpp!(thisFunc);
 
-	alias BasicExternCppFunction = extern (C++) RetType function(ObjectType, Parameters!Arguments);
-    static if (isRef) 
+    alias BasicExternFunction = extern (C) RetType function(ObjectType, Parameters!Arguments);
+    static if (isRef)
     {
-    	alias ExternCFunction = extern (C++) SetFunctionAttributes!(BasicExternCppFunction, functionLinkage!BasicExternCppFunction, functionAttributes!BasicExternCppFunction | FunctionAttribute.ref_);
+        alias ExternCFunction = SetFunctionAttributes!(BasicExternFunction,
+                functionLinkage!BasicExternFunction,
+                functionAttributes!BasicExternFunction | FunctionAttribute.ref_);
     }
-    else 
+    else
     {
-    	alias ExternCFunction = BasicExternCppFunction;
+        alias ExternCFunction = BasicExternFunction;
     }
 
-    mixin((isRef ? "ref " : "") ~ (isConstructor ? "void" : (typeof(return))
-            .stringof) ~ " execute() { " ~ ((typeof(return)).stringof == "void"
-            || isConstructor ? "" : "return ") ~ (is(typeof(return) : AndroidClass)
-            && !isConstructor ? "new " ~ typeof(return).stringof ~ "(" : "") // Charger le symbole qu'on nous a donné
-             ~ "(bundle[\"" ~ getLibrary!(typeof(this))
-            .libraryName ~ "\"].loadSymbol!(ExternCFunction)(\"" ~ librarySymbol ~ "\"))(" // Invoquer la fonction avec tous les arguments du parent.
-            // d'abord on vérifie si on met la handle
-             ~ (
-                mixin("__traits(isStaticFunction, " ~ mixin(
-                "__traits(identifier, __traits(parent, {}))") ~ ")") ? "" : "handle.ptr, ") // puis on passe tous les arguments avec les bons noms
-             ~ getCallString!(Parameters!(__traits(parent, {})))() // retrieveParamNames( params.stringof[1..$-1]).join( ", ")
-             ~ ")" ~ (is(typeof(return) : AndroidClass) && !isConstructor ? ")" : "") ~ ";}");
+    static if (isConstructor)
+    {
+        alias ExecuteReturn = void;
+    }
+    else
+    {
+        alias ExecuteReturn = typeof(return);
+    }
+
+    alias PassedArguments1 = Parameters!Arguments;
+    alias PassedArguments = MakeAllMutable!PassedArguments1;
+
+    Tuple!(ObjectType, PassedArguments) getParams()
+    {
+        pragma(inline, true);
+        Tuple!(PassedArguments) params;
+        static if (is(typeof(thisFunc) Params == __parameters))
+        {
+            static foreach (i, Param; Params)
+            {
+                static if (__traits(hasMember, Param, "nativeHandle"))
+                {
+                    params[i] = cast(PassedArguments[i]) mixin("_param_" ~ to!string(i))
+                        .nativeHandle;
+                }
+                else static if (is(Param : string))
+                {
+                	{
+                		auto str = new NdkString(mixin("_param_" ~ to!string(i)));
+                    	params[i] = cast(PassedArguments[i]) str.nativeHandle;
+                    	toCleanup ~= str;
+                    }
+                }
+                else
+                {
+                    params[i] = cast(PassedArguments[i]) mixin("_param_" ~ to!string(i));
+                }
+            }
+        }
+
+        Tuple!ObjectType h;
+        static if (is(ObjectType == void*))
+        {
+            h[0] = cast(void*) nativeHandle;
+        }
+
+        return tuple(h.expand, params.expand);
+    }
+
+    ExecuteReturn execute()
+    {
+        pragma(inline, true);
+        auto params = getParams();
+        auto func = (bundle[getLibrary!(typeof(this))
+                .libraryName].loadSymbol!ExternCFunction(librarySymbol));
+        static if (!is(ExecuteReturn == void))
+        {
+            auto ret = func(params.expand);
+            cleanup();
+            alias Template = TemplateOf!ExecuteReturn;
+            static if (is(Template == void))
+            {
+        		alias UnqualifiedReturnType = Unqual!ExecuteReturn;
+                static if (is(ExecuteReturn : AndroidClass))
+                {
+                    return new ExecuteReturn(PrivateConstructorOperation.WRAP_OBJECT,
+                            cast(OpaquePtr*) ret);
+                }
+                else static if (is(UnqualifiedReturnType == string))
+                {
+                    return new NdkString(PrivateConstructorOperation.WRAP_OBJECT,
+                            cast(OpaquePtr*) ret).toDString();
+                }
+                else
+                {
+                    return ret;
+                }
+            }
+            else
+            {
+                alias SharedPtredArr = TemplateArgsOf!ExecuteReturn;
+                alias SharedPtred = SharedPtredArr[0];
+
+                static if (__traits(isSame, Template, shared_ptr) && is(SharedPtred : AndroidClass))
+                {
+                    return cast(ExecuteReturn) ret;
+                }
+                else
+                {
+                    return ret;
+                }
+            }
+        }
+        else
+        {
+            func(params.expand);
+        }
+    }
+}
+
+import provision.android.ndkstring;
+string toDString(NdkString str)
+{
+	import std.string;
+	struct cpp_str
+	{
+		size_t[2] __padding;
+		char* c_str;
+	}
+	
+	auto native = cast(cpp_str*) str.nativeHandle;
+	return to!string(fromStringz(native.c_str));
 }
 
 template TranslateToAndroidCpp(Arguments...)
@@ -225,9 +387,15 @@ template TranslateToAndroidCppPriv(FuncArguments...)
     {
         // Conserver les attributs ref, out...
         alias Arg = Arguments[0 .. 1];
-        static if (is(Unqual!Arg : AndroidClass))
+        alias UnqualifiedArg = Unqual!Arg;
+        static if (__traits(hasMember, Arg, "nativeHandle"))
         {
-            alias FinalArg = CopyTypeQualifiers!(Arg, void*);
+            alias FinalArg = CopyTypeQualifiers!(Arg, OpaquePtr)*;
+        }
+        else static if (is(UnqualifiedArg == string))
+        {
+        	alias CppStrified = Parameters!(void function(ref const(Arg)));
+            alias FinalArg = CopyTypeQualifiers!(CppStrified, OpaquePtr)*;
         }
         else
         {
@@ -242,74 +410,71 @@ template TranslateToAndroidCppPriv(FuncArguments...)
     }
 }
 
-string[] splitWithoutParenthesis(string s, char delim)()
+package template MakeAllMutable(Args...)
 {
-    import std.string;
-
-    string[] ret = [];
-    string token = "";
-    int nested = 0;
-    foreach (c; s)
+    static if (Args.length)
     {
-        if (c == '(')
-        {
-            nested++;
-        }
-        else if (c == ')')
-        {
-            nested--;
-        }
-        else if (nested == 0)
-        {
-            if (c == delim)
-            {
-                ret ~= token.strip();
-                token = "";
-                continue;
-            }
-        }
-        token ~= c;
+        alias Arg = Args[0];
+        alias T(U) = Arg;
+        alias MakeAllMutable = AliasSeq!(MakeMutable!(T, Arg), MakeAllMutable!(Args[1 .. $]));
     }
-    ret ~= token.strip();
-    token = "";
-
-    return ret;
+    else
+    {
+        alias MakeAllMutable = AliasSeq!();
+    }
 }
 
-string getCallString(Args...)()
+package template MakeMutable(alias Modifier, T)
 {
-    import std.conv;
-    import std.traits;
-
-    string call = "";
-    int i = 0;
-    static foreach (T; Args)
-    {
-        call ~= "_param_" ~ to!string(i);
-        if (is(Unqual!(T) : AndroidClass))
-        {
-            call ~= ".handle.ptr";
-        }
-        call ~= ", ";
-        i++;
-    }
-    return call;
+    static if (is(T U == immutable U))
+        alias MakeMutable = U;
+    else static if (is(T U == shared inout const U))
+        alias MakeMutable = shared inout U;
+    else static if (is(T U == shared inout U))
+        alias MakeMutable = shared inout U;
+    else static if (is(T U == shared const U))
+        alias MakeMutable = shared U;
+    else static if (is(T U == shared U))
+        alias MakeMutable = shared U;
+    else static if (is(T U == inout const U))
+        alias MakeMutable = inout U;
+    else static if (is(T U == inout U))
+        alias MakeMutable = inout U;
+    else static if (is(T U == const U))
+        alias MakeMutable = U;
+    else
+        alias MakeMutable = T;
 }
 
 AndroidClassInfo getLibrary(T)()
 {
-    foreach (attr; __traits(getAttributes, T))
+    enum attributes = __traits(getAttributes, T);
+    static if (attributes.length != 0)
     {
-        if (is(typeof(attr) == AndroidClassInfo))
+        static foreach (attr; attributes)
         {
-            return cast(AndroidClassInfo) attr;
+            static if (is(typeof(attr) == AndroidClassInfo))
+            {
+                return cast(AndroidClassInfo) attr;
+            }
         }
     }
-    throw new InvalidClassException("La couche de compatibilité de la classe native \"" ~ T.stringof
-            ~ "\" est mal conçue. Elle doit avoir l'attribut AndroidClassInfo(string libraryName, int classSize)");
+    else
+    {
+        throw new InvalidClassException("La couche de compatibilité de la classe native \"" ~ T.stringof
+                ~ "\" est mal conçue. Elle doit avoir l'attribut AndroidClassInfo(string libraryName, int classSize)");
+    }
 }
 
 class InvalidClassException : Exception
+{
+    this(string msg, string file = __FILE__, size_t line = __LINE__)
+    {
+        super(msg, file, line);
+    }
+}
+
+class InvalidCtorCallException : Exception
 {
     this(string msg, string file = __FILE__, size_t line = __LINE__)
     {

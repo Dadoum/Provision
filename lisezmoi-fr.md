@@ -6,6 +6,12 @@ Provision est un outil en développement qui permettra de récupérer les identi
 
 ## Compilation
 
+### Dépendances
+Pour compiler Provision, il requiert d'avoir libc++ (LLVM C++) en 32 bits d'installé !
+Il y a de grandes chances que vous ayez à le compiler vous meme et à ce qu'il ne soit pas disponnible dans votre distribution par défaut.
+
+## Méthode
+
 Clonez le projet et compilez le avec CMake:
 
 ```bash

@@ -12,9 +12,13 @@ import core.stdcpp.string;
     mixin implementDefaultConstructor;
     mixin implementConstructor!(void function(CCharPointer), "_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC2IDnEEPKc");
     mixin implementDestructor!"_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEED2Ev";
+    mixin ndkStringCtorWorkaround;
 }
 
-NdkString toNdkString(string str)
+mixin template ndkStringCtorWorkaround() 
 {
-	return new NdkString(str.toStringz());
+    this(string s)
+    {
+    	this(s.toStringz());
+    }
 }

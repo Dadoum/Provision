@@ -17,3 +17,8 @@ import core.stdcpp.string;
 	// mixin implementMethod(void function(), "_ZN20androidstoreservices29AndroidRequestContextObserver26handleInternalAuthResponseERKNSt6__ndk110shared_ptrIN17storeservicescore20AuthenticateResponseEEE");
 	// mixin implementMethod(void function(), "_ZN20androidstoreservices29AndroidRequestContextObserver26handleRequestMetricsEventsERKNSt6__ndk16vectorINS1_10shared_ptrIN13mediaplatform18HTTPRequestMetricsEEENS1_9allocatorIS6_EEEE");
 }
+
+@AndroidClassInfo("libandroidappmusic", 120) class AndroidRequestContextObserverPtr : AndroidClass
+{
+    mixin implementDefaultConstructor;
+}

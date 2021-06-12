@@ -1,5 +1,6 @@
 provision_sources += files(
   'app.d',
+  'provision/glue.d',
   'provision/androidlibrary.d',
   'provision/androidclass.d',
   'provision/librarybundle.d',
@@ -15,5 +16,5 @@ provision_sources += files(
   'provision/android/filepath.d',
   'provision/android/deviceguid.d',
   'provision/android/httpproxy.d',
-  'ssoulaimane/stdcpp/vector.d',
+  'provision/android/defaultstoreclient.d',
 )

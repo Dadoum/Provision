@@ -13,9 +13,4 @@ import core.stdcpp.string;
             ref const(NdkString) oldGuidStr, ref const(uint) sdkVersion,
             ref const(bool) hasFairplay), "configure", "_ZN17storeservicescore10DeviceGUID9configureERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_RKjRKb",
             );
-
-    mixin implementMethod!(shared_ptr!void function(), "instance",
-            "_ZN17storeservicescore10DeviceGUID8instanceEv", ["static"]);
-    mixin implementMethod!(bool function(), "isConfigured",
-            "_ZN17storeservicescore10DeviceGUID12isConfiguredEv");
 }
