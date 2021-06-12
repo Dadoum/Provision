@@ -11,5 +11,5 @@ import core.stdcpp.string;
     mixin implementDestructor;
 
     mixin implementConstructor!(void function(int,
-            ref const(NdkString) std_string, ref const(ushort) ushort_const_ref), "_ZN13mediaplatform9HTTPProxyC2ENS0_4TypeERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEERKt");
+            string, ref const(ushort)), "_ZN13mediaplatform9HTTPProxyC2ENS0_4TypeERKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEERKt");
 }
