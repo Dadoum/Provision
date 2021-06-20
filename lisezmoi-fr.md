@@ -7,12 +7,11 @@ Provision est un outil en développement qui permettra de récupérer les identi
 ## Compilation
 
 ### Dépendances
-Pour compiler Provision, il requiert d'avoir libc++ (LLVM C++) en 32 bits d'installé !
-Il y a de grandes chances que vous ayez à le compiler vous meme et à ce qu'il ne soit pas disponnible dans votre distribution par défaut.
+Pour compiler Provision, vous devez avoir libc++ (LLVM C++).
 
 ## Méthode
 
-Clonez le projet et compilez le avec CMake:
+Clonez le projet et compilez le avec meson:
 
 ```bash
 git clone https://github.com/Dadoum/Provision
@@ -23,17 +22,16 @@ meson compile -C build
 
 ## Exécution
 
-Créez un dossier lib32 et apple32 à coté de l'exécutable.
+Créez un dossier lib et apple à coté de l'exécutable.
 
 ```bash
 # On est toujours dans le dossier Provision
 cd build
-sudo mkdir ./lib32
-sudo mkdir ./apple32
+sudo mkdir ./lib
+sudo mkdir ./apple
 ```
 
-Maintenant, procurez vous les bibliothèques suivantes depuis un appareil android, ou l'NDK android, et placez les dans le dossier lib32/
-/!\ Certaines bibliothèques ne sont que factices dans la NDK, tel que libc.so.
+Maintenant, procurez vous les bibliothèques suivantes depuis l'NDK android, et placez les dans le dossier lib/ (veillez à ce qu'elles soient dans la bonne architecture)
 
 ```
 ld-android.so
@@ -47,7 +45,8 @@ libstdc++.so
 libandroid.so
 ```
 
-Ensuite récupérez celles-ci de l'application Apple Music et placez les dans apple32/:
+Ensuite récupérez celles-ci de l'application Apple Music et placez les dans apple/:
+Méthode: Ouvrez l'APK comme un zip, allez dans `lib/` ~ votre architecture, probablement x86_64 ~ `/*` et mettez tout dans le dossier.
 
 ```
 libxml2.so
@@ -72,5 +71,5 @@ libandroidappmusic.so
 Une fois tout placé, vous pouvez lancer l'exécutable !
 
 ```bash
-./Provision
+./provision
 ```

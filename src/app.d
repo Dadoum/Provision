@@ -13,6 +13,9 @@ import std.typecons;
 import core.stdcpp.string;
 import provision.androidclass;
 import provision.android.ndkstring;
+import provision.utils.segfault;
+
+@live:
 
 extern (C)
 {
@@ -33,9 +36,9 @@ extern (C)
     }
 }
 
-LibraryBundle bundle;
+LibraryBundle* bundle;
 
-void main()
+int main()
 {
     debug
     {
@@ -48,129 +51,139 @@ void main()
             &_ZN13mediaplatform26DebugLogEnabledForPriorityENS_11LogPriorityEHook);
     AndroidLibrary.addGlobalHook("__android_log_write", &__android_log_writeHook);
 
-    bundle = new LibraryBundle();
-    scope (exit)
-        destroy(bundle);
-    import std.traits;
+    bundle = LibraryBundle();
 
-    logln("Création d'un contexte de requete");
-    logln(
-            "Création d'une configuration de contexte de requete (afin de créer un contexte de requete)");
-
-	procedure();
-}
-
-void procedure()
-{
-	import provision.glue;
-    import provision.android.requestcontextconfig;
-    import provision.android.requestcontext;
-    import std.file;
-    
-    auto rcConfigPtr = create_shared(new RequestContextConfig());
-    scope (exit)
-        destroy_shared(rcConfigPtr);
-
-    log("(Re)configuration du dossier...");
-    const(string) bdp = expandTilde("~/.config/octocertif");
-    if (!bdp.exists)
     {
-        bdp.mkdir();
-    }
-    logln("(localisé à %s)", bdp);
+        import provision.glue;
+        import provision.android.requestcontextconfig;
+        import provision.android.requestcontext;
+        import std.file;
 
-    string linuxId = to!string(read("/etc/machine-id", 16));
+        logln("Création d'un contexte de requete");
+        logln(
+                "Création d'une configuration de contexte de requete (afin de créer un contexte de requete)");
 
-    const(uint) sdkVersion = 29;
-    const(bool) hasFairplay = true;
+        auto rcConfigPtr = create_shared(new RequestContextConfig());
 
-    logln("Configuration du contexte de requete... ");
-    
-    shared_ptr!RequestContext contextPtr = RequestContext.makeShared(bdp);
-    scope (exit)
-       destroy_shared(contextPtr);
-
-    rcConfigPtr.get().setBaseDirectoryPath(bdp);
-    rcConfigPtr.get().setClientIdentifier("Music");
-    rcConfigPtr.get().setVersionIdentifier("4.3"); // 11.2
-    rcConfigPtr.get().setPlatformIdentifier("Android"); // Linux
-    rcConfigPtr.get().setProductVersion("7.0.0"); // 5.11.2
-    rcConfigPtr.get().setDeviceModel("Google Pixel"); // HP ProBook 430 G5
-    rcConfigPtr.get().setBuildVersion("5803371"); // 0
-    rcConfigPtr.get().setLocaleIdentifier("fr"); // fr
-    rcConfigPtr.get().setLanguageIdentifier("fr"); // fr
-
-    import provision.android.httpproxy;
-    
-    const(ushort) port = 80;
-    auto httpProxy = new HTTPProxy(0, "", port);
-    scope (exit)
-        destroy(httpProxy);
-
-    rcConfigPtr.get().setHTTPProxy(httpProxy);
-    rcConfigPtr.get().setResetHttpCache(true);
-
-    import provision.android.androidrequestcontextobserver;
-
-    shared_ptr!AndroidRequestContextObserver observerPtr = create_shared(new AndroidRequestContextObserver(
-            PrivateConstructorOperation.ALLOCATE));
-    scope (exit)
-        destroy_shared(observerPtr);
-    rcConfigPtr.get().setRequestContextObserver(observerPtr);
-
-    import provision.android.foothillconfig;
-
-    FootHillConfig.config(linuxId);
-    logln(rcConfigPtr.get().baseDirectoryPath());
-    
-    import provision.android.deviceguid;
-
-    auto deviceGuid = DeviceGUID.instance();
-    if (deviceGuid.get() !is null)
-    {
-        if (!deviceGuid.get().isConfigured())
+        log("(Re)configuration du dossier...");
+        const(string) bdp = expandTilde("~/.config/octocertif");
+        if (!bdp.exists)
         {
-            // deviceGuid.get().configure(linuxId, "", sdkVersion, hasFairplay);
+            bdp.mkdir();
         }
+        logln("(localisé à %s)", bdp);
+
+        string linuxId = to!string(read("/etc/machine-id", 16));
+
+        const(uint) sdkVersion = 29;
+        const(bool) hasFairplay = true;
+
+        logln("Configuration du contexte de requete... ");
+
+        shared_ptr!RequestContext contextPtr = RequestContext.makeShared(bdp);
+        //     scope (exit)
+        //        destroy_shared(contextPtr);
+
+        rcConfigPtr.get().setBaseDirectoryPath(bdp);
+        rcConfigPtr.get().setClientIdentifier("Music");
+        rcConfigPtr.get().setVersionIdentifier("4.3"); // 11.2
+        rcConfigPtr.get().setPlatformIdentifier("Android"); // Linux
+        rcConfigPtr.get().setProductVersion("7.0.0"); // 5.11.2
+        rcConfigPtr.get().setDeviceModel("Google Pixel"); // HP ProBook 430 G5
+        rcConfigPtr.get().setBuildVersion("5803371"); // 0
+        rcConfigPtr.get().setLocaleIdentifier("fr"); // fr
+        rcConfigPtr.get().setLanguageIdentifier("fr"); // fr
+
+        import provision.android.httpproxy;
+
+        const(ushort) port = 80;
+        auto httpProxy = new HTTPProxy(0, "", port);
+        scope (exit)
+            destroy(httpProxy);
+
+        rcConfigPtr.get().setHTTPProxy(httpProxy);
+        rcConfigPtr.get().setResetHttpCache(true);
+
+        import provision.android.androidrequestcontextobserver;
+
+        shared_ptr!AndroidRequestContextObserver observerPtr = create_shared(
+                new AndroidRequestContextObserver(PrivateConstructorOperation.ALLOCATE));
+        scope (exit)
+            destroy_shared(observerPtr);
+        rcConfigPtr.get().setRequestContextObserver(observerPtr);
+
+        import provision.android.foothillconfig;
+
+        FootHillConfig.config(linuxId);
+
+        import provision.android.deviceguid;
+        import provision.android.storeerrorcondition;
+        import provision.android.data;
+
+        log("Création d'un identifiant... ");
+        auto deviceGuid = DeviceGUID.instance();
+        if (deviceGuid.get() !is null)
+        {
+            if (!deviceGuid.get().isConfigured())
+            {
+                StoreErrorCondition error = deviceGuid.get().configure(linuxId,
+                        "", sdkVersion, hasFairplay);
+                auto code = error.errorCode();
+                if (code == ErrorCode.SUCCESS)
+                {
+                    logln("succès !");
+                }
+                else
+                {
+                    logln("échec... (code %d) ", code);
+                    return code;
+                }
+            }
+        }
+
+        import provision.android.filepath;
+        import provision.android.contentbundle;
+
+        const(FilePath) baseDir = new FilePath(expandTilde("~/.config/octocertif"));
+        scope (exit)
+            destroy(baseDir);
+
+        const(FilePath) cacheDir = new FilePath(expandTilde("~/.config/octocertif/cache"));
+        scope (exit)
+            destroy(cacheDir);
+
+        const(FilePath) filesDir = new FilePath(expandTilde("~/.config/octocertif"));
+        scope (exit)
+            destroy(filesDir);
+
+        auto langs = string_vector_create();
+        scope (exit)
+            string_vector_delete(langs);
+        string_vector_push_back(langs, toStringz("fr"));
+
+        ContentBundle contentBundle = new ContentBundle(baseDir, cacheDir, filesDir, langs);
+        scope (exit)
+            destroy(contentBundle);
+        auto contentBundlePtr = create_shared(contentBundle);
+        rcConfigPtr.get().setContentBundle(contentBundlePtr);
+
+        rcConfigPtr.get().setFairPlayDirectoryPath(expandTilde("~/.config/octocertif/fairPlay"));
+
+        logln("Application de la configuration...");
+        import provision.android.requestcontextmanager;
+
+        RequestContextManager.configure(contextPtr);
+
+        contextPtr.get().initialize(rcConfigPtr);
+
+        logln("On passe à l'approvisionnement...");
+        import provision.android.defaultstoreclient;
+
+        auto dscPtr = DefaultStoreClient.make(contextPtr);
+        //     auto str = dscPtr.get().getAnisetteRequestMachineId();
+
+        logln!()("Nettoyage...", LogPriority.verbeux);
     }
-
-    import provision.android.filepath;
-    import provision.android.contentbundle;
-    const(FilePath) baseDir = new FilePath(expandTilde("~/.config/octocertif"));
-    scope (exit)
-        destroy(baseDir);
-
-    const(FilePath) cacheDir = new FilePath(expandTilde("~/.config/octocertif/cache"));
-    scope (exit)
-        destroy(cacheDir);
-        
-    const(FilePath) filesDir = new FilePath(expandTilde("~/.config/octocertif"));
-    scope (exit)
-        destroy(filesDir);
-
-    auto langs = string_vector_create();
-    scope (exit)
-        string_vector_delete(langs);
-    string_vector_push_back(langs, toStringz("fr"));
-
-    ContentBundle contentBundle = new ContentBundle(baseDir, cacheDir, filesDir, langs);
-    scope (exit)
-        destroy(contentBundle);
-    auto contentBundlePtr = create_shared(contentBundle);
-    rcConfigPtr.get().setContentBundle(contentBundlePtr);
     
-    rcConfigPtr.get().setFairPlayDirectoryPath(expandTilde("~/.config/octocertif/fairPlay"));
-
-    logln("Application de la configuration...");
-    import provision.android.requestcontextmanager;
-    RequestContextManager.configure(contextPtr);
-    
-    contextPtr.get().init(rcConfigPtr);
-    
-    logln("On passe à l'approvisionnement...");
-    import provision.android.defaultstoreclient;
-    auto dscPtr = DefaultStoreClient.make(contextPtr);
-    auto str = dscPtr.get().getAnisetteRequestMachineId();
-    
-    logln!()("Nettoyage...", LogPriority.verbeux);
+    return 0;
 }

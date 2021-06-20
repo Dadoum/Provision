@@ -7,12 +7,11 @@ Provision is a tool which will permit to retrieve Anisette headers.
 ## Compiling
 
 ### Dependencies
-To compile Provision, you must have installed libc++ (LLVM C++) in 32 bits !
-You'll likely have to compile it yourself, because it is not usually packaged in distributions by default.
+To compile Provision, you must have installed libc++ (LLVM C++).
 
 ## Method
 
-Clone the project and compile it with CMake:
+Clone the project and compile it with meson:
 
 ```bash
 git clone https://github.com/Dadoum/Provision
@@ -24,17 +23,16 @@ make
 
 ## Running
 
-Create two folders, lib32 and apple32, next to the executable exécutable.
+Create two folders, lib and apple, next to the executable exécutable.
 
 ```bash
 # We are still in Provision folder
 cd build
-sudo mkdir ./lib32
-sudo mkdir ./apple32
+sudo mkdir ./lib
+sudo mkdir ./apple
 ```
 
-Now, retrieve these library from an android device, or from android NDK, and place them in lib32/ folder
-/!\ Some libraries, such as libc, only contains stubs !
+Now, retrieve these libraries from android NDK, and place them in lib/ folder. 
 
 ```
 ld-android.so
@@ -48,7 +46,8 @@ libstdc++.so
 libandroid.so
 ```
 
-Then find these one from Apple Music application and place them in apple32/:
+Then find these one from Apple Music application and place them in apple/:
+Method: Open APK as a zip file, go into `lib/` ~ your architecture, probably x86_64 ~ `/*` and put everything in the folder.
 
 ```
 libxml2.so
@@ -73,5 +72,5 @@ libandroidappmusic.so
 Once you got everything set-up, you can launch Provision executable !
 
 ```bash
-./Provision
+./provision
 ```

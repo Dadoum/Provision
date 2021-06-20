@@ -5,7 +5,7 @@ import provision.androidclass;
 import core.stdcpp.allocator;
 import core.stdcpp.string;
 
-@AndroidClassInfo("libandroidappmusic", 120) class AndroidRequestContextObserver : AndroidClass
+@AndroidClassInfo(Library.LIBANDROIDAPPMUSIC, 120) class AndroidRequestContextObserver : AndroidClass
 {
     mixin implementDefaultConstructor;
     // mixin implementDestructor!"_ZN20androidstoreservices29AndroidRequestContextObserverD2Ev";
@@ -16,9 +16,4 @@ import core.stdcpp.string;
 	// mixin implementMethod(void function(), "_ZN20androidstoreservices29AndroidRequestContextObserver24setRequestMetricsHandlerEPFvRKNSt6__ndk16vectorINS1_10shared_ptrIN13mediaplatform18HTTPRequestMetricsEEENS1_9allocatorIS6_EEEEE");
 	// mixin implementMethod(void function(), "_ZN20androidstoreservices29AndroidRequestContextObserver26handleInternalAuthResponseERKNSt6__ndk110shared_ptrIN17storeservicescore20AuthenticateResponseEEE");
 	// mixin implementMethod(void function(), "_ZN20androidstoreservices29AndroidRequestContextObserver26handleRequestMetricsEventsERKNSt6__ndk16vectorINS1_10shared_ptrIN13mediaplatform18HTTPRequestMetricsEEENS1_9allocatorIS6_EEEE");
-}
-
-@AndroidClassInfo("libandroidappmusic", 120) class AndroidRequestContextObserverPtr : AndroidClass
-{
-    mixin implementDefaultConstructor;
 }

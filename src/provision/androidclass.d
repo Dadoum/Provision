@@ -1,8 +1,8 @@
 module provision.androidclass;
 
+public import provision.librarybundle;
 import provision.androidlibrary;
 import provision.utils.loghelper;
-import provision.librarybundle;
 import std.traits;
 import std.meta;
 import std.exception;
@@ -30,7 +30,7 @@ abstract class AndroidClass
 
 struct AndroidClassInfo
 {
-    string libraryName;
+    Library libraryName;
     uint classSize;
 }
 
@@ -40,7 +40,7 @@ enum PrivateConstructorOperation
     WRAP_OBJECT
 }
 
-extern (C++,(StdNamespace))
+extern (C++)
 {
     extern (C++,class) struct shared_ptr(T)
     {
@@ -306,9 +306,11 @@ mixin template implementNativeMethod(string librarySymbol,
     ExecuteReturn execute()
     {
         pragma(inline, true);
+        import provision.androidlibrary;
         auto params = getParams();
-        auto func = (bundle[getLibrary!(typeof(this))
-                .libraryName].loadSymbol!ExternCFunction(librarySymbol));
+        AndroidLibrary library = bundle.libraries[getLibrary!(typeof(this))
+                .libraryName];
+        auto func = (library.loadSymbol!ExternCFunction(librarySymbol));
         static if (!is(ExecuteReturn == void))
         {
             auto ret = func(params.expand);
