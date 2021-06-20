@@ -23,7 +23,7 @@ make
 
 ## Running
 
-Create two folders, lib and apple, next to the executable exécutable.
+Create two folders, lib and apple, next to the executable.
 
 ```bash
 # We are still in Provision folder
