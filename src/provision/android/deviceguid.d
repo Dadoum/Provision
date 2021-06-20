@@ -1,13 +1,14 @@
 module provision.android.deviceguid;
 
 import provision.glue;
+import provision.android.data;
 import provision.android.ndkstring;
 import provision.android.storeerrorcondition;
 import provision.androidclass;
 import core.stdcpp.allocator;
 import core.stdcpp.string;
 
-@AndroidClassInfo("libstoreservicescore", 392) class DeviceGUID : AndroidClass
+@AndroidClassInfo(Library.LIBSTORESERVICESCORE, 392) class DeviceGUID : AndroidClass
 {
     mixin implementDefaultConstructor;
 
@@ -19,5 +20,7 @@ import core.stdcpp.string;
             "_ZN17storeservicescore10DeviceGUID8instanceEv", ["static"]);
     mixin implementMethod!(bool function(), "isConfigured",
             "_ZN17storeservicescore10DeviceGUID12isConfiguredEv");
+    mixin implementMethod!(shared_ptr!Data function(), "guid",
+            "_ZN17storeservicescore10DeviceGUID4guidEv");
 }
 

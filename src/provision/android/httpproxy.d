@@ -5,7 +5,7 @@ import provision.androidclass;
 import core.stdcpp.allocator;
 import core.stdcpp.string;
 
-@AndroidClassInfo("libmediaplatform", 0x60) class HTTPProxy : AndroidClass
+@AndroidClassInfo(Library.LIBMEDIAPLATFORM, 0x60) class HTTPProxy : AndroidClass
 {
     mixin implementDefaultConstructor;
     mixin implementDestructor;

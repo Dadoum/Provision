@@ -6,7 +6,7 @@ build_args = []
 
 cc = meson.get_compiler('c')
 d = meson.get_compiler('d')
-assert(d.get_id() == 'llvm', 'Fonctionne uniquement avec ldc pour le moment; Veuillez définir DC conformément. (vous utilisez \'' + d.get_id() + '\' actuellement)')
+# assert(d.get_id() == 'llvm', 'Fonctionne uniquement avec ldc pour le moment; Veuillez définir DC conformément. (vous utilisez \'' + d.get_id() + '\' actuellement)')
 
 if get_option('buildtype').startswith('debug')
 	if d.get_id() == 'llvm'
@@ -28,7 +28,11 @@ provision_deps = []
 subdir('src')
 src = include_directories('src')
 
-add_global_arguments(build_args + ['-preview=shortenedMethods'], language: 'd')
+if d.get_id() == 'llvm'
+	add_global_arguments(build_args + ['-preview=shortenedMethods'], language: 'd')
+else
+	add_global_arguments(build_args, language: 'd')
+endif
 add_global_arguments(build_args, language: 'c')
 add_global_arguments(build_args + ['-nostdinc++', '-I/usr/include/c++/v1', '-nodefaultlibs', '-lc++', '-lc++abi', '-lm', '-lc', '-lgcc_s', '-lgcc'], language: 'cpp')
 

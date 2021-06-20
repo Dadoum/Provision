@@ -6,7 +6,7 @@ import provision.androidclass;
 import core.stdcpp.allocator;
 import core.stdcpp.string;
 
-@AndroidClassInfo("libandroidappmusic", 120) class FilePath : AndroidClass
+@AndroidClassInfo(Library.LIBANDROIDAPPMUSIC, 120) class FilePath : AndroidClass
 {
     mixin implementDefaultConstructor;
     mixin implementDestructor!"_ZN13mediaplatform8FilePathD2Ev";

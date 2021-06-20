@@ -6,7 +6,7 @@ import provision.androidclass;
 import core.stdcpp.allocator;
 import core.stdcpp.string;
 
-@AndroidClassInfo("libandroidappmusic", 392) class NdkString : AndroidClass
+@AndroidClassInfo(Library.LIBANDROIDAPPMUSIC, 392) class NdkString : AndroidClass
 {
 	alias CCharPointer = extern(C) const(char)*;
     mixin implementDefaultConstructor;

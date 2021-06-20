@@ -14,7 +14,7 @@ import core.stdc.stdlib;
 import provision.android.httpproxy;
 import std.traits;
 
-@AndroidClassInfo("libandroidappmusic", 392) class RequestContextConfig : AndroidClass
+@AndroidClassInfo(Library.LIBANDROIDAPPMUSIC, 392) class RequestContextConfig : AndroidClass
 {
     mixin implementDefaultConstructor;
     mixin implementConstructor!(void function(), "_ZN17storeservicescore20RequestContextConfigC2Ev");
@@ -51,8 +51,4 @@ import std.traits;
     mixin implementMethod!(void function(ref const(shared_ptr!ContentBundle)), "setContentBundle", "_ZN17storeservicescore20RequestContextConfig16setContentBundleERKNSt6__ndk110shared_ptrIN13mediaplatform13ContentBundleEEE");
     
     mixin implementMethod!(string function(), "baseDirectoryPath", "_ZNK17storeservicescore20RequestContextConfig17baseDirectoryPathEv");
-}
-
-@AndroidClassInfo("libandroidappmusic", 392) class RequestContextConfigPtr : AndroidClass
-{
 }

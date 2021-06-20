@@ -5,6 +5,7 @@ import std.conv;
 import std.stdio;
 import std.path;
 import std.traits;
+import std.algorithm;
 import std.string;
 import core.exception;
 import provision.utils.loghelper;
@@ -112,12 +113,13 @@ class AndroidLibrary
 {
     public static VM* vm;
 
-    private bool redirectingToSystem = false;
-    private void* libraryHandle;
-    private string libraryName;
+    public string libraryFileName;
 
     private static void*[AndroidLibrary] systemLibraries;
     private static void*[string] globalHooks;
+    
+    private bool redirectingToSystem = false;
+    private void* libraryHandle;
 
     extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* l)
     {
@@ -143,13 +145,13 @@ class AndroidLibrary
 
     public this(string libraryName, LibraryType type = LibraryType.ANDROID_LIBRARY)
     {
+        this.libraryFileName = baseName(libraryName).dup;
         if (type == LibraryType.NATIVE_LINUX_LIBRARY)
         {
-            this.libraryName = baseName(libraryName);
-            log!(string)("Chargement de %s depuis le système... ", this.libraryName, LogPriority.verbeux);
+            log!(string)("Chargement de %s depuis le système... ", this.libraryFileName, LogPriority.verbeux);
             import provision.glue;
 
-            auto systemLibrary = dlopen(toStringz(libraryName), RTLD_LAZY);
+            auto systemLibrary = dlopen(toStringz(libraryName), RTLD_LAZY | RTLD_LOCAL);
             if (systemLibrary == null)
             {
                 throw new LibraryLoadException(to!string(dlerror()));
@@ -161,8 +163,7 @@ class AndroidLibrary
         }
         else if (type == LibraryType.ANDROID_LIBRARY)
         {
-            this.libraryName = baseName(libraryName);
-            log!string("Chargement de %s... ", this.libraryName, LogPriority.verbeux);
+            log!string("Chargement de %s... ", this.libraryFileName, LogPriority.verbeux);
             libraryHandle = hybris_dlopen(toStringz(libraryName), RTLD_LAZY);
             if (libraryHandle == null)
             {
@@ -189,7 +190,12 @@ class AndroidLibrary
 
     ~this()
     {
-        hybris_dlclose(libraryHandle);
+    	import core.thread.osthread;
+    	import core.time;
+        
+    	if (libraryHandle !is null)
+        	hybris_dlclose(libraryHandle);
+		
         if (redirectingToSystem)
         {
             redirectingToSystem = false;
@@ -206,7 +212,7 @@ class AndroidLibrary
         if (sym == null)
         {
             throw new LibraryLoadException(
-                    "Symbole \"" ~ symbol ~ "\" introuvable: " ~ to!string(hybris_dlerror()));
+                    "Symbole \"" ~ symbol ~ "\" introuvable dans \"" ~ libraryFileName ~ "\": " ~ to!string(hybris_dlerror()));
         }
         return cast(typeof(return)) sym;
     }
