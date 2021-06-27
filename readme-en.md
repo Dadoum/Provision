@@ -21,7 +21,7 @@ cmake ..
 make
 ```
 
-## Running
+## Execution
 
 Create two folders, lib and apple, next to the executable.
 
