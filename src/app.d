@@ -151,8 +151,7 @@ int main(string[] args) {
 
         shared_ptr!RequestContext contextPtr = RequestContext.makeShared(bdp);
 
-        auto ndkstr = new NdkString(bdp);
-        rcConfigPtr.get().setBaseDirectoryPath(ndkstr);
+        rcConfigPtr.get().setBaseDirectoryPath(bdp);
         rcConfigPtr.get().setClientIdentifier("Music");
         rcConfigPtr.get().setVersionIdentifier("4.3"); // 11.2
         rcConfigPtr.get().setPlatformIdentifier("Android"); // Linux
@@ -188,21 +187,21 @@ int main(string[] args) {
         import provision.android.storeerrorcondition;
         import provision.android.data;
 
-//         log!()("Création d'un identifiant... ", LogPriority.verbeux);
-//         auto deviceGuid = DeviceGUID.instance();
-//         if (deviceGuid.get() !is null) {
-//             if (!deviceGuid.get().isConfigured()) {
-//                 StoreErrorCondition error = deviceGuid.get().configure(linuxId,
-//                         "", sdkVersion, hasFairplay);
-//                 auto code = error.errorCode();
-//                 if (code == ErrorCode.SUCCESS) {
-//                     logln!()("succès !", LogPriority.verbeux);
-//                 } else {
-//                     logln!(int)("échec... (code %d) ", code, LogPriority.verbeux);
-//                     return code;
-//                 }
-//             }
-//         }
+        log!()("Création d'un identifiant... ", LogPriority.verbeux);
+        auto deviceGuid = DeviceGUID.instance();
+        if (deviceGuid.get() !is null) {
+            if (!deviceGuid.get().isConfigured()) {
+                StoreErrorCondition error = deviceGuid.get().configure(linuxId,
+                        "", sdkVersion, hasFairplay);
+                auto code = error.errorCode();
+                if (code == ErrorCode.SUCCESS) {
+                    logln!()("succès !", LogPriority.verbeux);
+                } else {
+                    logln!(int)("échec... (code %d) ", code, LogPriority.verbeux);
+                    return code;
+                }
+            }
+        }
 
         import provision.android.filepath;
         import provision.android.contentbundle;
@@ -248,8 +247,9 @@ int main(string[] args) {
         logln("On passe à l'approvisionnement...");
         import provision.android.defaultstoreclient;
 
+//         contextPtr.get().getAuthHeader("");
         auto dscPtr = DefaultStoreClient.make(contextPtr);
-        // auto str = dscPtr.get().getAnisetteRequestMachineId();
+        auto str = dscPtr.get().getAnisetteRequestMachineId();
 
         logln!()("Nettoyage...", LogPriority.verbeux);
     }
