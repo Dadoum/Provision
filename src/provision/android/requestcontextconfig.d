@@ -18,7 +18,7 @@ import std.traits;
 
     mixin implementDestructor!"_ZN17storeservicescore20RequestContextConfigD2Ev";
 
-    mixin implementMethod!(void function(ref const(NdkString)), "setBaseDirectoryPath", "_ZN17storeservicescore20RequestContextConfig20setBaseDirectoryPathERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
+    mixin implementMethod!(void function(string), "setBaseDirectoryPath", "_ZN17storeservicescore20RequestContextConfig20setBaseDirectoryPathERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
 
     mixin implementMethod!(void function(string), "setFairPlayDirectoryPath", "_ZN17storeservicescore20RequestContextConfig24setFairPlayDirectoryPathERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");
 
