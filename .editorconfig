@@ -1,0 +1,7 @@
+[src/**.d]
+dfmt_brace_style = otbs
+dfmt_soft_max_line_length = 80
+max_line_length = 120
+trim_trailing_whitespace = true
+indent_style = tab
+tab_width = 4

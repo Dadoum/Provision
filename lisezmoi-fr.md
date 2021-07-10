@@ -22,53 +22,9 @@ meson compile -C build
 
 ## Exécution
 
-Créez un dossier lib et apple à coté de l'exécutable.
+Copiez le dossier lib de l'APK d'Apple Music dans le dossier build/, à coté de l'exécutable.
 
-```bash
-# On est toujours dans le dossier Provision
-cd build
-sudo mkdir ./lib
-sudo mkdir ./apple
-```
-
-Maintenant, procurez vous les bibliothèques suivantes depuis l'NDK android, et placez les dans le dossier lib/ (veillez à ce qu'elles soient dans la bonne architecture)
-
-```
-ld-android.so
-libdl.so
-libc.so
-liblog.so
-libm.so
-libz.so
-libOpenSLES.so
-libstdc++.so
-libandroid.so
-```
-
-Ensuite récupérez celles-ci de l'application Apple Music et placez les dans apple/:
-Méthode: Ouvrez l'APK comme un zip, allez dans `lib/` ~ votre architecture, probablement x86_64 ~ `/*` et mettez tout dans le dossier.
-
-```
-libxml2.so
-libc++_shared.so
-libcurl.so
-libCoreADI.so
-libCoreLSKD.so
-libCoreFP.so
-libBlocksRuntime.so
-libdispatch.so
-libicudata_sv_apple.so
-libicuuc_sv_apple.so
-libicui18n_sv_apple.so
-libdaapkit.so
-libCoreFoundation.so
-libmediaplatform.so
-libstoreservicescore.so
-libmedialibrarycore.so
-libandroidappmusic.so
-```
-
-Une fois tout placé, vous pouvez lancer l'exécutable !
+Vous pouvez ensuite démarrer l'exécutable depuis votre terminal:
 
 ```bash
 ./provision
