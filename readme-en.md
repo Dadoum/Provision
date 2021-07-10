@@ -20,7 +20,7 @@ meson build
 meson compile -C build
 ```
 
-## Running
+## Execution
 
 Just copy the lib folder from Apple Music application next to the executable.
 
