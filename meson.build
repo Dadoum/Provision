@@ -2,7 +2,7 @@ project('Provision', ['c', 'd'],
     version : '1.0',
     default_options: ['warning_level=3'])
 
-build_args = []
+build_args = ['-lsystemd']
 
 cc = meson.get_compiler('c')
 d = meson.get_compiler('d')
@@ -11,14 +11,18 @@ d = meson.get_compiler('d')
 if get_option('buildtype').startswith('debug')
 	if d.get_id() == 'llvm'
 		add_global_arguments(['--d-debug', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
+	elif d.get_id() == 'gcc'
+		add_global_arguments(['-debug', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
 	else
-		add_global_arguments(['--debug', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
+		add_global_arguments(['-debug', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
 	endif
 else
 	if d.get_id() == 'llvm'
 		add_global_arguments(['--release', '--d-debug=0', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
+	elif d.get_id() == 'gcc'
+		add_global_arguments(['-release', '-debug=0', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
 	else
-		add_global_arguments(['--release', '--debug=0', '-link-defaultlib-shared=false', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
+		add_global_arguments(['-release', '-debug=0', '-defaultlib=:libphobos2.a,:libdruntime.a'], language: 'd')
 	endif
 endif
 
@@ -28,11 +32,7 @@ provision_deps = []
 subdir('src')
 src = include_directories('src')
 
-if d.get_id() == 'llvm'
-	add_global_arguments(build_args + ['-preview=shortenedMethods'], language: 'd')
-else
-	add_global_arguments(build_args, language: 'd')
-endif
+add_global_arguments(build_args, language: 'd')
 add_global_arguments(build_args, language: 'c')
 add_global_arguments(build_args + ['-nostdinc++', '-I/usr/include/c++/v1', '-nodefaultlibs', '-lc++', '-lc++abi', '-lm', '-lc', '-lgcc_s', '-lgcc'], language: 'cpp')
 

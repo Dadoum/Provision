@@ -12,41 +12,40 @@ string[] priority = [
 ];
 
 void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
-        string file = __FILE__, string func = __FUNCTION__)
-{
-	debug { } else
-	{
-		if (prio == LogPriority.débug)
-		{
-			return;
-		}
-	}
-	
+        string file = __FILE__, string func = __FUNCTION__) {
+    debug {
+    } else {
+        if (prio == LogPriority.débug) {
+            return;
+        }
+    }
+
+    import app;
+
+    if (prio == LogPriority.verbeux && !isVerbeux) {
+        return;
+    }
+
     auto text = std.format.format(format, args);
-    if (lineStart)
-    {
+    if (lineStart) {
         writef("[%s] [%s:%s] %s >> ", getHour(), baseName(file), resume(func),
                 priority[cast(int) prio]);
     }
     write(text);
-    
+
     lineStart = text[$ - 1] == '\n';
     stdout.flush();
 }
 
 void logln(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
-        string file = __FILE__, string func = __FUNCTION__)
-{
+        string file = __FILE__, string func = __FUNCTION__) {
     log!Args(format ~ "\n", args, prio = prio, file = file, func = func);
 }
 
-string resume(string str)
-{
-    if (str.length >= 20)
-    {
+string resume(string str) {
+    if (str.length >= 20) {
         auto splits = str.split('.');
-        if (splits.length > 2)
-        {
+        if (splits.length > 2) {
             return resume(splits[$ - 2 .. $].join('.'));
         }
         return str[0 .. 8] ~ "..." ~ str[$ - 8 .. $];
@@ -54,8 +53,7 @@ string resume(string str)
     return str;
 }
 
-string getHour()
-{
+string getHour() {
     import std.datetime;
     import std.datetime.timezone;
     import std.array : appender;
@@ -67,8 +65,7 @@ string getHour()
     return w.data;
 }
 
-enum LogPriority
-{
+enum LogPriority {
     inconnu,
     défaut,
     verbeux,

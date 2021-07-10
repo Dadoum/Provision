@@ -6,25 +6,29 @@ import core.memory;
 import std.stdio;
 import std.traits;
 
+version (LDC) {
 @live:
+}
 
-struct LibraryBundle
-{
-    version (X86)
-    {
-        enum string defaultLibPrefix = "lib32/";
-        enum string applePrefix = "apple32/";
+struct LibraryBundle {
+    version (X86_64) {
+        enum string architectureIdentifier = "x86_64";
+    } else version (X86) {
+        enum string architectureIdentifier = "x86";
+    } else version (AArch64) {
+        enum string architectureIdentifier = "arm64-v8a";
+    } else version (ARM) {
+        enum string architectureIdentifier = "armeabi-v7a";
+    } else {
+        static assert(false, "Votre architecture n'est pas supportée ^^'.");
     }
-    else
-    {
-        enum string defaultLibPrefix = "lib/";
-        enum string applePrefix = "apple/";
-    }
+
+    enum string defaultLibPrefix = "../ndk/" ~ architectureIdentifier ~ "/";
+    enum string applePrefix = "lib/" ~ architectureIdentifier ~ "/";
 
     public AndroidLibrary[EnumMembers!Library.length] libraries;
 
-    static LibraryBundle* opCall()
-    {
+    static LibraryBundle* opCall() {
         scope auto ret = new LibraryBundle();
         ret.libraries = [
             new AndroidLibrary(defaultLibPrefix ~ "libc.so"),
@@ -36,7 +40,7 @@ struct LibraryBundle
             new AndroidLibrary(defaultLibPrefix ~ "libstdc++.so"),
             new AndroidLibrary(defaultLibPrefix ~ "libOpenSLES.so"),
             new AndroidLibrary(defaultLibPrefix ~ "libandroid.so"),
-            
+
             new AndroidLibrary(applePrefix ~ "libc++_shared.so"),
             new AndroidLibrary(applePrefix ~ "libCoreADI.so"),
             new AndroidLibrary(applePrefix ~ "libCoreLSKD.so"),
@@ -58,16 +62,14 @@ struct LibraryBundle
         return ret;
     }
 
-    ~this()
-    {
+    ~this() {
         destroy(libraries);
     }
 
     alias libraries this;
 }
 
-enum Library : int
-{
+enum Library : int {
     LIBC,
     NATIVE_LIBC,
     LIBDL,
@@ -77,7 +79,7 @@ enum Library : int
     LIBSTDCPP,
     LIBOPENSLES,
     LIBANDROID,
-    
+
     LIBCPP_SHARED,
     LIBCOREADI,
     LIBCORELSKD,

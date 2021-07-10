@@ -5,20 +5,19 @@ module provision.utils.segfault;
     when you segfault.
   */
 class SegmentationException : Exception {
-    this(string msg, string file = __FILE__, size_t line = __LINE__)
-    {
+    this(string msg, string file = __FILE__, size_t line = __LINE__) {
         super(msg, file, line);
     }
 
-    this (string file = __FILE__, size_t line = __LINE__) {
-        this ("tried to dereference a pointer to a nonexistent memory region", file, line);
+    this(string file = __FILE__, size_t line = __LINE__) {
+        this("Erreur de segmentation: un pointeur incorrect a été déréférencé", file, line);
     }
 }
 
 const int SA_SIGINFO = 4;
 const int SIGSEGV = 11;
 
-extern(C) {
+extern (C) {
     struct sig_action {
         // Dunno if a function* would work here...
         void* action;
@@ -26,14 +25,14 @@ extern(C) {
         void* restorer;
     }
 
-    int sigaction (int signal, sig_action* action, sig_action* oact);
+    int sigaction(int signal, sig_action* action, sig_action* oact);
 }
 
-void segv_throw (int i) {
+void segv_throw(int i) {
     throw new SegmentationException();
 }
 
-static this () {
+static this() {
     sig_action act;
     act.action = &segv_throw;
     act.flags = SA_SIGINFO;
