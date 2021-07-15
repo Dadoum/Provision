@@ -14,7 +14,7 @@ Pour compiler Provision, vous devez avoir libc++ (LLVM C++).
 Clonez le projet et compilez le avec meson:
 
 ```bash
-git clone https://github.com/Dadoum/Provision
+git clone git@github.com:Dadoum/Provision.git
 cd Provision
 meson build
 meson compile -C build

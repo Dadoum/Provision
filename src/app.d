@@ -244,12 +244,36 @@ int main(string[] args) {
             return initErrorCode;
         }
 
-        logln("On passe à l'approvisionnement...");
-        import provision.android.defaultstoreclient;
+        logln!()("On passe à l'approvisionnement...", LogPriority.verbeux);
+        // import provision.android.defaultstoreclient;
+        //
+        // auto dscPtr = DefaultStoreClient.make(contextPtr);
+        // auto str = DefaultStoreClient.getAnisetteRequestMachineId(0x0, dscPtr.ptr);
 
-//         contextPtr.get().getAuthHeader("");
-        auto dscPtr = DefaultStoreClient.make(contextPtr);
-        auto str = dscPtr.get().getAnisetteRequestMachineId();
+        // import provision.android.urlbagrequest;
+        // URLBagRequest urlBagRequest = new URLBagRequest(contextPtr);
+        // urlBagRequest.setCacheOptions(URLBagCacheOption.ignoresCache);
+        // urlBagRequest.run();
+
+        import provision.android.anisetteprotocolaction;
+
+        auto headers = str_str_multimap_create();
+        scope (exit)
+            str_str_multimap_delete(headers);
+
+        // Meilleure façon de récupérer le texte, plutot que juste l'écrire, autant directement le lire
+        auto md_action = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
+                void*)("_ZN17storeservicescore14XAppleMDActionE");
+        auto md_data = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
+                void*)("_ZN17storeservicescore12XAppleMDDataE");
+        headers.str_str_multimap_insert(md_action, md_data);
+        auto tempFakeAnisette = new AnisetteProtocolAction(
+                PrivateConstructorOperation.WRAP_OBJECT, cast(OpaquePtr*) new void* ());
+        auto anisetteProtocolAction = tempFakeAnisette.actionForHeaders(headers,
+                AnisetteProtocolVersion.standard);
+        logln!AnisetteProtocolVersion("%s",
+                anisetteProtocolAction.protocolVersion(), LogPriority.verbeux);
+        anisetteProtocolAction._provisionWithContext(contextPtr);
 
         logln!()("Nettoyage...", LogPriority.verbeux);
     }

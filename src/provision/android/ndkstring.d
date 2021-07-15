@@ -4,7 +4,7 @@ import std.string;
 import provision.android.storeerrorcondition;
 import provision.androidclass;
 
-@AndroidClassInfo(Library.LIBANDROIDAPPMUSIC, 392) class NdkString : AndroidClass {
+@AndroidClassInfo(Library.LIBCPP_SHARED, 392) class NdkString : AndroidClass {
     alias CCharPointer = extern (C) const(char)*;
     mixin implementDefaultConstructor;
     mixin implementConstructor!(void function(CCharPointer),

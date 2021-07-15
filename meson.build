@@ -6,7 +6,6 @@ build_args = ['-lsystemd']
 
 cc = meson.get_compiler('c')
 d = meson.get_compiler('d')
-# assert(d.get_id() == 'llvm', 'Fonctionne uniquement avec ldc pour le moment; Veuillez définir DC conformément. (vous utilisez \'' + d.get_id() + '\' actuellement)')
 
 if get_option('buildtype').startswith('debug')
 	if d.get_id() == 'llvm'
@@ -33,8 +32,8 @@ subdir('src')
 src = include_directories('src')
 
 add_global_arguments(build_args, language: 'd')
-add_global_arguments(build_args, language: 'c')
-add_global_arguments(build_args + ['-nostdinc++', '-I/usr/include/c++/v1', '-nodefaultlibs', '-lc++', '-lc++abi', '-lm', '-lc', '-lgcc_s', '-lgcc'], language: 'cpp')
+add_global_arguments(build_args + ['-DWANT_TRACE'], language: 'c')
+add_global_arguments(build_args + ['-nostdinc++', '-I/usr/include/c++/v1', '-nodefaultlibs', '-lc++', '-lc++abi', '-lm', '-lc', '-lgcc_s', '-lgcc', '-DWANT_TRACE'], language: 'cpp')
 
 libprovision = subproject('libprovision-glue')
 libprovision_dep = libprovision.get_variable('libprovision_dep')
@@ -46,16 +45,6 @@ libhybris = hybris.dependency('hybris')
 
 jnivm = cmake.subproject('libjnivm')
 libjnivm = jnivm.dependency('jnivm')
-
-# libs_dir = custom_target(
-#     'libs-dir',
-#     output: '.libs_copy',
-#     command: [
-#         'sh',
-#         '-c',
-#         'cp -r @0@/lib32 @1@/lib32 && cp -r @0@/apple32 @1@/apple32 && touch .libs_copy'.format(meson.current_source_dir(), meson.current_build_dir()),
-#     ],
-# )
 
 exe = executable('provision', sources: provision_sources, dependencies: [libhybris, libjnivm, libprovision_dep], include_directories: src,
   install : true, link_args : build_args)
