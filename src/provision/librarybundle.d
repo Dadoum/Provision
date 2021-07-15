@@ -31,8 +31,8 @@ struct LibraryBundle {
     static LibraryBundle* opCall() {
         scope auto ret = new LibraryBundle();
         ret.libraries = [
-            new AndroidLibrary(defaultLibPrefix ~ "libc.so"),
             new AndroidLibrary("libc.so.6", LibraryType.NATIVE_LINUX_LIBRARY),
+            new AndroidLibrary(defaultLibPrefix ~ "libc.so"),
             new AndroidLibrary(defaultLibPrefix ~ "libdl.so"),
             new AndroidLibrary(defaultLibPrefix ~ "libm.so"),
             new AndroidLibrary(defaultLibPrefix ~ "libz.so"),
@@ -63,6 +63,7 @@ struct LibraryBundle {
     }
 
     ~this() {
+        // logln!()("Nettoyage...", LogPriority.verbeux);
         destroy(libraries);
     }
 
@@ -70,8 +71,8 @@ struct LibraryBundle {
 }
 
 enum Library : int {
-    LIBC,
     NATIVE_LIBC,
+    LIBC,
     LIBDL,
     LIBM,
     LIBZ,

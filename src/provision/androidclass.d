@@ -128,6 +128,7 @@ mixin template implementMethod(T, string functionName, string librarySymbol,
     import std.algorithm.searching;
 
     enum isReferenceMethod = cast(bool)(functionAttributes!T & FunctionAttribute.ref_);
+
     mixin(methodModifiers.join(' ') ~ " " ~ ReturnType!T.stringof ~ " " ~ functionName
             ~ Parameters!T.stringof ~ " { mixin implementNativeMethod!(\"" ~ librarySymbol ~ "\", false, " ~ to!string(
                 isReferenceMethod) ~ "); " ~ (is(ReturnType!T == void)
@@ -256,11 +257,21 @@ mixin template implementNativeMethod(string librarySymbol,
         AndroidLibrary library = bundle.libraries[getLibrary!(typeof(this)).libraryName];
         auto func = (library.loadSymbol!ExternCFunction(librarySymbol));
         static if (!is(ExecuteReturn == void)) {
+            import provision.utils.loghelper;
+
+            static if (
+                librarySymbol == "_ZN13storeservices18DefaultStoreClient27getAnisetteRequestMachineIdEv") {
+                logln("IN");
+            }
             auto ret = func(params.expand);
+            static if (
+                librarySymbol == "_ZN13storeservices18DefaultStoreClient27getAnisetteRequestMachineIdEv") {
+                logln("OUT");
+            }
+            alias UnqualifiedReturnType = Unqual!ExecuteReturn;
             cleanup();
             alias Template = TemplateOf!ExecuteReturn;
             static if (is(Template == void)) {
-                alias UnqualifiedReturnType = Unqual!ExecuteReturn;
                 static if (is(ExecuteReturn : AndroidClass)) {
                     return new ExecuteReturn(PrivateConstructorOperation.WRAP_OBJECT,
                             cast(OpaquePtr*) ret);

@@ -33,8 +33,11 @@ void segv_throw(int i) {
 }
 
 static this() {
-    sig_action act;
-    act.action = &segv_throw;
-    act.flags = SA_SIGINFO;
-    sigaction(SIGSEGV, &act, null);
+    debug {
+    } else {
+        sig_action act;
+        act.action = &segv_throw;
+        act.flags = SA_SIGINFO;
+        sigaction(SIGSEGV, &act, null);
+    }
 }

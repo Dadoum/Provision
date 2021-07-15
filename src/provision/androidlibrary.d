@@ -104,15 +104,19 @@ class AndroidLibrary {
     private void* libraryHandle;
 
     extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
-        foreach (library; AndroidLibrary.systemLibraries) {
-            auto sym = dlsym(library, s);
-            if (sym != null) {
-                return sym;
+        string symbol = fromStringz(s);
+        auto hook = globalHooks.get(symbol, null);
+
+        if (hook == null) {
+            foreach (library; AndroidLibrary.systemLibraries) {
+                auto sym = dlsym(library, s);
+                if (sym != null) {
+                    hook = sym;
+                }
             }
         }
 
-        string symbol = fromStringz(s);
-        return globalHooks.get(symbol, null);
+        return hook;
     }
 
     static this() {
@@ -172,7 +176,18 @@ class AndroidLibrary {
 
     alias ExternC(T, string linkage = "C") = SetFunctionAttributes!(T, linkage,
             functionAttributes!T);
-    ExternC!(T, linkage) loadSymbol(T, string linkage = "C")(string symbol) const {
+    ExternC!(T, linkage) loadSymbol(T, string linkage = "C")(string symbol) const
+            if (isCallable!T) {
+        auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
+        if (sym == null) {
+            throw new LibraryLoadException(
+                    "Symbole \"" ~ symbol ~ "\" introuvable dans \"" ~ libraryFileName ~ "\": " ~ to!string(
+                    hybris_dlerror()));
+        }
+        return cast(typeof(return)) sym;
+    }
+
+    T loadSymbol(T)(string symbol) const if (!isCallable!T) {
         auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         if (sym == null) {
             throw new LibraryLoadException(
