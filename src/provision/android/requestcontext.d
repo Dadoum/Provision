@@ -31,4 +31,6 @@ import provision.androidclass;
             "_ZN17storeservicescore14RequestContext8fairPlayEv");
     mixin implementMethod!(void* function(), "mescal",
             "_ZN17storeservicescore14RequestContext6mescalEv");
+    mixin implementMethod!(Ref!(string function()), "deviceIdentifier",
+            "_ZN17storeservicescore14RequestContext16deviceIdentifierEv");
 }

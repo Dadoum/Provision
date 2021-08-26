@@ -398,3 +398,191 @@ class InvalidCtorCallException : Exception {
         super(msg, file, line);
     }
 }
+
+// enum StdNdk = AliasSeq!("std", "__ndk1");
+// extern (C++, (StdNdk)) {
+// 	abstract class HybrisMutatedType(T) {
+// 	    import core.stdc.stdlib;
+// 	    private void* h;
+// 	    private const(bool) owned;
+//
+// 	    @property void* handle() => h;
+//
+// 	    this() {
+// 			h = malloc(392);
+// 			owned = true;
+// 	    }
+//
+// 		~this() {
+// 			if (owned) {
+// 				free(h);
+// 			}
+// 		}
+//
+// 	    this(void* ptr, bool owned = false) {
+// 	        h = ptr;
+// 	        this.owned = owned;
+// 	    }
+//
+// 	    T mutate() {
+// 	    	return handle;
+// 	    }
+// 	}
+//
+// 	alias HybrisType = HybrisMutatedType!(void*);
+//
+// 	class char_traits(T) { }
+// 	class allocator(T) { }
+//
+// 	import std.string;
+// 	@HybrisClass(Library.LIBCPP_SHARED) class basic_string(T, CTraits = char_traits!T, Allocator = allocator!T): HybrisType {
+// 		@MangledName("_ZNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC2IDnEEPKc") this(const(char)* str) {
+// 			super();
+// 			loadNativeFunction!__ctor(this, str);
+// 		}
+//
+// 	  extern(D):
+// 		string opCast() {
+// 			struct cpp_str {
+// 			    size_t[2] __padding;
+// 			    char* c_str;
+// 			}
+//
+// 			auto native = cast(cpp_str*) handle;
+// 			return to!string(fromStringz(native.c_str));
+// 		}
+//
+// 		static NDKString opCast(string s) {
+// 			return new NDKString(s.toStringz);
+// 		}
+// 	}
+//
+// 	alias NDKString = basic_string!char;
+// }
+//
+//
+// template SanitizedReturnType(alias func) if (isCallable!func) {
+// 	static if (__traits(identifier, func) == "__ctor") {
+// 		alias SanitizedReturnType = void;
+// 	} else {
+// 		alias SanitizedReturnType = ReturnType!func;
+// 	}
+// }
+//
+// template ToHybris(T...) {
+// 	static if (T.length != 0) {
+// 		alias Type = T[0];
+// 		alias HybrisType = InheritedInstanceOfTemplate!(Type, HybrisMutatedType);
+// 		static if (!is(HybrisType == AliasSeq!())) {
+// 			alias TranslatedType = HybrisType;
+// 		} else static if (is(Type == string)) {
+// 			alias TranslatedType = void*;
+// 		} else {
+// 			alias TranslatedType = Type;
+// 		}
+//
+// 		alias ToHybris = AliasSeq!(TranslatedType, ToHybris!(T[1..$]));
+// 	} else {
+// 		alias ToHybris = AliasSeq!();
+// 	}
+// }
+//
+// template InheritedInstanceOfTemplate(T, alias Template) {
+// 	template __impl(alias Template, BaseTypes...) {
+// 		static if (BaseTypes.length != 0) {
+// 			alias BaseType = BaseTypes[0];
+// 			static if (!is(TemplateOf!BaseType == Template)) {
+// 				alias __impl = TemplateArgsOf!BaseType[0];
+// 			} else {
+// 				alias __impl = __impl!(BaseTypes[1..$]);
+// 			}
+// 		} else {
+// 			alias __impl = AliasSeq!();
+// 		}
+// 	}
+//
+// 	static if (is(T == class)) {
+// 		alias InheritedInstanceOfTemplate = __impl!(Template, BaseClassesTuple!T);
+// 	} else {
+// 		alias InheritedInstanceOfTemplate = AliasSeq!();
+// 	}
+// }
+//
+// template isInheritingTemplate(T, alias Template) {
+// 	enum isInheritingTemplate = !is(InheritedInstanceOfTemplate!(T, Template) == AliasSeq!());
+// }
+//
+// template loadNativeFunction(alias thisFunc) {
+// 	import app;
+// 	alias Type = __traits(parent, thisFunc);
+//     enum isStaticFunc = __traits(isStaticFunction, thisFunc);
+//     static if (isStaticFunc || is(T == typeof(null))) {
+// 		alias InstanceType = AliasSeq!();
+//     } else {
+// 		alias InstanceType = Type;
+//     }
+//     alias ReturnType = SanitizedReturnType!thisFunc;
+//     alias FunctionArguments = AliasSeq!(InstanceType, Parameters!thisFunc);
+//     alias NativeFunctionArguments = ToHybris!FunctionArguments;
+// 	pragma(msg, AliasSeq!(InstanceType, Parameters!thisFunc).stringof);
+//     alias FunctionType = extern(C) ReturnType function(NativeFunctionArguments);
+// 	ReturnType loadNativeFunction(FunctionArguments a) {
+// 		FunctionType symbol = bundle.libraries[getClassMetadata!Type.lib].loadSymbol!FunctionType(getMangledName!thisFunc);
+//
+// 		NativeFunctionArguments args;
+// 		static foreach (i, Arg; FunctionArguments) {
+// 			static if (isInheritingTemplate!(Arg, HybrisMutatedType)) {
+// 				args[i] = a[i].mutate();
+// 			} else static if (is(Arg == string)) {
+// 				args[i] = (cast(NdkString) a[i]).mutate();
+// 			} else {
+// 				args[i] = a[i];
+// 			}
+// 		}
+//
+// 		static if (is(ReturnType == void)) {
+// 			symbol(args);
+// 		} else {
+// 			return symbol(args);
+// 		}
+// 	}
+// }
+//
+// HybrisClass getClassMetadata(T)() {
+//     enum attributes = __traits(getAttributes, T);
+//     static if (attributes.length != 0) {
+//         static foreach (attr; attributes) {
+//             static if (is(typeof(attr) == HybrisClass)) {
+//                 return cast(HybrisClass) attr;
+//             }
+//         }
+//     } else {
+//         throw new InvalidClassException("La couche de compatibilité de la classe native \"" ~ T.stringof
+//                 ~ "\" est mal conçue. Elle doit avoir l'attribut HybrisClass(Library lib)");
+//     }
+// }
+//
+// template getMangledName(alias T) {
+// 	template __impl(Attrs...) {
+// 		static if (Attrs.length != 0) {
+// 			enum Attr = Attrs[0];
+// 			static if (is(typeof(Attr) == MangledName)) {
+// 				enum __impl = (cast(MangledName) Attr).mangledName;
+// 			} else {
+// 				enum __impl = __impl!(Attrs[1..$]);
+// 			}
+// 		} else {
+// 			enum __impl = T.mangleof;
+// 		}
+// 	}
+//
+//     enum getMangledName = __impl!(__traits(getAttributes, T));
+// }
+//
+// struct HybrisClass {
+// 	Library lib;
+// }
+//
+// struct MangledName {
+// 	string mangledName;
+// }

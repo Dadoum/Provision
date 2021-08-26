@@ -4,7 +4,7 @@ import provision.glue;
 import provision.android.requestcontext;
 import provision.androidclass;
 
-enum URLBagCacheOption {
+enum URLBagCacheOption: int {
     none = 0,
     allowsExpiredBag = 1,
     ignoresCache = 2

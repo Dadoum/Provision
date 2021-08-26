@@ -16,6 +16,7 @@ provision_sources += files(
   'provision/android/mescal.d',
   'provision/android/ndkstring.d',
   'provision/android/protocoldialog.d',
+  'provision/android/rapidandroidprototyper.d',
   'provision/android/requestcontext.d',
   'provision/android/requestcontextconfig.d',
   'provision/android/requestcontextmanager.d',
