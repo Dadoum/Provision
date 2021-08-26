@@ -7,7 +7,7 @@ Provision est un outil en développement qui permettra de récupérer les identi
 ## Compilation
 
 ### Dépendances
-Pour compiler Provision, vous devez avoir libc++ (LLVM C++).
+Pour compiler Provision, vous devez avoir libc++ (LLVM C++), et tout ce qu'il faut pour compiler du code en D (ldc, druntime et dub).
 
 ## Méthode
 
@@ -16,6 +16,8 @@ Clonez le projet et compilez le avec meson:
 ```bash
 git clone git@github.com:Dadoum/Provision.git
 cd Provision
+dub fetch plist
+dub build plist
 meson build
 meson compile -C build
 ```

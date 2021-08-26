@@ -1,20 +1,25 @@
 module app;
 
+import core.memory;
+import core.stdc.stdint;
+import core.stdc.stdlib;
+import provision.androidclass;
+import provision.androidlibrary;
+import provision.android.ndkstring;
+import provision.librarybundle;
+import provision.utils.loghelper;
+import provision.utils.segfault;
+import provision.glue;
+import provision.android.requestcontextconfig;
+import provision.android.requestcontext;
+import std.file;
+import std.algorithm;
+import std.conv;
+import std.meta;
+import std.path;
 import std.stdio;
 import std.string;
-import std.conv;
-import std.path;
-import provision.librarybundle;
-import provision.androidlibrary;
-import provision.utils.loghelper;
-import core.memory;
-import core.stdc.stdlib;
-import core.stdc.stdint;
 import std.typecons;
-import provision.androidclass;
-import provision.android.ndkstring;
-import provision.utils.segfault;
-import std.algorithm;
 
 version (LDC) {
 @live:
@@ -116,11 +121,6 @@ int main(string[] args) {
     bundle = LibraryBundle();
 
     {
-        import provision.glue;
-        import provision.android.requestcontextconfig;
-        import provision.android.requestcontext;
-        import std.file;
-
         logln!()("Création d'un contexte de requete", LogPriority.verbeux);
         logln!()("Création d'une configuration de contexte de requete (afin de créer un contexte de requete)",
                 LogPriority.verbeux);
@@ -250,33 +250,80 @@ int main(string[] args) {
         // auto dscPtr = DefaultStoreClient.make(contextPtr);
         // auto str = DefaultStoreClient.getAnisetteRequestMachineId(0x0, dscPtr.ptr);
 
-        // import provision.android.urlbagrequest;
-        // URLBagRequest urlBagRequest = new URLBagRequest(contextPtr);
-        // urlBagRequest.setCacheOptions(URLBagCacheOption.ignoresCache);
-        // urlBagRequest.run();
-
-        import provision.android.anisetteprotocolaction;
-
-        auto headers = str_str_multimap_create();
-        scope (exit)
-            str_str_multimap_delete(headers);
+        //         import provision.android.urlbagrequest;
+        //         URLBagRequest urlBagRequest = new URLBagRequest(contextPtr);
+        //         urlBagRequest.setCacheOptions(URLBagCacheOption.ignoresCache);
+        //         urlBagRequest.run();
+        //
+        //         import provision.android.anisetteprotocolaction;
+        //
+        //         auto headers = str_str_multimap_create();
+        //         scope (exit)
+        //             str_str_multimap_delete(headers);
 
         // Meilleure façon de récupérer le texte, plutot que juste l'écrire, autant directement le lire
-        auto md_action = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
-                void*)("_ZN17storeservicescore14XAppleMDActionE");
-        auto md_data = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
-                void*)("_ZN17storeservicescore12XAppleMDDataE");
-        headers.str_str_multimap_insert(md_action, md_data);
-        auto tempFakeAnisette = new AnisetteProtocolAction(
-                PrivateConstructorOperation.WRAP_OBJECT, cast(OpaquePtr*) new void* ());
-        auto anisetteProtocolAction = tempFakeAnisette.actionForHeaders(headers,
-                AnisetteProtocolVersion.standard);
-        logln!AnisetteProtocolVersion("%s",
-                anisetteProtocolAction.protocolVersion(), LogPriority.verbeux);
-        anisetteProtocolAction._provisionWithContext(contextPtr);
+        //         auto md_action = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
+        //                 void*)("_ZN17storeservicescore14XAppleMDActionE");
+        //         auto md_data = bundle.libraries[Library.LIBSTORESERVICESCORE].loadSymbol!(
+        //                 void*)("_ZN17storeservicescore12XAppleMDDataE");
+        //         headers.str_str_multimap_insert(md_action, md_data);
+        //         auto tempFakeAnisette = new AnisetteProtocolAction(
+        //                 PrivateConstructorOperation.WRAP_OBJECT, cast(OpaquePtr*) new void* ());
+        //         auto anisetteProtocolAction = tempFakeAnisette.actionForHeaders(headers,
+        //                 AnisetteProtocolVersion.standard);
+        //         anisetteProtocolAction.performWithContext(contextPtr);
+        // import provision.android.rapidandroidprototyper;
+		doRequest(contextPtr);
+        //         auto urlBagRequest = RapidAndroidPrototyper!(Library.LIBSTORESERVICESCORE).runCtor!"_ZN17storeservicescore13URLBagRequestC1ENSt6__ndk110shared_ptrINS_14RequestContextEEE"(contextPtr);
+        //
+        //         enum URLBagRequest {
+        //     		URLBagCacheOptionNone = 0,
+        //     		URLBagCacheOptionAllowsExpiredBag = 1,
+        //     		URLBagCacheOptionIgnoresCache = 2
+        //     	}
+        //
+        //         urlBagRequest.run!"_ZN17storeservicescore13URLBagRequest15setCacheOptionsENS_18URLBagCacheOptionsE"();
+        //         urlBagRequest.run!"_ZN17storeservicescore13URLBagRequest3runEv"();
+
+// 	import plist;
+// 	import plist.types;
+// 	Plist spimPlist = new Plist();
+// 	spimPlist.read(content);
+// 	PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (spimPlist[0]))["Response"];
+// 	string spimStr = (cast(PlistElementString) spimResponse["spim"]).value;
+//
+// 	import std.base64;
+// 	byte[] spim = cast(byte[]) Base64.decode(spimStr);
 
         logln!()("Nettoyage...", LogPriority.verbeux);
     }
 
     return 0;
+}
+
+void doRequest(shared_ptr!RequestContext rqContext) {
+	import std.net.curl;
+	auto client = HTTP();
+	client.setUserAgent("akd/1.0 CFNetwork/808.1.4 Darwin/16.1.0");
+	client.addRequestHeader("Accept", "*/*");
+	client.addRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	client.addRequestHeader("Accept-Language", "fr-fr");
+	client.addRequestHeader("X-Apple-I-SRL-NO", "");
+	client.addRequestHeader("X-MMe-Client-Info", format!"<%s> <%s;%s;%s> <com.apple.akd/1.0 (com.apple.akd/1.0)>"("PC", "Windows", "6.2(0,0)", "9200")); // device model, device operating system, os version, os build
+	client.addRequestHeader("Accept-Encoding", "gzip"); // , deflate
+	// client.addRequestHeader("X-Mme-Device-Id", lpUdid);
+	string content = cast(string) post("https://gsa.apple.com/grandslam/MidService/startMachineProvisioning",
+	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+<key>Header</key>
+<dict/>
+<key>Request</key>
+<dict/>
+</dict>
+</plist>"
+	, client);
+
+	writeln(content);
 }

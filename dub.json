@@ -1,0 +1,10 @@
+{
+	"authors": [
+		"Dadoum"
+	],
+	"copyright": "Copyright © 2021, Dadoum",
+	"description": "Labo about ADI and other apple things",
+	"license": "GPL-3.0-or-later",
+	"name": "provision",
+	"sourcePaths": ["src/"]
+}

@@ -70,7 +70,7 @@ struct LibraryBundle {
     alias libraries this;
 }
 
-enum Library : int {
+enum Library : ushort {
     NATIVE_LIBC,
     LIBC,
     LIBDL,
