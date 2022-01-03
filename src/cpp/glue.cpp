@@ -4,6 +4,7 @@
 #include <jnivm.h>
 #include <map>
 #include <iostream>
+#include <chrono>
 
 struct OpaqueType;
 
@@ -64,5 +65,22 @@ extern "C" {
 	
     void str_str_multimap_delete(std::multimap<std::string, std::string>* multimap) {
 		delete multimap;
+	}
+
+    const char* std_string_c_str(std::string* str) {
+        return str->c_str();
+    }
+
+    typedef std::chrono::duration<double, std::ratio<1l, 1l>> std_duration;
+
+    std_duration* std_duration_create() {
+        using namespace std::chrono_literals;
+        std_duration* dur;
+        *dur = std::chrono::duration_cast<std_duration>(30s);
+        return dur;
+	}
+
+	void std_duration_delete(std_duration* chrono) {
+		delete chrono;
 	}
 }

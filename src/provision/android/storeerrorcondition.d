@@ -1,31 +1,28 @@
 module provision.android.storeerrorcondition;
 
-import provision.android.ndkstring;
 import provision.androidclass;
+import core.stdc.stdint;
 
-@AndroidClassInfo(Library.LIBSTORESERVICESCORE, 208) class StoreErrorCondition : AndroidClass {
-    mixin implementDefaultConstructor;
-
-    mixin implementMethod!(string function(), "errorDescription",
-            "_ZNK17storeservicescore19StoreErrorCondition16errorDescriptionEv");
-    mixin implementMethod!(Ref!(ErrorCode function()), "errorCode",
-            "_ZNK17storeservicescore19StoreErrorCondition9errorCodeEv");
+extern(C++, class) extern(C++, storeservicescore) struct StoreErrorCondition {
+    mixin AndroidClass!StoreErrorCondition;
+    ref NdkString errorDescription() const;
+    ref ErrorCode errorCode() const;
 }
 
-enum ErrorCode : int {
-    SUCCESS = 0,
-    UNKNOWN = 1,
-    CANCELED = 2,
-    NEW_ACCOUNT = 3,
-    BAD_REQUESTCTX = 4,
-    MISSING_ACCOUNT = 5,
-    PLATFORM_DENIED = 6,
-    SIMULATOR_DENIED = 7,
-    BAD_URLBAG = 8,
-    MEDIAPLATFORM_ERROR = 9,
-    ITUNES_ERROR = 10,
-    FAIRPLAY_ERROR = 100,
-    FAIRPLAY_GUID_ERROR = 101,
-    FAIRPLAY_IMPORT_ERROR = 102,
-    FAIRPLAY_UNKNOWN_ERROR = 103,
+enum ErrorCode: int {
+    success = 0,
+    unknown = 1,
+    canceled = 2,
+    new_account = 3,
+    bad_requestctx = 4,
+    missing_account = 5,
+    platform_denied = 6,
+    simulator_denied = 7,
+    bad_urlbag = 8,
+    mediaplatform_error = 9,
+    itunes_error = 10,
+    fairplay_error = 100,
+    fairplay_guid_error = 101,
+    fairplay_import_error = 102,
+    fairplay_unknown_error = 103,
 }

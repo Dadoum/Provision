@@ -1,6 +1,7 @@
 module provision.androidlibrary;
 
 import core.sys.posix.dlfcn;
+import std.algorithm;
 import std.conv;
 import std.stdio;
 import std.path;
@@ -31,62 +32,6 @@ extern (C) {
     void destroy(VM* vm);
 }
 
-extern (C++) {
-    class _jobject {
-    };
-    class _jclass {
-    };
-    class _jstring {
-    };
-    class _jarray {
-    };
-    class _jobjectArray {
-    };
-    class _jbooleanArray {
-    };
-    class _jbyteArray {
-    };
-    class _jcharArray {
-    };
-    class _jshortArray {
-    };
-    class _jintArray {
-    };
-    class _jlongArray {
-    };
-    class _jfloatArray {
-    };
-    class _jdoubleArray {
-    };
-    class _jthrowable {
-    };
-    alias _jobject* jobject;
-    alias _jclass* jclass;
-    alias _jstring* jstring;
-    alias _jarray* jarray;
-    alias _jobjectArray* jobjectArray;
-    alias _jbooleanArray* jbooleanArray;
-    alias _jbyteArray* jbyteArray;
-    alias _jcharArray* jcharArray;
-    alias _jshortArray* jshortArray;
-    alias _jintArray* jintArray;
-    alias _jlongArray* jlongArray;
-    alias _jfloatArray* jfloatArray;
-    alias _jdoubleArray* jdoubleArray;
-    alias _jthrowable* jthrowable;
-    alias _jobject* jweak;
-
-    alias uint8_t jboolean;
-    alias int8_t jbyte;
-    alias uint16_t jchar;
-    alias int16_t jshort;
-    alias int32_t jint;
-    alias int64_t jlong;
-    alias float jfloat;
-    alias double jdouble;
-    alias jint jsize;
-}
-
 enum LibraryType {
     NATIVE_LINUX_LIBRARY,
     ANDROID_LIBRARY
@@ -95,9 +40,9 @@ enum LibraryType {
 class AndroidLibrary {
     public static VM* vm;
 
-    public string libraryFileName;
+    public const(string) libraryFileName;
 
-    private static void*[AndroidLibrary] systemLibraries;
+    private static AndroidLibrary[] systemLibraries;
     private static void*[string] globalHooks;
 
     private bool redirectingToSystem = false;
@@ -105,11 +50,18 @@ class AndroidLibrary {
 
     extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
         string symbol = fromStringz(s);
+        string lib = fromStringz(l);
         auto hook = globalHooks.get(symbol, null);
 
         if (hook == null) {
+            bool replaced = false;
+            if (symbol.canFind("__ndk1")) {
+                symbol = symbol.replace("St6__ndk1", "St3__1");
+                replaced = true;
+            }
+
             foreach (library; AndroidLibrary.systemLibraries) {
-                auto sym = dlsym(library, s);
+                auto sym = dlsym(library.libraryHandle, symbol.toStringz);
                 if (sym != null) {
                     hook = sym;
                 }
@@ -126,17 +78,25 @@ class AndroidLibrary {
     }
 
     public this(string libraryName, LibraryType type = LibraryType.ANDROID_LIBRARY) {
-        this.libraryFileName = baseName(libraryName).dup;
+        if (libraryName == null)
+            this.libraryFileName = "(executable)";
+        else
+            this.libraryFileName = baseName(libraryName).dup;
+
         if (type == LibraryType.NATIVE_LINUX_LIBRARY) {
             log!(string)("Chargement de %s depuis le système... ",
                     this.libraryFileName, LogPriority.verbeux);
-            import provision.glue;
 
-            auto systemLibrary = dlopen(toStringz(libraryName), RTLD_LAZY | RTLD_LOCAL);
-            if (systemLibrary == null) {
+            immutable(char)* lib;
+            if (libraryName == null)
+                lib = null;
+            else
+                lib = toStringz(libraryName);
+            libraryHandle = dlopen(lib, RTLD_LAZY | RTLD_LOCAL);
+            if (libraryHandle == null) {
                 throw new LibraryLoadException(to!string(dlerror()));
             }
-            AndroidLibrary.systemLibraries[this] = systemLibrary;
+            AndroidLibrary.systemLibraries ~= this;
             redirectingToSystem = true;
 
             logln!()("succès !", LogPriority.verbeux);
@@ -148,7 +108,7 @@ class AndroidLibrary {
             }
 
             try {
-                auto JNI_OnLoadFunction = loadSymbol!(jint function(JavaVM*, void*))("JNI_OnLoad");
+                auto JNI_OnLoadFunction = loadSymbol!(int32_t function(JavaVM*, void*))("JNI_OnLoad");
                 log!()("invocation du JNI_OnLoad()... ", LogPriority.verbeux);
                 JNI_OnLoadFunction(vm_get_java_vm(vm), cast(void*) null);
             } catch (Exception e) {
@@ -164,37 +124,40 @@ class AndroidLibrary {
         import core.thread.osthread;
         import core.time;
 
-        if (libraryHandle !is null)
+        if (libraryHandle !is null && !redirectingToSystem)
             hybris_dlclose(libraryHandle);
 
         if (redirectingToSystem) {
             redirectingToSystem = false;
-            if (AndroidLibrary.systemLibraries[this] != null)
-                dlclose(AndroidLibrary.systemLibraries[this]);
+            if (libraryHandle !is null)
+                dlclose(libraryHandle);
         }
     }
 
     alias ExternC(T, string linkage = "C") = SetFunctionAttributes!(T, linkage,
             functionAttributes!T);
-    ExternC!(T, linkage) loadSymbol(T, string linkage = "C")(string symbol) const
-            if (isCallable!T) {
-        auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
-        if (sym == null) {
-            throw new LibraryLoadException(
-                    "Symbole \"" ~ symbol ~ "\" introuvable dans \"" ~ libraryFileName ~ "\": " ~ to!string(
-                    hybris_dlerror()));
+    auto loadSymbol(T, string linkage = "C")(string symbol) const {
+        void* sym;
+        if (redirectingToSystem) {
+            sym = dlsym(cast(void*) libraryHandle, symbol.toStringz);
+        } else {
+            sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         }
-        return cast(typeof(return)) sym;
-    }
-
-    T loadSymbol(T)(string symbol) const if (!isCallable!T) {
-        auto sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         if (sym == null) {
+            string hybris_err;
+            if (redirectingToSystem) {
+                hybris_err = to!string(dlerror().fromStringz());
+            } else {
+                hybris_err = hybris_dlerror().fromStringz();
+            }
             throw new LibraryLoadException(
-                    "Symbole \"" ~ symbol ~ "\" introuvable dans \"" ~ libraryFileName ~ "\": " ~ to!string(
-                    hybris_dlerror()));
+            "Symbole \"" ~ symbol ~ "\" introuvable dans \"" ~ libraryFileName ~ "\": " ~ (hybris_err == "" ? "Erreur non renseignée" : hybris_err));
         }
-        return cast(typeof(return)) sym;
+        static if (isCallable!T){
+            return cast(ExternC!(T, linkage)) sym;
+        } else {
+            return cast(T) sym;
+        }
     }
 
     public static void addGlobalHook(T)(string symbol, T replacement)

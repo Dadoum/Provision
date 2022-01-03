@@ -4,10 +4,10 @@ import provision.glue;
 import provision.android.requestcontext;
 import provision.androidclass;
 
-@AndroidClassInfo(Library.LIBSTORESERVICESCORE, 392) class ProtocolDialog : AndroidClass {
-    mixin implementDefaultConstructor;
-    mixin implementDestructor!"_ZN17storeservicescore14ProtocolDialogD2Ev";
-    mixin implementConstructor!(void function(), "_ZN17storeservicescore14ProtocolDialogC2Ev");
+extern(C++, class) extern(C++, storeservicescore) struct ProtocolDialog {
+    mixin AndroidClass!ProtocolDialog;
+    ~this();
+    @disable this();
     /+
     mixin implementMethod!(void function(), "", "_ZN17storeservicescore14ProtocolDialog10setButtonsERKNSt6__ndk16vectorINS1_10shared_ptrINS_14ProtocolButtonEEENS1_9allocatorIS5_EEEE");
     mixin implementMethod!(void function(), "", "_ZN17storeservicescore14ProtocolDialog10setMessageERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE");

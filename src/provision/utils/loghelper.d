@@ -1,18 +1,20 @@
 module provision.utils.loghelper;
 
+import std.conv;
 import std.format;
 import std.stdio;
 import std.string;
 import std.path;
 
 bool lineStart = true;
+bool isVerbeux = false;
 
-string[] priority = [
+enum string[9] priority = [
     "", "DEFAUT", "VERBEUX", "DEBUG", "INFO", "AVERT", "ERR", "FATAL", "SILENCE"
 ];
 
 void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
-        string file = __FILE__, string func = __FUNCTION__) {
+        string file = __FILE__, string func = __FUNCTION__, int line = __LINE__) {
     debug {
     } else {
         if (prio == LogPriority.débug) {
@@ -20,15 +22,13 @@ void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
         }
     }
 
-    import app;
-
     if (prio == LogPriority.verbeux && !isVerbeux) {
         return;
     }
 
     auto text = std.format.format(format, args);
     if (lineStart) {
-        writef("[%s] [%s:%s] %s >> ", getHour(), baseName(file), resume(func),
+        writef("[%s] [%s:%s] %s >> ", getHour(), baseName(file), /+resume(func)+/to!string(line),
                 priority[cast(int) prio]);
     }
     write(text);
@@ -38,8 +38,8 @@ void log(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
 }
 
 void logln(Args...)(string format, Args args, LogPriority prio = LogPriority.info,
-        string file = __FILE__, string func = __FUNCTION__) {
-    log!Args(format ~ "\n", args, prio = prio, file = file, func = func);
+        string file = __FILE__, string func = __FUNCTION__, int line = __LINE__) {
+    log!Args(format ~ "\n", args, prio = prio, file = file, func = func, line = line);
 }
 
 string resume(string str) {

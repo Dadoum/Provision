@@ -10,13 +10,11 @@ enum URLBagCacheOption: int {
     ignoresCache = 2
 }
 
-@AndroidClassInfo(Library.LIBSTORESERVICESCORE, 392) class URLBagRequest : AndroidClass {
-    mixin implementDefaultConstructor;
-    mixin implementDestructor!"_ZN17storeservicescore13URLBagRequestD2Ev";
-    mixin implementConstructor!(void function(shared_ptr!RequestContext),
-            "_ZN17storeservicescore13URLBagRequestC2ENSt6__ndk110shared_ptrINS_14RequestContextEEE");
+extern(C++, class) extern(C++, storeservicescore) struct URLBagRequest {
+    mixin AndroidClass!URLBagRequest;
+    ~this();
+    this(shared_ptr!RequestContext);
 
-    mixin implementMethod!(void function(URLBagCacheOption), "setCacheOptions",
-            "_ZN17storeservicescore13URLBagRequest15setCacheOptionsENS_18URLBagCacheOptionsE");
-    mixin implementMethod!(void function(), "run", "_ZN17storeservicescore13URLBagRequest3runEv");
+    void setCacheOptions(URLBagCacheOption);
+    void run();
 }
