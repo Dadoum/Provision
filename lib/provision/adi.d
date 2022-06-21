@@ -72,27 +72,33 @@ public struct ADI {
     }
 
     public this(string provisioningPath, string identifier = null) {
-        version (linux) {
-            version (X86_64) {
-                enum string architectureIdentifier = "x86_64";
-            } else version (X86) {
-                enum string architectureIdentifier = "x86";
-            } else version (AArch64) {
-               enum string architectureIdentifier = "arm64-v8a";
-            } else version (ARM) {
-                enum string architectureIdentifier = "armeabi-v7a";
-            } else {
-                static assert(false, "Architecture not supported :(");
-            }
-
-            enum string applePrefix = "lib/" ~ architectureIdentifier ~ "/";
-
-            initialize(applePrefix, provisioningPath, identifier);
-        } else version (OSX) {
-
+        version (X86_64) {
+            enum string architectureIdentifier = "x86_64";
+        } else version (X86) {
+            enum string architectureIdentifier = "x86";
+        } else version (AArch64) {
+           enum string architectureIdentifier = "arm64-v8a";
+        } else version (ARM) {
+            enum string architectureIdentifier = "armeabi-v7a";
         } else {
-            static assert(false, "OS not supported :(");
+            static assert(false, "Architecture not supported :(");
         }
+
+        enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
+
+        import provision.androidlibrary;
+        initHybris();
+
+        if (!exists(libraryPath ~ "libCoreADI.so")) {
+            throw new FileException(libraryPath ~ "libCoreADI.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
+        }
+
+        if (!exists(libraryPath ~ "libstoreservicescore.so")) {
+            throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
+        }
+
+        this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
+        this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
 
         this.pADISetProvisioningPath = cast(ADISetProvisioningPath_t) libstoreservicescore.load("nf92ngaK92");
         this.pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) libstoreservicescore.load("kq56gsgHG6");
@@ -118,35 +124,9 @@ public struct ADI {
         dsId = -2;
     }
 
-    version (linux) {
-        private void initialize(string libraryPath, string provisioningPath, string identifier = null) {
-            import provision.androidlibrary;
-            initHybris();
-
-            if (!exists(libraryPath ~ "libCoreADI.so")) {
-                throw new FileException(libraryPath ~ "libCoreADI.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
-            }
-
-            if (!exists(libraryPath ~ "libstoreservicescore.so")) {
-                throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
-            }
-
-            this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
-            this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
-        }
-    } else version (OSX) {
-        private void initialize(string provisioningPath, string identifier = null) {
-            import provision.androidlibrary;
-
-            this.libstoreservicescore = new PosixLibrary("/System/Library/PrivateFrameworks/StoreServicesCore.framework/StoreServicesCore");
-        }
-    }
-
     ~this() {
-        version (linux) {
-            import provision.androidlibrary;
-            unloadHybris();
-        }
+        import provision.androidlibrary;
+        unloadHybris();
     }
 
     private HTTP makeHttpClient() {
