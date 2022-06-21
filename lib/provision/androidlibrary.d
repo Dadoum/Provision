@@ -1,5 +1,7 @@
 module provision.androidlibrary;
 
+version (linux):
+
 import core.stdc.string;
 import core.sys.posix.dlfcn;
 import std.algorithm;
@@ -10,8 +12,9 @@ import std.traits;
 import std.algorithm;
 import std.string;
 import core.exception;
-import core.sys.linux.elf;
 import core.stdc.stdint;
+import provision.ilibrary;
+import provision.posixlibrary;
 
 extern (C) __gshared @nogc {
     void* hybris_dlopen(immutable(char)* path, int flag);
@@ -23,10 +26,10 @@ extern (C) __gshared @nogc {
     void hybris_set_skip_props(bool value);
 }
 
-public struct AndroidLibrary {
+public class AndroidLibrary: ILibrary {
     private void* libraryHandle;
 
-    public this(string libraryName, string[] hooks = null) {
+    public this(string libraryName) {
         libraryHandle = hybris_dlopen(libraryName.ptr, RTLD_LAZY);
         if (libraryHandle == null) {
             stderr.writefln!"ERR: cannot load library %s"(libraryName);
@@ -49,10 +52,22 @@ public struct AndroidLibrary {
     }
 }
 
-private static __gshared void* libc;
+private static __gshared PosixLibrary libc;
 
-extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
+extern(C) int __system_property_getHook(const char* n, char *value) {
+    auto name = n.fromStringz;
 
+    enum str = "0 c'est trop court apparement";
+
+    strcpy(value, str.ptr);
+    return cast(int) str.length;
+}
+
+extern(C) int emptyStub() {
+    return 0;
+}
+
+extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
     if (strcmp(s, "dladdr".ptr) == 0 ||
         strcmp(s, "dlclose".ptr) == 0 ||
         strcmp(s, "dlerror".ptr) == 0 ||
@@ -61,15 +76,28 @@ extern (C) private static void* hookFinder(immutable(char)* s, immutable(char)* 
         strcmp(s, "fflush".ptr) == 0)
         return null;
 
-    return dlsym(libc, s);
+    if (strcmp(s, "__system_property_get".ptr) == 0)
+        return &__system_property_getHook;
+
+    if (strcmp(s, "arc4random".ptr) == 0)
+        return &emptyStub;
+
+    return libc.load(s.fromStringz);
 }
 
+uint count = 0;
 void initHybris() {
-    libc = dlopen("libc.so.6", RTLD_LAZY);
-    hybris_set_skip_props(true);
-    hybris_set_hook_callback(&hookFinder);
+    count++;
+    if (count == 1) {
+        libc = new PosixLibrary("libc.so.6");
+        hybris_set_skip_props(true);
+        hybris_set_hook_callback(&hookFinder);
+    }
 }
 
 void unloadHybris() {
-    dlclose(libc);
+    count--;
+    if (count == 0) {
+        destroy(libc);
+    }
 }
