@@ -1,4 +1,4 @@
-module android.id;
+module provision.android.id;
 
 import core.stdc.stdint;
 import core.sys.posix.dlfcn;
