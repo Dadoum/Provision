@@ -17,6 +17,7 @@ import provision.ilibrary;
 import provision.posixlibrary;
 
 extern (C) __gshared @nogc {
+    int hybris_dladdr(const void *addr, void *info);
     void* hybris_dlopen(immutable(char)* path, int flag);
     void hybris_dlclose(void* handle);
     void* hybris_dlsym(const void* handle, immutable(char)* symbol);
@@ -68,13 +69,25 @@ extern(C) int emptyStub() {
 }
 
 extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
-    if (strcmp(s, "dladdr".ptr) == 0 ||
-        strcmp(s, "dlclose".ptr) == 0 ||
-        strcmp(s, "dlerror".ptr) == 0 ||
-        strcmp(s, "dlopen".ptr) == 0 ||
-        strcmp(s, "dlsym".ptr) == 0 ||
-        strcmp(s, "fflush".ptr) == 0)
-        return null;
+    import core.stdc.errno;
+
+    if (strcmp(s, "__errno".ptr) == 0)
+        return &errno;
+
+    if (strcmp(s, "dladdr".ptr) == 0)
+        return &hybris_dladdr;
+
+    if (strcmp(s, "dlclose".ptr) == 0)
+        return &hybris_dlclose;
+
+    if (strcmp(s, "dlerror".ptr) == 0)
+        return &hybris_dlerror;
+
+    if (strcmp(s, "dlopen".ptr) == 0)
+        return &hybris_dlopen;
+
+    if (strcmp(s, "dlsym".ptr) == 0)
+        return &hybris_dlsym;
 
     if (strcmp(s, "__system_property_get".ptr) == 0)
         return &__system_property_getHook;
