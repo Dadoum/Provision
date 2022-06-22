@@ -1,7 +1,5 @@
 module provision.androidlibrary;
 
-version (linux):
-
 import core.stdc.string;
 import core.sys.posix.dlfcn;
 import std.algorithm;
@@ -68,6 +66,18 @@ extern(C) int emptyStub() {
     return 0;
 }
 
+extern(C) int vdfut768igHook(int magic, void* params, int size, uint jsp, uint jsp2, uint flags) {
+    writefln("magic: %x, param ptr: %x, param size: %d, idk: %b, idk2: %b, flags: %b", magic, params, size, jsp, jsp2, flags);
+    return 0;
+}
+
+extern(C) void* hookable_dlsym(void *handle, immutable char *s) {
+    // if (strcmp(s, "vdfut768ig".ptr) == 0)
+    //     return &vdfut768igHook;
+
+    return hybris_dlsym(handle, s);
+}
+
 extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
     import core.stdc.errno;
 
@@ -87,7 +97,7 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
         return &hybris_dlopen;
 
     if (strcmp(s, "dlsym".ptr) == 0)
-        return &hybris_dlsym;
+        return &hookable_dlsym;
 
     if (strcmp(s, "__system_property_get".ptr) == 0)
         return &__system_property_getHook;
