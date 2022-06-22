@@ -28,11 +28,11 @@ int main(string[] args) {
     "X-Apple-I-MD-RINFO": "%d",
     "X-Apple-I-MD-LU": "%s",
     "X-Apple-I-SRL-NO": "%s",
-    "X-Mme-Client-Info": "%s"
+    "X-Mme-Client-Info": "%s",
     "X-Apple-I-Client-Time": "%s",
     "X-Apple-I-TimeZone": "%s",
-    "X-Apple-Locale": "en_US"
-    "X-Mme-Device-Id": "%s",
+    "X-Apple-Locale": "en_US",
+    "X-Mme-Device-Id": "%s"
 }`(
             Base64.encode(mid),
             Base64.encode(otp),
