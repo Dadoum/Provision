@@ -21,6 +21,7 @@ alias ADIProvisioningEnd_t = extern(C) int function(uint, ubyte*, uint, ubyte*, 
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 alias ADISetIDMSRouting_t = extern(C) int function(ulong, ulong);
 alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
+alias vdfut768ig_t = extern(C) int function(int magic, void* params, int size, uint jsp = 0, uint jsp2 = 0, uint flags = 0);
 
 public struct ADI {
     private string path;
@@ -28,6 +29,7 @@ public struct ADI {
     private ulong dsId;
 
     private string[string] urlBag;
+    private string[string] __customHeaders;
 
     ILibrary libcoreadi;
     ILibrary libstoreservicescore;
@@ -40,6 +42,7 @@ public struct ADI {
     ADIOTPRequest_t pADIOTPRequest;
     ADISetIDMSRouting_t pADISetIDMSRouting;
     ADIGetIDMSRouting_t pADIGetIDMSRouting;
+    vdfut768ig_t pADICustomCall;
 
     string __clientInfo = "<iMac11,3> <Mac OS X;10.15.6;19G2021> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
     public @property string clientInfo() {
@@ -70,6 +73,12 @@ public struct ADI {
     public @property string localUserUUID() {
         return sha256Of(this.identifier).toHexString().toUpper().dup();
     }
+
+    public @property string[string] customHeaders() {
+        return this.__customHeaders;
+    }
+
+    @disable this();
 
     public this(string provisioningPath, string identifier = null) {
         version (X86_64) {
@@ -106,10 +115,6 @@ public struct ADI {
         this.pADIProvisioningStart = cast(ADIProvisioningStart_t) libstoreservicescore.load("rsegvyrt87");
         this.pADIProvisioningEnd = cast(ADIProvisioningEnd_t) libstoreservicescore.load("uv5t6nhkui");
         this.pADIOTPRequest = cast(ADIOTPRequest_t) libstoreservicescore.load("qi864985u0");
-        // possibilités: ksbafgljkb, madsvsfvjk (unlikely)
-        this.pADISetIDMSRouting = cast(ADISetIDMSRouting_t) libstoreservicescore.load("ksbafgljkb");
-        // possibilités: cp2g1b9ro, TRKYieUV6ptjZFoDvz (unlikely)
-        this.pADIGetIDMSRouting = cast(ADIGetIDMSRouting_t) libstoreservicescore.load("cp2g1b9ro");
 
         if (identifier == null)
             this.identifier = genAndroidId;
@@ -120,9 +125,9 @@ public struct ADI {
         pADISetProvisioningPath(/+path+/ path.toStringz);
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
         pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
-
         dsId = -2;
     }
+
 
     ~this() {
         import provision.androidlibrary;
@@ -145,6 +150,10 @@ public struct ADI {
         client.addRequestHeader("Connection", "keep-alive");
         client.addRequestHeader("Proxy-Connection", "keep-alive");
 
+        foreach (customHeader; customHeaders.byKeyValue()) {
+            client.addRequestHeader(customHeader.key, customHeader.value);
+        }
+
         return client;
     }
 
@@ -161,6 +170,12 @@ public struct ADI {
     }
 
     private ubyte[] downloadSPIM(HTTP client) {
+        import std.datetime.systime;
+        auto time = Clock.currTime();
+
+        client.addRequestHeader("X-Apple-I-Client-Time", time.toISOExtString());
+        client.addRequestHeader("X-Apple-I-TimeZone", time.timezone().dstName);
+
         string content = cast(string) post(urlBag["midStartProvisioning"],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
@@ -197,6 +212,12 @@ public struct ADI {
 </dict>
 </plist>
 "(Base64.encode(cpim));
+
+        import std.datetime.systime;
+        auto time = Clock.currTime();
+
+        client.addRequestHeader("X-Apple-I-Client-Time", time.toISOExtString());
+        client.addRequestHeader("X-Apple-I-TimeZone", time.timezone().dstName);
 
         string content = cast(string) post(urlBag["midFinishProvisioning"],
         body_, client);
@@ -264,7 +285,7 @@ public struct ADI {
         if (ret)
             throw new AnisetteException(ret);
 
-        pADISetIDMSRouting(routingInformation, dsId);
+        // TODO: IDMS ROUTING pADISetIDMSRouting(routingInformation, dsId);
     }
 
     void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
