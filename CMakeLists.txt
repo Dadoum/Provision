@@ -3,6 +3,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D CXX)
 option(build_sideloadipa "Build Sideload IPA" ON)
+option(build_anisetteserver "Build Anisette server" ON)
 
 include(cmake/dependencies.cmake)
 
@@ -42,4 +43,14 @@ if(build_sideloadipa)
     pkg_check_modules(imobiledevice REQUIRED IMPORTED_TARGET libimobiledevice-1.0)
 
     target_link_libraries(sideload_ipa provision gtk-d PkgConfig::imobiledevice)
+endif()
+
+if(build_anisetteserver)
+    set(ANISETTE_SERVER_SOURCE_DIR "anisette_server/")
+    file(GLOB_RECURSE ANISETTE_SERVER_D_SOURCES "${ANISETTE_SERVER_SOURCE_DIR}*.d")
+
+    add_executable(anisette_server ${ANISETTE_SERVER_D_SOURCES})
+    target_include_directories(anisette_server PUBLIC ${ANISETTE_SERVER_SOURCE_DIR})
+
+    target_link_libraries(anisette_server provision archttp)
 endif()

@@ -24,3 +24,8 @@ if(build_sideloadipa)
     DubProject_Add(gtk-d ~3.10.0)
     # DubProject_Add(mofile ~0.2.1)
 endif()
+
+if(build_anisetteserver)
+    DubProject_Add(archttp ~1.1.0)
+    # DubProject_Add(mofile ~0.2.1)
+endif()
