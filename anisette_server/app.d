@@ -16,18 +16,20 @@ void main(string[] args) {
 
     app.get("/", (req, res) {
         try {
+            import std.datetime.systime;
+            auto time = Clock.currTime();
+
+            writeln("Received request !");
+
             ubyte[] mid;
             ubyte[] otp;
             adi.getOneTimePassword(mid, otp);
-
-            import std.datetime.systime;
-            auto time = Clock.currTime();
 
             res.header("Content-Type", "application/json");
             res.code(HttpStatusCode.OK);
 
             res.send(
-                format!`{"X-Apple-I-MD":"%s","X-Apple-I-MD-M":"%s","X-Apple-I-MD-RINFO":"%d","X-Apple-I-MD-LU":"%s","X-Apple-I-SRL-NO":"%s","X-Mme-Client-Info":"%s","X-Apple-I-Client-Time":"%s","X-Apple-I-TimeZone":"%s","X-Apple-Locale":"en_US","X-Mme-Device-Id":"%s"}`(
+                format!`{"X-Apple-I-MD":"%s","X-Apple-I-MD-M":"%s","X-Apple-I-MD-RINFO":"%d","X-Apple-I-MD-LU":"%s","X-Apple-I-SRL-NO":"%s","X-MMe-Client-Info":"%s","X-Apple-I-Client-Time":"%s","X-Apple-I-TimeZone":"%s","X-Apple-Locale":"en_US","X-Mme-Device-Id":"%s"}`(
                     Base64.encode(mid),
                     Base64.encode(otp),
                     rinfo,
