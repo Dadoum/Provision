@@ -47,10 +47,9 @@ extern(C) __gshared {
         return handle.localUserUUID.toStringz;
     }
 
-    ulong provision_adi_provision_device(ADI* handle, ulong* routing_information) {
-        *routing_information = 0;
+    ulong provision_adi_provision_device(ADI* handle, ulong* routingInfo) {
         try {
-            handle.provisionDevice(*routing_information);
+            handle.provisionDevice(*routingInfo);
         } catch (Throwable t) {
             return t.toHash();
         }
