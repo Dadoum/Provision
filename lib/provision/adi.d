@@ -13,15 +13,20 @@ import std.net.curl;
 import std.stdio;
 import std.string;
 
-alias ADISetProvisioningPath_t = extern(C) int function(immutable char*);
 alias ADILoadLibraryWithPath_t = extern(C) int function(immutable char*);
 alias ADISetAndroidID_t = extern(C) int function(immutable char*, uint);
-alias ADIProvisioningStart_t = extern(C) int function(ulong, ubyte*, uint, ubyte**, uint*, uint*);
+alias ADISetProvisioningPath_t = extern(C) int function(immutable char*);
+
+alias ADIProvisioningErase_t = extern(C) int function(ulong);
+alias ADISynchronize_t = extern(C) int function(uint, ubyte*, uint, ubyte**, uint*, ubyte**, uint*);
+alias ADIProvisioningDestroy_t = extern(C) int function(uint);
 alias ADIProvisioningEnd_t = extern(C) int function(uint, ubyte*, uint, ubyte*, uint);
+alias ADIProvisioningStart_t = extern(C) int function(ulong, ubyte*, uint, ubyte**, uint*, uint*);
+alias ADIGetLoginCode_t = extern(C) int function(ulong);
+alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 alias ADISetIDMSRouting_t = extern(C) int function(ulong, ulong);
 alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
-alias vdfut768ig_t = extern(C) int function(int magic, void* params, int size, uint jsp = 0, uint jsp2 = 0, uint flags = 0);
 
 public struct ADI {
     private string path;
@@ -34,15 +39,20 @@ public struct ADI {
     ILibrary libcoreadi;
     ILibrary libstoreservicescore;
 
-    ADISetProvisioningPath_t pADISetProvisioningPath;
     ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
     ADISetAndroidID_t pADISetAndroidID;
-    ADIProvisioningStart_t pADIProvisioningStart;
+    ADISetProvisioningPath_t pADISetProvisioningPath;
+
+    ADIProvisioningErase_t pADIProvisioningErase;
+    ADISynchronize_t pADISynchronize;
+    ADIProvisioningDestroy_t pADIProvisioningDestroy;
     ADIProvisioningEnd_t pADIProvisioningEnd;
+    ADIProvisioningStart_t pADIProvisioningStart;
+    ADIGetLoginCode_t pADIGetLoginCode;
+    ADIDispose_t pADIDispose;
     ADIOTPRequest_t pADIOTPRequest;
     ADISetIDMSRouting_t pADISetIDMSRouting;
     ADIGetIDMSRouting_t pADIGetIDMSRouting;
-    vdfut768ig_t pADICustomCall;
 
     string __clientInfo = "<iMac11,3> <Mac OS X;10.15.6;19G2021> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
     public @property string clientInfo() {
@@ -109,12 +119,20 @@ public struct ADI {
         this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
         this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
 
-        this.pADISetProvisioningPath = cast(ADISetProvisioningPath_t) libstoreservicescore.load("nf92ngaK92");
         this.pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) libstoreservicescore.load("kq56gsgHG6");
         this.pADISetAndroidID = cast(ADISetAndroidID_t) libstoreservicescore.load("Sph98paBcz");
-        this.pADIProvisioningStart = cast(ADIProvisioningStart_t) libstoreservicescore.load("rsegvyrt87");
+        this.pADISetProvisioningPath = cast(ADISetProvisioningPath_t) libstoreservicescore.load("nf92ngaK92");
+
+        this.pADIProvisioningErase = cast(ADIProvisioningErase_t) libstoreservicescore.load("p435tmhbla");
+        this.pADISynchronize = cast(ADISynchronize_t) libstoreservicescore.load("tn46gtiuhw");
+        this.pADIProvisioningDestroy = cast(ADIProvisioningDestroy_t) libstoreservicescore.load("fy34trz2st");
         this.pADIProvisioningEnd = cast(ADIProvisioningEnd_t) libstoreservicescore.load("uv5t6nhkui");
+        this.pADIProvisioningStart = cast(ADIProvisioningStart_t) libstoreservicescore.load("rsegvyrt87");
+        this.pADIGetLoginCode = cast(ADIGetLoginCode_t) libstoreservicescore.load("aslgmuibau");
+        this.pADIDispose = cast(ADIDispose_t) libstoreservicescore.load("jk24uiwqrg");
         this.pADIOTPRequest = cast(ADIOTPRequest_t) libstoreservicescore.load("qi864985u0");
+        this.pADISetIDMSRouting = cast(ADISetIDMSRouting_t) libstoreservicescore.load("ksbafgljkb");
+        this.pADIGetIDMSRouting = cast(ADIGetIDMSRouting_t) libstoreservicescore.load("madsvsfvjk");
 
         if (identifier == null)
             this.identifier = genAndroidId;
@@ -125,6 +143,7 @@ public struct ADI {
         pADISetProvisioningPath(/+path+/ path.toStringz);
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
         pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
+
         dsId = -2;
     }
 
@@ -140,9 +159,9 @@ public struct ADI {
         client.setUserAgent("iCloud.exe (unknown version) CFNetwork/520.44.6");
         client.handle.set(CurlOption.ssl_verifypeer, 0);
 
-        debug {
-            client.handle.set(CurlOption.verbose, 1);
-        }
+        // debug {
+        //     client.handle.set(CurlOption.verbose, 1);
+        // }
         client.addRequestHeader("Accept", "*/*");
         client.addRequestHeader("Content-Type", "text/x-xml-plist");
         client.addRequestHeader("Accept-Language", "en");
@@ -240,6 +259,10 @@ public struct ADI {
         return secondStepAnswers;
     }
 
+    public bool isMachineProvisioned() {
+        return pADIGetLoginCode(dsId) == 0;
+    }
+
     public void provisionDevice(out ulong routingInformation) {
         auto client = makeHttpClient();
 
@@ -249,6 +272,8 @@ public struct ADI {
         client.addRequestHeader("X-Apple-I-SRL-NO", serialNo);
 
         populateUrlBag(client);
+
+        pADIProvisioningErase(dsId);
 
         ubyte[] spim = downloadSPIM(client);
 
@@ -274,6 +299,14 @@ public struct ADI {
         auto secondStep = sendCPIM(client, cpim);
         routingInformation = to!ulong(secondStep.rinfo);
 
+        ret = pADISetIDMSRouting(
+        routingInformation,
+        dsId,
+        );
+
+        if (ret)
+            throw new AnisetteException(ret);
+
         ret = pADIProvisioningEnd(
         session,
         secondStep.ptm.ptr,
@@ -285,7 +318,10 @@ public struct ADI {
         if (ret)
             throw new AnisetteException(ret);
 
-        // TODO: IDMS ROUTING pADISetIDMSRouting(routingInformation, dsId);
+        ret = pADIDispose(cpimPtr);
+
+        if (ret)
+            throw new AnisetteException(ret);
     }
 
     void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
@@ -305,8 +341,28 @@ public struct ADI {
         if (ret)
             throw new AnisetteException(ret);
 
-        machineId = midPtr[0..midLen];
-        oneTimePassword = otpPtr[0..otpLen];
+        machineId = midPtr[0..midLen].dup;
+        oneTimePassword = otpPtr[0..otpLen].dup;
+
+        ret = pADIDispose(midPtr);
+
+        if (ret)
+            throw new AnisetteException(ret);
+
+        ret = pADIDispose(otpPtr);
+
+        if (ret)
+            throw new AnisetteException(ret);
+    }
+
+    void getRoutingInformation(out ulong routingInfo) {
+        auto ret = pADIGetIDMSRouting(
+        /+(out) routingInfo+/ cast(ulong*) 17,
+        /+accountID+/ dsId,
+        );
+
+        if (ret)
+            throw new AnisetteException(ret);
     }
 }
 

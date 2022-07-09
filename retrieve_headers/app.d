@@ -12,7 +12,13 @@ int main(string[] args) {
     adi.customHeaders["X-Apple-Locale"] = "en_US";
 
     ulong rinfo;
-    adi.provisionDevice(rinfo);
+    if (!adi.isMachineProvisioned()) {
+        stderr.write("Machine requires provisioning... ");
+        adi.provisionDevice(rinfo);
+        stderr.writeln("done !");
+    } else {
+        adi.getRoutingInformation(rinfo);
+    }
 
     ubyte[] mid;
     ubyte[] otp;

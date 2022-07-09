@@ -26,7 +26,7 @@ Pour compiler n'importe lequel des projets, vous devez avoir CMake et le kit de 
 pour le D (le compilateur + dub).
 
 Pour compiler *sideload_ipa*, il est nécessaire en plus d'avoir ce qu'il faut pour développer avec 
-GTK+.
+GTK+ et GMP.
 
 ## Compilation
 
