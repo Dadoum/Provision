@@ -11,7 +11,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build:
+  build-all:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
@@ -28,17 +28,50 @@ jobs:
       uses: dlang-community/setup-dlang@v1.1.1
       with:
         compiler: ldc-latest
-        
+
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential gcc g++ libgtk-3-dev libimobiledevice-dev
+      run: sudo apt-get install -y build-essential gcc g++ ninja-build libgtk-3-dev libimobiledevice-dev
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2
 
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
+  build-anisette-server:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: D Compiler Installation
+        # You may pin to the exact commit or the version.
+        # uses: dlang-community/setup-dlang@763d869b4d67e50c3ccd142108c8bca2da9df166
+        uses: dlang-community/setup-dlang@v1.1.1
+        with:
+          compiler: ldc-latest
+
+      - name: Install dependencies
+        run: sudo apt-get install -y build-essential gcc g++ ninja-build
+
+      - name: Configure CMake
+        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+        run: cmake -G Ninja -Dbuild_sideloadipa=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2
+
+      - name: Build
+        # Build your program with the given configuration
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       
+      - uses: actions/upload-artifact@v3
+        with:
+          name: anisette-server
+          path: ${{github.workspace}}/build/anisette_server
