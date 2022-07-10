@@ -11,7 +11,6 @@ import std.algorithm;
 import std.string;
 import core.exception;
 import core.stdc.stdint;
-import provision.ilibrary;
 import provision.posixlibrary;
 
 extern (C) __gshared @nogc {
@@ -25,7 +24,7 @@ extern (C) __gshared @nogc {
     void hybris_set_skip_props(bool value);
 }
 
-public class AndroidLibrary: ILibrary {
+public struct AndroidLibrary {
     private void* libraryHandle;
 
     public this(string libraryName) {
@@ -51,19 +50,20 @@ public class AndroidLibrary: ILibrary {
     }
 }
 
-private static __gshared PosixLibrary libc;
+private static __gshared PosixLibrary* libc;
 
 extern(C) int __system_property_getHook(const char* n, char *value) {
     auto name = n.fromStringz;
 
-    enum str = "0 c'est trop court apparement";
+    enum str = "DNPX89219";
 
     strcpy(value, str.ptr);
     return cast(int) str.length;
 }
 
 extern(C) int emptyStub() {
-    return 0;
+    import std.random;
+    return unpredictableSeed();
 }
 
 struct ADIMessage {

@@ -1,5 +1,6 @@
 module provision.c;
 
+import core.runtime;
 import core.stdc.string;
 import provision.adi;
 import std.experimental.allocator;
@@ -7,6 +8,14 @@ import std.experimental.allocator.mallocator;
 import std.string;
 
 extern(C) __gshared {
+    void provision_init() {
+        Runtime.initialize();
+    }
+
+    void provision_dispose() {
+        Runtime.terminate();
+    }
+
     ADI* provision_adi_create(immutable char* path) {
         return Mallocator.instance.make!ADI(path.fromStringz);
     }
