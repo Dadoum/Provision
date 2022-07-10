@@ -40,8 +40,8 @@ int main(string[] args) {
     "X-Apple-Locale": "en_US",
     "X-Mme-Device-Id": "%s"
 }`(
-            Base64.encode(mid),
             Base64.encode(otp),
+            Base64.encode(mid),
             rinfo,
             adi.localUserUUID,
             adi.serialNo,

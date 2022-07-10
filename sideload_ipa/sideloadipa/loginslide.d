@@ -56,9 +56,11 @@ class LoginSlide: Box, IFlowSlide {
         string appleIdStr = appleId.getText();
         string passwordStr = password.getText();
 
-        if (!assistant.session) {
-            assistant.session = new AppleLoginSession();
+        if (assistant.session) {
+            object.destroy(assistant.session);
         }
+
+        assistant.session = new AppleLoginSession();
 
         string errorStr;
         auto res = assistant.session.login(appleIdStr, passwordStr, errorStr);

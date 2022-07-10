@@ -1,9 +1,9 @@
 module provision.adi;
 
 import provision.android.id;
+import provision.androidlibrary;
 import plist;
 import plist.types;
-import provision.ilibrary;
 import std.base64;
 import std.conv;
 import std.digest.sha;
@@ -12,6 +12,8 @@ import std.format;
 import std.net.curl;
 import std.stdio;
 import std.string;
+
+@nogc:
 
 alias ADILoadLibraryWithPath_t = extern(C) int function(immutable char*);
 alias ADISetAndroidID_t = extern(C) int function(immutable char*, uint);
@@ -28,7 +30,7 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
 alias ADISetIDMSRouting_t = extern(C) int function(ulong, ulong);
 alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
-public struct ADI {
+@nogc public struct ADI {
     private string path;
     private string identifier;
     private ulong dsId;
@@ -36,8 +38,8 @@ public struct ADI {
     private string[string] urlBag;
     private string[string] __customHeaders;
 
-    ILibrary libcoreadi;
-    ILibrary libstoreservicescore;
+    AndroidLibrary* libcoreadi;
+    AndroidLibrary* libstoreservicescore;
 
     ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
     ADISetAndroidID_t pADISetAndroidID;
@@ -105,7 +107,6 @@ public struct ADI {
 
         enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
 
-        import provision.androidlibrary;
         initHybris();
 
         if (!exists(libraryPath ~ "libCoreADI.so")) {

@@ -1,11 +1,10 @@
 module provision.posixlibrary;
 
 import core.sys.posix.dlfcn;
-import provision.ilibrary;
 import std.stdio;
 import std.string;
 
-class PosixLibrary: ILibrary {
+struct PosixLibrary {
     private void* libraryHandle;
 
     public this(string libraryName) {
