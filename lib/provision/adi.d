@@ -358,7 +358,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
     void getRoutingInformation(out ulong routingInfo) {
         auto ret = pADIGetIDMSRouting(
-        /+(out) routingInfo+/ cast(ulong*) 17,
+        /+(out) routingInfo+/ &routingInfo,
         /+accountID+/ dsId,
         );
 

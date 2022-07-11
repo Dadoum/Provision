@@ -55,15 +55,19 @@ private static __gshared PosixLibrary* libc;
 extern(C) int __system_property_getHook(const char* n, char *value) {
     auto name = n.fromStringz;
 
-    enum str = "DNPX89219";
+    enum str = "no s/n number";
 
-    strcpy(value, str.ptr);
+    strncpy(value, str.ptr, str.length);
     return cast(int) str.length;
 }
 
+extern(C) uint arc4randomHook() {
+    // import std.random;
+    return 0; // Random(unpredictableSeed()).front;
+}
+
 extern(C) int emptyStub() {
-    import std.random;
-    return unpredictableSeed();
+    return 0;
 }
 
 struct ADIMessage {
@@ -116,7 +120,7 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
         return &__system_property_getHook;
 
     if (strcmp(s, "arc4random".ptr) == 0)
-        return &emptyStub;
+        return &arc4randomHook;
 
     // Hooks to load libandroidappmusic
     // if (strcmp(s, "powf".ptr) == 0 ||

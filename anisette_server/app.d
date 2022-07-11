@@ -9,20 +9,31 @@ import provision;
 void main(string[] args) {
     auto app = new Archttp;
     ADI* adi = new ADI(expandTilde("~/.adi"));
-    adi.serialNo = "DNPX89219";
-    adi.customHeaders["X-Apple-Locale"] = "en_US";
 
     ulong rinfo;
-    adi.provisionDevice(rinfo);
+    if (!adi.isMachineProvisioned()) {
+        stderr.write("Machine requires provisioning... ");
+        adi.provisionDevice(rinfo);
+        stderr.writeln("done !");
+    } else {
+        adi.getRoutingInformation(rinfo);
+    }
+
+    app.get("/reprovision", (req, res) {
+        writefln!"[%s >>] GET /reprovision"(req.ip);
+        adi.provisionDevice(rinfo);
+        writefln!"[>> %s] 200 OK"(req.ip);
+        res.code(HttpStatusCode.OK);
+    });
 
     app.get("/", (req, res) {
         try {
             import std.datetime.systime;
             import std.datetime.timezone;
             import core.time;
-            auto time = Clock.currTime(cast(TimeZone) new SimpleTimeZone(dur!"msecs"(0), "GMT+0"));
+            auto time = Clock.currTime();
 
-            writeln("Received request !");
+            writefln!"[%s >>] GET /"(req.ip);
 
             ubyte[] mid;
             ubyte[] otp;
@@ -39,10 +50,12 @@ void main(string[] args) {
                 "X-Apple-I-MD-LU": adi.localUserUUID,
                 "X-Apple-I-SRL-NO": adi.serialNo,
                 "X-MMe-Client-Info": adi.clientInfo,
-                "X-Apple-I-TimeZone": "GMT+0",
+                "X-Apple-I-TimeZone": time.timezone.dstName,
                 "X-Apple-Locale": "en_US",
                 "X-Mme-Device-Id": adi.deviceId,
             ];
+
+            writefln!"[>> %s] 200 OK %s"(req.ip, response);
 
             res.code(HttpStatusCode.OK);
             res.send(response);

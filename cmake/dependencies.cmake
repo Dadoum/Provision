@@ -22,8 +22,14 @@ FetchContent_MakeAvailable(plist_proj)
 
 if(build_sideloadipa)
     DubProject_Add(gtk-d ~3.10.0)
-    DubProject_Add(gmp-d ~0.2.11)
     # DubProject_Add(mofile ~0.2.1)
+
+    FetchContent_Declare(
+            secured_proj
+            GIT_REPOSITORY https://github.com/LightBender/SecureD
+            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s secured
+    )
+    FetchContent_MakeAvailable(secured_proj)
 endif()
 
 if(build_anisetteserver)
