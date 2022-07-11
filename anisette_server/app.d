@@ -37,7 +37,13 @@ void main(string[] args) {
 
             ubyte[] mid;
             ubyte[] otp;
-            adi.getOneTimePassword(mid, otp);
+            try {
+                adi.getOneTimePassword(mid, otp);
+            } catch {
+                writeln("Reprovision needed.");
+                adi.provisionDevice(rinfo);
+                adi.getOneTimePassword(mid, otp);
+            }
 
             import std.conv;
             import std.json;
