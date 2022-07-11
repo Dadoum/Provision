@@ -7,7 +7,9 @@
 Provision est un jeu d'outils intéragissant avec les serveurs d'Apple sur Linux.
 
 Cela inclut :
- - *libprovision*, utilisé pour enregistrer l'appareil auprès des serveurs d'Apple
+ - *libprovision*, utilisé pour enregistrer l'appareil auprès des serveurs d'Apple.
+ - *anisette_server*, un serveur d'approvisionnement Anisette pour des logiciels tiers comme 
+[AltServer-Linux](https://github.com/NyaMisty/AltServer-Linux).
  - *retrieve_headers*, qui permet d'enregistrer l'appareil avec libprovision et de retourner 
 les en-têtes HTTP à utiliser pour identifier l'appareil.
  - *sideload_ipa*, un exemple d'utilisation de libprovision pour installer une application sur
@@ -26,7 +28,7 @@ Pour compiler n'importe lequel des projets, vous devez avoir CMake et le kit de 
 pour le D (le compilateur + dub).
 
 Pour compiler *sideload_ipa*, il est nécessaire en plus d'avoir ce qu'il faut pour développer avec 
-GTK+, GMP et libimobiledevice.
+GTK+ et libimobiledevice.
 
 ## Compilation
 
