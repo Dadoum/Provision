@@ -1,4 +1,4 @@
-module sideloadipa.plist.c;
+module provision.plist.c;
 
 /**
  * @file plist/plist.h

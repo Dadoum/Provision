@@ -7,6 +7,7 @@ import gobject.ObjectG;
 
 import gtk.Assistant;
 import gtk.Box;
+import gtk.Button;
 import gtk.EditableIF;
 import gtk.Entry;
 import gtk.HeaderBar;
@@ -21,80 +22,94 @@ import sideloadipa.iflowslide;
 import sideloadipa.tfaslide;
 import sideloadipa.utils;
 
-class LoginAssistant: Assistant {
-    AppleLoginSession session;
+class LoginAssistant: Window {
+    shared AppleLoginSession session;
 
-    IFlowSlide currentSlide;
+    Button cancelButton;
+    Button nextButton;
+    Button previousButton;
 
     Cursor defaultCursor;
     Cursor waitCursor;
 
     Label title;
 
-    IFlowSlide[] refs;
-
-    private int currentPage = 0;
+    IFlowSlide[] history;
     private bool initialized = false;
 
     this(Window parent) {
+        super("Log-in to Apple");
         this.setModal(true);
         this.setTypeHint(WindowTypeHint.DIALOG);
         this.setTransientFor(parent);
         this.setResizable(false);
-
-        this.addOnCancel((_) {
-            this.destroy();
-        });
-
-        auto loginSlide = new LoginSlide(this);
-        refs ~= loginSlide;
-        currentSlide = loginSlide;
-        this.appendPage(loginSlide);
-        this.title = new Label("");
-        title.getStyleContext().addClass(STYLE_CLASS_TITLE);
-        import gtk.c.functions;
-        HeaderBar bar = ObjectG.getDObject!(HeaderBar)(cast(GtkHeaderBar*) gtk_window_get_titlebar(this.getWindowStruct()));
-        bar.setCustomTitle(this.title);
-        object.destroy(bar);
-        auto twoFactorAuth = new TFASlide(this);
-        refs ~= twoFactorAuth;
-        this.appendPage(twoFactorAuth);
+        this.setDeletable(false);
 
         defaultCursor = new Cursor(CursorType.LEFT_PTR);
         waitCursor = new Cursor(CursorType.WATCH);
 
-        bool isPreparing = false;
+        HeaderBar bar = new HeaderBar();
+        cancelButton = new Button(StockID.CANCEL);
+        nextButton = new Button(StockID.GO_FORWARD);
+        previousButton = new Button(StockID.GO_BACK);
 
-        addOnPrepare((page, self) {
-            this.title.setText((cast(IFlowSlide) page).title);
+        cancelButton.setNoShowAll(true);
+        nextButton.setNoShowAll(true);
+        previousButton.setNoShowAll(true);
 
-            if (!initialized) {
-                initialized = true;
-                return;
+        bar.packStart(cancelButton);
+        bar.packStart(previousButton);
+        bar.packEnd(nextButton);
+
+        nextButton.setSensitive(false);
+
+        cancelButton.show();
+        nextButton.show();
+        this.setTitlebar(bar);
+
+        previousButton.addOnPressed((btn) {
+            import std.range.primitives;
+            auto last = history.back();
+            history.popBack();
+            if (!history.length) {
+                previousButton.hide();
+            }
+            Widget w = this.getChild();
+            if (w) {
+                this.remove(w);
             }
 
-            if (isPreparing) {
-                return;
-            }
-
-            bool goBack = this.getCurrentPage() - currentPage < 0;
-
-            if (!goBack) {
-                this.setCursor(waitCursor);
-                Main.iteration();
-                auto avancement = (cast(IFlowSlide) self.getNthPage(currentPage)).run();
-                this.setCursor(defaultCursor);
-                isPreparing = true;
-                if (avancement) {
-                    self.setCurrentPage(currentPage + avancement);
-                    currentPage = currentPage + avancement;
-                } else {
-                    self.previousPage();
-                }
-                isPreparing = false;
-            } else {
-                currentPage -= 1;
-            }
+            this.add(cast(Widget) last);
         });
+        nextButton.addOnPressed((btn) {
+            setBusy(true);
+        });
+
+        auto loginSlide = new LoginSlide(this);
+
+        // this.setPadding(8);
+        changeSlide(loginSlide);
+    }
+
+    void setBusy(bool busy) {
+        cancelButton.setSensitive(!busy);
+        nextButton.setSensitive(!busy);
+        previousButton.setSensitive(!busy);
+        setCursor(busy ? waitCursor : defaultCursor);
+    }
+
+    void changeSlide(IFlowSlide slide) {
+        Widget w = this.getChild();
+        if (w) {
+            history ~= cast(IFlowSlide) w;
+            previousButton.show();
+            this.remove(w);
+        }
+
+        this.add(cast(Widget) slide);
+    }
+
+    void setPageComplete(bool complete) {
+        nextButton.setSensitive(complete);
     }
 }

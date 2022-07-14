@@ -11,27 +11,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(libhybris)
 target_compile_definitions(hybris PUBLIC BROKEN_MODE)
 
-include(UseDub)
+if(build_sideloadipa OR build_anisetteserver)
+    include(UseDub)
 
-FetchContent_Declare(
-        plist_proj
-        GIT_REPOSITORY https://github.com/hatf0/plist
-        PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
-)
-FetchContent_MakeAvailable(plist_proj)
+    if(build_sideloadipa)
+        DubProject_Add(gtk-d ~3.10.0)
+        DubProject_Add(gmp-d ~0.2.11)
+        # DubProject_Add(mofile ~0.2.1)
 
-if(build_sideloadipa)
-    DubProject_Add(gtk-d ~3.10.0)
-    # DubProject_Add(mofile ~0.2.1)
+        DubProject_Add(pbkdf2 ~0.1.3)
+        DubProject_Add(crypto ~0.2.17)
+    endif()
 
-    FetchContent_Declare(
-            secured_proj
-            GIT_REPOSITORY https://github.com/LightBender/SecureD
-            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s secured
-    )
-    FetchContent_MakeAvailable(secured_proj)
-endif()
-
-if(build_anisetteserver)
-    DubProject_Add(archttp ~1.1.0)
+    if(build_anisetteserver)
+        DubProject_Add(archttp ~1.1.0)
+    endif()
 endif()

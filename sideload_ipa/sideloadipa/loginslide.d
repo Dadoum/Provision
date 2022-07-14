@@ -9,6 +9,7 @@ import sideloadipa.appleloginsession;
 import sideloadipa.iflowslide;
 import sideloadipa.loginassistant;
 import sideloadipa.tfaslide;
+import sideloadipa.utils;
 
 class LoginSlide: Box, IFlowSlide {
     import gtkd.Implement;
@@ -55,27 +56,76 @@ class LoginSlide: Box, IFlowSlide {
     int run() {
         string appleIdStr = appleId.getText();
         string passwordStr = password.getText();
+        setButtonsEnabled(false);
 
-        if (assistant.session) {
-            object.destroy(assistant.session);
-        }
+        import std.concurrency;
+        spawn(function (AppleLoginSession* appleLoginSession, string appleIdStr, string passwordStr, shared(void*) slide) {
+            import glib.Idle;
+            new Idle(() {
+                auto assistant = (cast(LoginSlide) slide).assistant;
+                assistant.setCursor(assistant.waitCursor);
+                return false;
+            }, true);
 
-        assistant.session = new AppleLoginSession();
+            if (*appleLoginSession) {
+                object.destroy(*appleLoginSession);
+            }
 
-        string errorStr;
-        auto res = assistant.session.login(appleIdStr, passwordStr, errorStr);
+            *appleLoginSession = new shared AppleLoginSession();
 
-        if (res == AppleLoginResponse.errored) {
-            this.errorLabel.show();
-            this.errorLabel.setText(errorStr);
-        }
+            __gshared string errorStr;
+            auto res = appleLoginSession.login(appleIdStr, passwordStr, errorStr);
 
-        return cast(int) res;
+            new Idle(() {
+                if (slide == null) {
+                    return false;
+                }
+
+                auto self = cast(LoginSlide) slide;
+                if (self.assistant is null) {
+                    return false;
+                }
+
+                if (res == AppleLoginResponse.errored) {
+                    self.errorLabel.show();
+                    self.errorLabel.setText(errorStr);
+                }
+                self.setButtonsEnabled(true);
+                self.assistant.setCursor(self.assistant.defaultCursor);
+                return false;
+            }, true);
+        }, &assistant.session, appleIdStr, passwordStr, cast(shared void*) this);
+
+        // import glib.Idle;
+        // new Idle(() {
+        //     if (assistant.session) {
+        //         object.destroy(assistant.session);
+        //     }
+
+        //     __gshared string errorStr;
+        //     assistant.session = new shared AppleLoginSession();
+
+        //     auto res = assistant.session.login(appleIdStr, passwordStr, errorStr);
+        //     if (res == AppleLoginResponse.errored) {
+        //         this.errorLabel.show();
+        //         this.errorLabel.setText(errorStr);
+        //     }
+        //     this.setButtonsEnabled(true);
+        //     return false;
+        // }, true);
+        return 0;
+    }
+
+    void setButtonsEnabled(bool enabled) {
+        assistant.setCursor(enabled ? assistant.defaultCursor : assistant.waitCursor);
+        appleId.setSensitive(enabled);
+        password.setSensitive(enabled);
+        assistant.setPageComplete(enabled);
     }
 
     void checkNextButton(EditableIF) {
         string appleIdStr = appleId.getText();
         string passwordStr = password.getText();
-        assistant.setPageComplete(this, appleIdStr != "" && passwordStr != "");
+        assistant.setPageComplete(appleIdStr != "" && passwordStr != "");
     }
 }

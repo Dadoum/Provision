@@ -83,7 +83,7 @@ class TFASlide: Box, IFlowSlide {
             complete &= entries[a].getText() != "";
         }
 
-        assistant.setPageComplete(this, complete);
+        assistant.setPageComplete(complete);
     }
 
     int run() {

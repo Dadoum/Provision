@@ -2,8 +2,6 @@ module provision.adi;
 
 import provision.android.id;
 import provision.androidlibrary;
-import plist;
-import plist.types;
 import std.base64;
 import std.conv;
 import std.digest.sha;
@@ -12,6 +10,8 @@ import std.format;
 import std.net.curl;
 import std.stdio;
 import std.string;
+
+import provision.plist;
 
 @nogc:
 
@@ -178,14 +178,15 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     }
 
     private void populateUrlBag(HTTP client) {
-        auto content = std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", client);
+        auto content = cast(string) std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", client);
 
-        Plist plist = new Plist();
-        plist.read(cast(string) content);
-        auto response = (cast(PlistElementDict) (cast(PlistElementDict) (plist[0]))["urls"]);
-
-        foreach (key; response.keys()) {
-            urlBag[key] = (cast(PlistElementString) response[key]).value;
+        PlistDict plist = cast(PlistDict) Plist.fromXml(content);
+        auto response = cast(PlistDict) plist["urls"];
+        auto responseIter = response.iter();
+        Plist val;
+        string key;
+        while (responseIter.next(val, key)) {
+            urlBag[key] = cast(string) cast(PlistString) val;
         }
     }
 
@@ -209,10 +210,9 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 </plist>
 ", client);
 
-        Plist spimPlist = new Plist();
-        spimPlist.read(content);
-        PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (spimPlist[0]))["Response"];
-        string spimStr = (cast(PlistElementString) spimResponse["spim"]).value;
+        auto spimPlist = cast(PlistDict) Plist.fromXml(content);
+        auto spimResponse = cast(PlistDict) spimPlist["Response"];
+        string spimStr = cast(string) cast(PlistString) spimResponse["spim"];
 
         return Base64.decode(spimStr);
     }
@@ -242,9 +242,8 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         string content = cast(string) post(urlBag["midFinishProvisioning"],
         body_, client);
 
-        Plist plist = new Plist();
-        plist.read(content);
-        PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (plist[0]))["Response"];
+        PlistDict plist = cast(PlistDict) Plist.fromXml(content);
+        PlistDict spimResponse = cast(PlistDict) plist["Response"];
 
         struct SecondStepAnswers {
             string rinfo;
@@ -253,9 +252,9 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         }
 
         SecondStepAnswers secondStepAnswers = SecondStepAnswers();
-        secondStepAnswers.rinfo = (cast(PlistElementString) spimResponse["X-Apple-I-MD-RINFO"]).value;
-        secondStepAnswers.tk = Base64.decode((cast(PlistElementString) spimResponse["tk"]).value);
-        secondStepAnswers.ptm = Base64.decode((cast(PlistElementString) spimResponse["ptm"]).value);
+        secondStepAnswers.rinfo = cast(string) cast(PlistString) spimResponse["X-Apple-I-MD-RINFO"];
+        secondStepAnswers.tk = Base64.decode(cast(string) cast(PlistString) spimResponse["tk"]);
+        secondStepAnswers.ptm = Base64.decode(cast(string) cast(PlistString) spimResponse["ptm"]);
 
         return secondStepAnswers;
     }
