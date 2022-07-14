@@ -26,7 +26,7 @@ import std.string;
 
 class SideloadApplication: Application {
     SideloadWindow window;
-    public ADI* adi;
+    public __gshared ADI* adi;
 
     this() {
         super("dadoum.sideloader", ApplicationFlags.NON_UNIQUE);
@@ -92,7 +92,7 @@ class SideloadApplication: Application {
     }
 }
 
-SideloadApplication appInstance;
+__gshared SideloadApplication appInstance;
 
 int main(string[] args) {
     appInstance = new SideloadApplication();

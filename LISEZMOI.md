@@ -24,8 +24,8 @@ Music. Vous pouvez ne télécharger que la tranche de votre architecture. Placez
 à côté des exécutables. Dans le dossier avec toutes les bibliothèques (fichiers en .so), vous pouvez 
 ne garder que libstoreservicescore.so et libCoreADI.so. Ce sont les seuls nécessaire. 
 
-Pour compiler n'importe lequel des projets, vous devez avoir CMake et le kit de développement 
-pour le D (le compilateur + dub).
+Pour compiler n'importe lequel des projets, vous devez avoir CMake, le kit de développement 
+pour le D (le compilateur + dub), un compilateur C et C++, et le paquet de dev de libplist.
 
 Pour compiler *sideload_ipa*, il est nécessaire en plus d'avoir ce qu'il faut pour développer avec 
 GTK+ et libimobiledevice.

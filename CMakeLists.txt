@@ -10,6 +10,9 @@ include(cmake/dependencies.cmake)
 set(PROVISION_SOURCE_DIR "lib/")
 file(GLOB_RECURSE PROVISION_D_SOURCES "${PROVISION_SOURCE_DIR}*.d")
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(plist REQUIRED IMPORTED_TARGET libplist-2.0)
+
 add_library(provision STATIC ${PROVISION_D_SOURCES})
 target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 
@@ -18,7 +21,7 @@ target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 # set_source_files_properties(lib/provision/c.d PROPERTIES COMPILE_FLAGS "-HC -HCf=${CMAKE_BINARY_DIR}/include-provision/provision.h")
 # target_include_directories(provision PUBLIC ${CMAKE_BINARY_DIR}/include-provision)
 
-target_link_libraries(provision PUBLIC plist hybris stdc++)
+target_link_libraries(provision PUBLIC PkgConfig::plist hybris stdc++)
 
 set(RETRIEVE_HEADERS_SOURCE_DIR "retrieve_headers/")
 file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d")
@@ -34,10 +37,9 @@ if(build_sideloadipa)
     add_executable(sideload_ipa ${SIDELOAD_IPA_D_SOURCES})
     target_include_directories(sideload_ipa PUBLIC ${SIDELOAD_IPA_SOURCE_DIR})
 
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(imobiledevice REQUIRED IMPORTED_TARGET libimobiledevice-1.0)
 
-    target_link_libraries(sideload_ipa provision gtk-d PkgConfig::imobiledevice secured)
+    target_link_libraries(sideload_ipa provision gtk-d gmp-d PkgConfig::imobiledevice PkgConfig::plist pbkdf2 crypto)
 endif()
 
 if(build_anisetteserver)

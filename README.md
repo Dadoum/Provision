@@ -24,8 +24,8 @@ the lib/ folder next to the executables. If you want to reduce further the size,
 folder all the libraries except libstoreservicescore.so and libCoreADI.so, since they are the only one
 needed to run the app.
 
-To build any of these projects, you need CMake, a C and C++ compiler, and the D SDK, with the compiler
-and dub.
+To build any of these projects, you need CMake, a C and C++ compiler, the D SDK, with the compiler
+and dub and libplist development packages.
 
 To build *sideload_ipa*, you also need GTK+ and libimobiledevice development packages. 
 
