@@ -34,7 +34,7 @@ To build *sideload_ipa*, you also need GTK+ and libimobiledevice development pac
 Clone the project and compile it with CMake:
 
 ```bash
-git clone git@github.com:Dadoum/Provision.git --recursive
+git clone https://github.com/Dadoum/Provision --recursive
 cd Provision
 mkdir build
 cd build
