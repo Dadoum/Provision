@@ -35,7 +35,7 @@ GTK+ et libimobiledevice.
 Clonez le projet et compilez le avec CMake:
 
 ```bash
-git clone git@github.com:Dadoum/Provision.git --recursive
+git clone https://github.com/Dadoum/Provision --recursive
 cd Provision
 mkdir build
 cd build
