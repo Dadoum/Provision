@@ -140,19 +140,12 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     return libc.load(s.fromStringz);
 }
 
-uint count = 0;
 void initHybris() {
-    count++;
-    if (count == 1) {
-        libc = new PosixLibrary("libc.so.6");
-        hybris_set_skip_props(true);
-        hybris_set_hook_callback(&hookFinder);
-    }
+    libc = new PosixLibrary(null);
+    hybris_set_skip_props(true);
+    hybris_set_hook_callback(&hookFinder);
 }
 
 void unloadHybris() {
-    count--;
-    if (count == 0) {
-        destroy(libc);
-    }
+    destroy(libc);
 }
