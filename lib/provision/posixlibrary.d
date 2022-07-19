@@ -1,16 +1,15 @@
 module provision.posixlibrary;
 
+import core.stdc.stdio;
 import core.sys.posix.dlfcn;
-import std.stdio;
-import std.string;
 
-struct PosixLibrary {
+class PosixLibrary {
     private void* libraryHandle;
 
-    public this(string libraryName) {
-        libraryHandle = dlopen(libraryName.ptr, RTLD_LAZY);
+    public this(char* libraryName) {
+        libraryHandle = dlopen(libraryName, RTLD_LAZY);
         if (libraryHandle == null) {
-            stderr.writefln!"ERR: cannot load library %s"(libraryName);
+            stderr.fprintf("ERR: cannot load library %s", libraryName);
         }
     }
 
@@ -20,7 +19,7 @@ struct PosixLibrary {
         }
     }
 
-    void* load(string symbol) const {
-        return dlsym(cast(void*) libraryHandle, toStringz(symbol));
+    void* load(char* symbol) const {
+        return dlsym(cast(void*) libraryHandle, symbol);
     }
 }

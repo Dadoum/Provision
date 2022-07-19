@@ -1,15 +1,13 @@
 module provision.android.id;
 
+import core.stdc.stdio;
 import core.stdc.stdint;
 import core.sys.posix.dlfcn;
-import std.format;
-import std.stdio;
 
-extern(C) union sd_id128_t {
+union sd_id128_t {
     uint8_t[16] bytes;
     uint64_t[2] qwords;
 }
-
 
 sd_id128_t* make_id(int b0, int b1, int b2, int b3, int b4, int b5, int b6, int b7,
 int b8, int b9, int b10, int b11, int b12, int b13, int b14, int b15) {
@@ -22,7 +20,7 @@ int b8, int b9, int b10, int b11, int b12, int b13, int b14, int b15) {
 }
 
 sd_id128_t* make_id(byte[16] b) {
-    auto id = new sd_id128_t();
+    auto id = New!sd_id128_t();
     id.bytes[0] = b[0];
     id.bytes[1] = b[1];
     id.bytes[2] = b[2];
@@ -43,10 +41,12 @@ sd_id128_t* make_id(byte[16] b) {
 }
 
 string toString(sd_id128_t* id) {
-    return std.format.format("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-    id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3], id.bytes[4],
-    id.bytes[5], id.bytes[6], id.bytes[7], id.bytes[8], id.bytes[9],
-    id.bytes[10], id.bytes[11], id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
+    char* outStr;
+    sprintf(outStr, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+        id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3], id.bytes[4],
+        id.bytes[5], id.bytes[6], id.bytes[7], id.bytes[8], id.bytes[9],
+        id.bytes[10], id.bytes[11], id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
+    return cast(string) outStr[0..32];
 }
 
 string genAndroidId() {
@@ -54,8 +54,8 @@ string genAndroidId() {
     if (libsystemd) {
         scope(exit) dlclose(libsystemd);
 
-        sd_id128_t* appId = make_id(0x8b, 0x06, 0x7f, 0xdd, 0x3c, 0xbf, 0x40,
-        0x8c, 0x90, 0x64, 0xc7, 0x5a, 0x9a, 0xc4, 0xc7, 0x8b), machineId = new sd_id128_t();
+        scope sd_id128_t* appId = make_id(0x8b, 0x06, 0x7f, 0xdd, 0x3c, 0xbf, 0x40,
+        0x8c, 0x90, 0x64, 0xc7, 0x5a, 0x9a, 0xc4, 0xc7, 0x8b), machineId = New!sd_id128_t();
 
         alias sd_id128_get_machine_app_specific_t = extern(C) int function(sd_id128_t app_id, sd_id128_t* ret);
         sd_id128_get_machine_app_specific_t sd_id128_get_machine_app_specific =
@@ -68,10 +68,10 @@ string genAndroidId() {
             goto error;
         }
 
-        return appId.toString()[0 .. 16];
+        return machineId.toString()[0 .. 16];
     }
 
   error:
-    stderr.writeln("WARN: Generation of unique identifier failed, using a generic one instead. ");
+    stderr.fprintf("WARN: Generation of unique identifier failed, using a generic one instead. \n");
     return "9774d56d682e549c";
 }

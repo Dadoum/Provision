@@ -109,16 +109,13 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
         initHybris();
 
-        if (!exists(libraryPath ~ "libCoreADI.so")) {
-            throw new FileException(libraryPath ~ "libCoreADI.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
+        if (!(exists(libraryPath ~ "libCoreADI.so") && exists(libraryPath ~ "libstoreservicescore.so"))) {
+            stderr.fprintf("Apple libraries are not installed correctly. Refer to README for instructions. ");
+            abort();
         }
 
-        if (!exists(libraryPath ~ "libstoreservicescore.so")) {
-            throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
-        }
-
-        this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
-        this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
+        this.libcoreadi = New! AndroidLibrary(libraryPath ~ "libCoreADI.so");
+        this.libstoreservicescore = New!AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
 
         this.pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) libstoreservicescore.load("kq56gsgHG6");
         this.pADISetAndroidID = cast(ADISetAndroidID_t) libstoreservicescore.load("Sph98paBcz");
@@ -259,7 +256,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return pADIGetLoginCode(dsId) == 0;
     }
 
-    public void provisionDevice(out ulong routingInformation) {
+    public uint provisionDevice(out ulong routingInformation) {
         auto client = makeHttpClient();
 
         client.addRequestHeader("X-Mme-Client-Info", clientInfo);
@@ -288,7 +285,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         );
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 1;
 
         ubyte[] cpim = cpimPtr[0..l];
 
@@ -301,7 +298,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         );
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 2;
 
         ret = pADIProvisioningEnd(
         session,
@@ -312,15 +309,17 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         );
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 3;
 
         ret = pADIDispose(cpimPtr);
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 4;
+
+        return 0;
     }
 
-    public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
+    public uint getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
         ubyte* midPtr;
         uint midLen;
         ubyte* otpPtr;
@@ -335,7 +334,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         );
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 1;
 
         machineId = midPtr[0..midLen].dup;
         oneTimePassword = otpPtr[0..otpLen].dup;
@@ -343,33 +342,34 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         ret = pADIDispose(midPtr);
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 2;
 
         ret = pADIDispose(otpPtr);
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 3;
     }
 
-    public void getRoutingInformation(out ulong routingInfo) {
+    public uint getRoutingInformation(out ulong routingInfo) {
         auto ret = pADIGetIDMSRouting(
         /+(out) routingInfo+/ &routingInfo,
         /+accountID+/ dsId,
         );
 
         if (ret)
-            throw new AnisetteException(ret);
+            return 1;
     }
 }
 
-public class AnisetteException: Exception {
-    this(int error, string file = __FILE__, ulong line = __LINE__) {
-        string msg;
-        if (error == -45054) {
-            msg = "ADI error: cannot create folder. ";
-        } else {
-            msg = format!"ADI error: %d"(error);
-        }
-        super(msg, file, line);
-    }
-}
+// public class AnisetteException: Exception {
+//     this(int error, string file = __FILE__, ulong line = __LINE__) {
+//         string msg;
+//         if (error == -45054) {
+//             msg = "ADI error: cannot create folder. ";
+//         } else {
+//             msg = format!"ADI error: %d"(error);
+//         }
+//         super(msg, file, line);
+//     }
+// }
+//

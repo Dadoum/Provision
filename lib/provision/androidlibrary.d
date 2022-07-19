@@ -1,16 +1,8 @@
 module provision.androidlibrary;
 
+import core.stdc.stdio;
 import core.stdc.string;
 import core.sys.posix.dlfcn;
-import std.algorithm;
-import std.conv;
-import std.stdio;
-import std.path;
-import std.traits;
-import std.algorithm;
-import std.string;
-import core.exception;
-import core.stdc.stdint;
 import provision.posixlibrary;
 
 extern (C) __gshared @nogc {
@@ -27,10 +19,10 @@ extern (C) __gshared @nogc {
 public struct AndroidLibrary {
     private void* libraryHandle;
 
-    public this(string libraryName) {
-        libraryHandle = hybris_dlopen(libraryName.ptr, RTLD_LAZY);
+    public this(immutable(char)* libraryName) {
+        libraryHandle = hybris_dlopen(libraryName, RTLD_LAZY);
         if (libraryHandle == null) {
-            stderr.writefln!"ERR: cannot load library %s"(libraryName);
+            stderr.fprintf("ERR: cannot load library %s", libraryName);
         }
     }
 
@@ -40,21 +32,19 @@ public struct AndroidLibrary {
         }
     }
 
-    void* load(string symbol) const {
-        void* sym = hybris_dlsym(libraryHandle, toStringz(symbol));
+    void* load(immutable(char)* symbol) const {
+        void* sym = hybris_dlsym(libraryHandle, symbol);
         if (sym == null) {
-            string hybris_err = hybris_dlerror().fromStringz();
-            stderr.writefln!"ERR: cannot load symbol %s: %s"(symbol, hybris_err);
+            immutable(char)* hybris_err = hybris_dlerror();
+            stderr.fprintf("ERR: cannot load symbol %s: %s", symbol, hybris_err);
         }
         return sym;
     }
 }
 
-private static __gshared PosixLibrary* libc;
+private static __gshared PosixLibrary libc;
 
 extern(C) int __system_property_getHook(const char* n, char *value) {
-    auto name = n.fromStringz;
-
     enum str = "no s/n number";
 
     strncpy(value, str.ptr, str.length);
@@ -137,11 +127,23 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     //     strcmp(s, "lroundf".ptr) == 0)
     //     return &emptyStub;
 
-    return libc.load(s.fromStringz);
+    return libc.load(cast(char*) s);
 }
 
+private static __gshared size_t refCount = 0;
+
 void initHybris() {
-    libc = new PosixLibrary(null);
-    hybris_set_skip_props(true);
-    hybris_set_hook_callback(&hookFinder);
+    if (!refCount) {
+        libc = New!PosixLibrary(null);
+        hybris_set_skip_props(true);
+        hybris_set_hook_callback(&hookFinder);
+    }
+    refCount++;
+}
+
+void unloadHybris() {
+    refCount--;
+    if (!refCount) {
+        libc.destroy();
+    }
 }

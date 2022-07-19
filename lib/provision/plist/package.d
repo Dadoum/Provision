@@ -1,9 +1,8 @@
 module provision.plist;
 
 import core.stdc.stdlib;
+import core.stdc.string;
 import provision.plist.c;
-import std.traits;
-import std.string;
 
 public alias PlistType = plist_type;
 
@@ -22,39 +21,41 @@ public abstract class Plist {
 
     public static Plist wrap(plist_t handle, bool owns = true) {
         Plist obj;
-        with (PlistType) final switch (plist_get_node_type(handle)) {
+        with (PlistType) switch (plist_get_node_type(handle)) {
             case PLIST_BOOLEAN:
-                obj = new PlistBoolean(handle, owns);
+                obj = New!PlistBoolean(handle, owns);
                 break;
             case PLIST_UINT:
-                obj = new PlistUint(handle, owns);
+                obj = New!PlistUint(handle, owns);
                 break;
             case PLIST_REAL:
-                obj = new PlistReal(handle, owns);
+                obj = New!PlistReal(handle, owns);
                 break;
             case PLIST_STRING:
-                obj = new PlistString(handle, owns);
+                obj = New!PlistString(handle, owns);
                 break;
             case PLIST_ARRAY:
-                obj = new PlistArray(handle, owns);
+                obj = New!PlistArray(handle, owns);
                 break;
             case PLIST_DICT:
-                obj = new PlistDict(handle, owns);
+                obj = New!PlistDict(handle, owns);
                 break;
             case PLIST_DATE:
-                obj = new PlistDate(handle, owns);
+                obj = New!PlistDate(handle, owns);
                 break;
             case PLIST_DATA:
-                obj = new PlistData(handle, owns);
+                obj = New!PlistData(handle, owns);
                 break;
             case PLIST_KEY:
-                obj = new PlistKey(handle, owns);
+                obj = New!PlistKey(handle, owns);
                 break;
             case PLIST_UID:
-                obj = new PlistUid(handle, owns);
+                obj = New!PlistUid(handle, owns);
                 break;
             case PLIST_NONE:
-                obj = new PlistNone(handle, owns);
+                obj = New!PlistNone(handle, owns);
+                break;
+            default:
                 break;
         }
 
@@ -63,7 +64,7 @@ public abstract class Plist {
 
     public static Plist fromXml(string xml) {
         plist_t handle;
-        plist_from_xml(cast(const char*) xml.ptr, cast(uint) xml.length, &handle);
+        plist_from_xml(xml.ptr, cast(uint) xml.length, &handle);
         return wrap(handle);
     }
 
@@ -80,7 +81,7 @@ public abstract class Plist {
     }
 
     public R copy(this R)() {
-        return new R(plist_copy(handle), true);
+        return New!R(plist_copy(handle), true);
     }
 
     public string toXml() {
@@ -158,8 +159,8 @@ class PlistString: Plist {
         super(handle, owns);
     }
 
-    public this(string val) {
-        this(plist_new_string(val.toStringz), true);
+    public this(char* val) {
+        this(plist_new_string(val), true);
     }
 
     public T opCast(T)() if (isSomeString!T) {
@@ -170,8 +171,8 @@ class PlistString: Plist {
         return cast(T) str;
     }
 
-    public void opAssign(T)(T val) if (isSomeString!T) {
-        plist_set_string_val(handle, cast(const char*) val.toStringz);
+    public void opAssign(char* val) {
+        plist_set_string_val(handle, cast(const char*) val);
     }
 }
 
@@ -232,7 +233,7 @@ class PlistArray: Plist {
     public PlistArrayIter iter() {
         plist_array_iter iter;
         plist_array_new_iter(handle, &iter);
-        return new PlistArrayIter(iter, this);
+        return New!PlistArrayIter(iter, this);
     }
 }
 
@@ -253,14 +254,14 @@ class PlistDict: Plist {
         return length();
     }
 
-    public Plist opIndex(string key) {
-        auto item = plist_dict_get_item(handle, key.toStringz);
+    public Plist opIndex(char* key) {
+        auto item = plist_dict_get_item(handle, key);
         return item ? Plist.wrap(item, false) : null;
     }
 
-    public void opIndexAssign(Plist element, string key) {
+    public void opIndexAssign(Plist element, char* key) {
         element.owns = false;
-        plist_dict_set_item(handle, key.toStringz, element.handle);
+        plist_dict_set_item(handle, key, element.handle);
     }
 
     class PlistDictIter {
@@ -282,8 +283,8 @@ class PlistDict: Plist {
             plist_dict_next_item(dict.handle, handle, &k, &plist_h);
             if (!plist_h)
                 return false;
-            key = k.fromStringz.dup;
-            free(k);
+            key = cast(string) k[0..strlen(k)];
+
             plist = Plist.wrap(plist_h, false);
             return true;
         }
@@ -292,7 +293,7 @@ class PlistDict: Plist {
     public PlistDictIter iter() {
         plist_dict_iter iter;
         plist_dict_new_iter(handle, &iter);
-        return new PlistDictIter(iter, this);
+        return New!PlistDictIter(iter, this);
     }
 }
 
