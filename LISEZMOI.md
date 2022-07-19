@@ -42,3 +42,5 @@ cd build
 cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release 
 ninja
 ```
+
+Ce référentiel inclus arsd/jni.d, sous la licence Boost. Référez-vous [au référentiel officiel](https://github.com/adamdruppe/arsd) pour plus d'infos.

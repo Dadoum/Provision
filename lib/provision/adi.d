@@ -148,12 +148,6 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         dsId = -2;
     }
 
-
-    ~this() {
-        import provision.androidlibrary;
-        unloadHybris();
-    }
-
     private HTTP makeHttpClient() {
         auto client = HTTP();
 
@@ -170,8 +164,11 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         client.addRequestHeader("Connection", "keep-alive");
         client.addRequestHeader("Proxy-Connection", "keep-alive");
 
-        foreach (customHeader; customHeaders.byKeyValue()) {
-            client.addRequestHeader(customHeader.key, customHeader.value);
+        writeln(this.dsId);
+        if (__customHeaders !is null) {
+            foreach (customHeader; customHeaders.byKeyValue()) {
+                client.addRequestHeader(customHeader.key, customHeader.value);
+            }
         }
 
         return client;
@@ -324,7 +321,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             throw new AnisetteException(ret);
     }
 
-    void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
+    public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
         ubyte* midPtr;
         uint midLen;
         ubyte* otpPtr;
@@ -355,7 +352,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             throw new AnisetteException(ret);
     }
 
-    void getRoutingInformation(out ulong routingInfo) {
+    public void getRoutingInformation(out ulong routingInfo) {
         auto ret = pADIGetIDMSRouting(
         /+(out) routingInfo+/ &routingInfo,
         /+accountID+/ dsId,

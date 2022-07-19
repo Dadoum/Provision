@@ -41,3 +41,5 @@ cd build
 cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release 
 ninja
 ```
+
+This repository include arsd/jni.d, under Boost license. See [original repo](https://github.com/adamdruppe/arsd) for further info.

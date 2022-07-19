@@ -16,7 +16,7 @@ public abstract class Plist {
         this.owns = owns;
     }
 
-    public PlistType getNodeType() {
+    public PlistType nodeType() {
         return plist_get_node_type(handle);
     }
 
@@ -74,7 +74,7 @@ public abstract class Plist {
     }
 
     ~this() {
-        if (owns && getNodeType() != PlistType.PLIST_NONE) {
+        if (owns && nodeType() != PlistType.PLIST_NONE) {
             plist_free(handle);
         }
     }
