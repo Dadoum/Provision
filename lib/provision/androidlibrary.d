@@ -145,7 +145,3 @@ void initHybris() {
     hybris_set_skip_props(true);
     hybris_set_hook_callback(&hookFinder);
 }
-
-void unloadHybris() {
-    destroy(libc);
-}

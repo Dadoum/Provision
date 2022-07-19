@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D)
+option(build_javabindings "Java bindings" OFF)
 option(build_sideloadipa "Build Sideload IPA" ON)
 option(build_anisetteserver "Build Anisette server" ON)
 
@@ -29,6 +30,18 @@ file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d"
 add_executable(retrieve_headers ${RETRIEVE_HEADERS_D_SOURCES})
 target_include_directories(retrieve_headers PUBLIC ${RETRIEVE_HEADERS_SOURCE_DIR})
 target_link_libraries(retrieve_headers provision)
+
+if (build_javabindings)
+    set_property(TARGET hybris PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    set(JAVA_B_SOURCE_DIR "bindings/java/source/")
+    file(GLOB_RECURSE JAVA_B_D_SOURCES "${JAVA_B_SOURCE_DIR}*.d")
+
+    add_library(provision-java SHARED ${JAVA_B_D_SOURCES})
+    target_include_directories(provision-java PUBLIC ${JAVA_B_SOURCE_DIR})
+
+    target_link_libraries(provision-java provision)
+endif()
 
 if(build_sideloadipa)
     set(SIDELOAD_IPA_SOURCE_DIR "sideload_ipa/")
