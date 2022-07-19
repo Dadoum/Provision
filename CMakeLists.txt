@@ -12,14 +12,15 @@ set(PROVISION_SOURCE_DIR "lib/")
 file(GLOB_RECURSE PROVISION_D_SOURCES "${PROVISION_SOURCE_DIR}*.d")
 
 find_package(PkgConfig REQUIRED)
+
+add_library(provision STATIC ${PROVISION_D_SOURCES})
+target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
+
 pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
 
 if (NOT plist_FOUND)
     pkg_check_modules(plist REQUIRED IMPORTED_TARGET libplist)
 endif()
-
-add_library(provision STATIC ${PROVISION_D_SOURCES})
-target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 
 # Generate C++ header
 # file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include-provision)

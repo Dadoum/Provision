@@ -589,13 +589,6 @@ void plist_set_uid_val (plist_t node, ulong val);
 void plist_to_xml (plist_t plist, char** plist_xml, uint* length);
 
 /**
- * Frees the memory allocated by plist_to_xml().
- *
- * @param plist_xml The buffer allocated by plist_to_xml().
- */
-void plist_to_xml_free (char* plist_xml);
-
-/**
  * Export the #plist_t structure to binary format.
  *
  * @param plist the root node to export
@@ -605,12 +598,42 @@ void plist_to_xml_free (char* plist_xml);
  */
 void plist_to_bin (plist_t plist, char** plist_bin, uint* length);
 
-/**
- * Frees the memory allocated by plist_to_bin().
- *
- * @param plist_bin The buffer allocated by plist_to_bin().
- */
-void plist_to_bin_free (char* plist_bin);
+version (NewPlist) {
+    /**
+     * Free memory allocated by relevant libplist API calls:
+     * - plist_to_xml()
+     * - plist_to_bin()
+     * - plist_get_key_val()
+     * - plist_get_string_val()
+     * - plist_get_data_val()
+     *
+     * @param ptr pointer to the memory to free
+     *
+     * @note Do not use this function to free plist_t nodes, use plist_free()
+     *     instead.
+     */
+    void plist_mem_free(void* ptr);
+
+    alias plist_to_xml_free = plist_mem_free;
+    alias plist_to_bin_free = plist_mem_free;
+} else {
+    import core.stdc.stdlib: free;
+    alias plist_mem_free = free;
+
+    /**
+     * Frees the memory allocated by plist_to_xml().
+     *
+     * @param plist_xml The buffer allocated by plist_to_xml().
+     */
+    void plist_to_xml_free (char* plist_xml);
+
+    /**
+     * Frees the memory allocated by plist_to_bin().
+     *
+     * @param plist_bin The buffer allocated by plist_to_bin().
+     */
+    void plist_to_bin_free (char* plist_bin);
+}
 
 /**
  * Import the #plist_t structure from XML format.
