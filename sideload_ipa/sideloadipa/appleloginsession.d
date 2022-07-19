@@ -300,7 +300,8 @@ shared class AppleLoginSession {
         {
             auto responsePlist = cast(PlistDict) Plist.fromXml(post(urlBag["gsService"], root.toXml));
             auto responseDict = cast(PlistDict) responsePlist["Response"];
-            error = checkStatus(cast(PlistDict) responseDict["Status"]);
+            auto statusDict = cast(PlistDict) responseDict["Status"];
+            error = checkStatus(statusDict);
             if (error) {
                 return AppleLoginResponse.errored;
             }
@@ -357,6 +358,17 @@ shared class AppleLoginSession {
             ));
 
             writeln(extraData.toXml);
+
+            string adsid = cast(string) cast(PlistString) extraData["adsid"];
+            string idmsToken = cast(string) cast(PlistString) extraData["GsIdmsToken"];
+
+            string au = cast(string) cast(PlistString) statusDict["au"];
+            if (au == "trustedDeviceSecondaryAuth") {
+                return AppleLoginResponse.requires2FA;
+            } else {
+                ubyte[] sk = cast(ubyte[]) cast(PlistData) extraData["sk"];
+                ubyte[] c = cast(ubyte[]) cast(PlistData) extraData["c"];
+            }
         }
 
         error = "Not implemented.";
