@@ -166,7 +166,7 @@ class PlistString: Plist {
         char* val;
         plist_get_string_val(handle, &val);
         auto str = val.fromStringz.dup;
-        free(val);
+        plist_mem_free(val);
         return cast(T) str;
     }
 
@@ -320,7 +320,7 @@ class PlistData: Plist {
         ulong length;
         plist_get_data_val(handle, &ptr, &length);
         auto data = cast(ubyte[]) ptr[0..length].dup;
-        free(ptr);
+        plist_mem_free(ptr);
         return data;
     }
 
