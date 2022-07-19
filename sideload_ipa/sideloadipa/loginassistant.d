@@ -5,6 +5,7 @@ import gdk.Threads;
 
 import gobject.ObjectG;
 
+import gtk.Alignment;
 import gtk.Assistant;
 import gtk.Box;
 import gtk.Button;
@@ -32,9 +33,14 @@ class LoginAssistant: Window {
     Cursor defaultCursor;
     Cursor waitCursor;
 
-    Label title;
+    HeaderBar bar;
 
-    IFlowSlide[] history;
+    Label title;
+    Alignment content;
+
+    shared IFlowSlide slide;
+
+    shared(IFlowSlide)[] history;
     private bool initialized = false;
 
     this(Window parent) {
@@ -48,10 +54,18 @@ class LoginAssistant: Window {
         defaultCursor = new Cursor(CursorType.LEFT_PTR);
         waitCursor = new Cursor(CursorType.WATCH);
 
-        HeaderBar bar = new HeaderBar();
+        bar = new HeaderBar();
         cancelButton = new Button(StockID.CANCEL);
         nextButton = new Button(StockID.GO_FORWARD);
         previousButton = new Button(StockID.GO_BACK);
+
+        enum margin = 8;
+        content = new Alignment(0.5, 0.5, 1, 1);
+        content.setMarginTop(margin);
+        content.setMarginBottom(margin);
+        content.setMarginLeft(margin);
+        content.setMarginRight(margin);
+        add(content);
 
         cancelButton.setNoShowAll(true);
         nextButton.setNoShowAll(true);
@@ -74,21 +88,42 @@ class LoginAssistant: Window {
             if (!history.length) {
                 previousButton.hide();
             }
-            Widget w = this.getChild();
+            Widget w = content.getChild();
             if (w) {
-                this.remove(w);
+                content.remove(w);
             }
 
-            this.add(cast(Widget) last);
+            content.add(cast(Widget) last);
+            this.slide = last;
         });
         nextButton.addOnPressed((btn) {
             setBusy(true);
+            this.slide.setBusy(true);
+
+            import std.concurrency;
+            spawn(delegate(shared(IFlowSlide) slide) shared {
+                shared(IFlowSlide) nextSlide = slide.run();
+                import glib.Idle;
+                new Idle(() {
+                    this.slide.setBusy(false);
+                    if (nextSlide is null) {
+                        // go next
+                    } else {
+                        if (slide != nextSlide)
+                            changeSlide(nextSlide);
+                        this.slide.setBusy(false);
+                    }
+                    setBusy(false);
+                    return false;
+                }, true);
+            }, this.slide);
         });
 
-        auto loginSlide = new LoginSlide(this);
+        __gshared LoginSlide loginSlide;
+        loginSlide = new LoginSlide(this);
 
         // this.setPadding(8);
-        changeSlide(loginSlide);
+        changeSlide(cast(shared LoginSlide) loginSlide);
     }
 
     void setBusy(bool busy) {
@@ -98,15 +133,18 @@ class LoginAssistant: Window {
         setCursor(busy ? waitCursor : defaultCursor);
     }
 
-    void changeSlide(IFlowSlide slide) {
-        Widget w = this.getChild();
+    void changeSlide(shared IFlowSlide slide) {
+        bar.setTitle(slide.title());
+
+        Widget w = content.getChild();
         if (w) {
-            history ~= cast(IFlowSlide) w;
+            history ~= cast(shared IFlowSlide) w;
             previousButton.show();
-            this.remove(w);
+            content.remove(w);
         }
 
-        this.add(cast(Widget) slide);
+        content.add(cast(Widget) slide);
+        this.slide = slide;
     }
 
     void setPageComplete(bool complete) {

@@ -164,7 +164,6 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         client.addRequestHeader("Connection", "keep-alive");
         client.addRequestHeader("Proxy-Connection", "keep-alive");
 
-        writeln(this.dsId);
         if (__customHeaders !is null) {
             foreach (customHeader; customHeaders.byKeyValue()) {
                 client.addRequestHeader(customHeader.key, customHeader.value);

@@ -15,11 +15,11 @@ class TFASlide: Box, IFlowSlide {
     mixin ImplementClass!GtkBox;
 
     LoginAssistant assistant;
-    Entry[6] entries;
+    __gshared Entry[6] entries;
 
-    private bool b;
+    __gshared private bool b;
 
-    string title() { return "2FA code"; }
+    string title() shared { return "2FA code"; }
 
     this(LoginAssistant assistant) {
         super(Orientation.VERTICAL, 0);
@@ -86,9 +86,15 @@ class TFASlide: Box, IFlowSlide {
         assistant.setPageComplete(complete);
     }
 
-    int run() {
+    void setBusy(bool busy) shared {
+        static foreach (a; 0..typeof(entries).length) {
+            entries[a].setSensitive(!busy);
+        }
+    }
+
+    shared(IFlowSlide) run() shared {
         import std.stdio;
         writeln("Validation...");
-        return 0;
+        return this;
     }
 }

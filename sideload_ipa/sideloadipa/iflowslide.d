@@ -5,6 +5,7 @@ import gtk.Widget;
 import sideloadipa.loginassistant;
 
 interface IFlowSlide {
-    string title();
-    int run();
+    string title() shared;
+    shared(IFlowSlide) run() shared;
+    void setBusy(bool busy) shared;
 }

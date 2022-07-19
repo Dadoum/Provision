@@ -17,14 +17,14 @@ class LoginSlide: Box, IFlowSlide {
 
     mixin ImplementClass!GtkBox;
 
-    LoginAssistant assistant;
+    __gshared LoginAssistant assistant;
 
-    Label errorLabel;
+    __gshared Label errorLabel;
 
-    Entry appleId;
-    Entry password;
+    __gshared Entry appleId;
+    __gshared Entry password;
 
-    string title() { return "Log-in to your Apple account"; }
+    string title() shared { return "Log-in to your Apple account"; }
 
     this(LoginAssistant assistant) {
         super(Orientation.VERTICAL, 4);
@@ -32,6 +32,7 @@ class LoginSlide: Box, IFlowSlide {
 
         errorLabel = new Label("");
         errorLabel.setNoShowAll(true);
+        errorLabel.setLineWrap(true);
         errorLabel.getStyleContext().addClass(STYLE_CLASS_ERROR);
         this.packStart(errorLabel, false, false, 0);
 
@@ -53,74 +54,32 @@ class LoginSlide: Box, IFlowSlide {
         this.add(label);
     }
 
-    int run() {
+    shared(IFlowSlide) run() shared {
         string appleIdStr = appleId.getText();
         string passwordStr = password.getText();
-        setButtonsEnabled(false);
 
-        import std.concurrency;
-        spawn(function (AppleLoginSession* appleLoginSession, string appleIdStr, string passwordStr, shared(void*) slide) {
-            import glib.Idle;
-            new Idle(() {
-                auto assistant = (cast(LoginSlide) slide).assistant;
-                assistant.setCursor(assistant.waitCursor);
-                return false;
-            }, true);
+        if (assistant.session) {
+            object.destroy(assistant.session);
+        }
 
-            if (*appleLoginSession) {
-                object.destroy(*appleLoginSession);
+        __gshared string errorStr;
+        assistant.session = new shared AppleLoginSession();
+
+        auto res = assistant.session.login(appleIdStr, passwordStr, errorStr);
+        import glib.Idle;
+        new Idle(() {
+            if (res == AppleLoginResponse.errored) {
+                this.errorLabel.show();
+                this.errorLabel.setText(errorStr);
             }
-
-            *appleLoginSession = new shared AppleLoginSession();
-
-            __gshared string errorStr;
-            auto res = appleLoginSession.login(appleIdStr, passwordStr, errorStr);
-
-            new Idle(() {
-                if (slide == null) {
-                    return false;
-                }
-
-                auto self = cast(LoginSlide) slide;
-                if (self.assistant is null) {
-                    return false;
-                }
-
-                if (res == AppleLoginResponse.errored) {
-                    self.errorLabel.show();
-                    self.errorLabel.setText(errorStr);
-                }
-                self.setButtonsEnabled(true);
-                self.assistant.setCursor(self.assistant.defaultCursor);
-                return false;
-            }, true);
-        }, &assistant.session, appleIdStr, passwordStr, cast(shared void*) this);
-
-        // import glib.Idle;
-        // new Idle(() {
-        //     if (assistant.session) {
-        //         object.destroy(assistant.session);
-        //     }
-
-        //     __gshared string errorStr;
-        //     assistant.session = new shared AppleLoginSession();
-
-        //     auto res = assistant.session.login(appleIdStr, passwordStr, errorStr);
-        //     if (res == AppleLoginResponse.errored) {
-        //         this.errorLabel.show();
-        //         this.errorLabel.setText(errorStr);
-        //     }
-        //     this.setButtonsEnabled(true);
-        //     return false;
-        // }, true);
-        return 0;
+            return false;
+        }, true);
+        return this;
     }
 
-    void setButtonsEnabled(bool enabled) {
-        assistant.setCursor(enabled ? assistant.defaultCursor : assistant.waitCursor);
-        appleId.setSensitive(enabled);
-        password.setSensitive(enabled);
-        assistant.setPageComplete(enabled);
+    void setBusy(bool busy) shared {
+        appleId.setSensitive(!busy);
+        password.setSensitive(!busy);
     }
 
     void checkNextButton(EditableIF) {
