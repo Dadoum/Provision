@@ -20,7 +20,7 @@ extern(C) __gshared {
         return Mallocator.instance.make!ADI(path.fromStringz);
     }
 
-    ADI* provision_adi_create_with_identifier(immutable char* path, immutable char* identifier) {
+    ADI* provision_adi_create_with_identifier(immutable char* path, char* identifier) {
         return Mallocator.instance.make!ADI(path.fromStringz, identifier.fromStringz);
     }
 
