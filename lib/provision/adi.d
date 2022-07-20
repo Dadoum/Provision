@@ -32,7 +32,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
 @nogc public struct ADI {
     private string path;
-    private string identifier;
+    private char[] identifier;
     private ulong dsId;
 
     private string[string] urlBag;
@@ -92,7 +92,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
     @disable this();
 
-    public this(string provisioningPath, string identifier = null) {
+    public this(string provisioningPath, char[] identifier = null) {
         version (X86_64) {
             enum string architectureIdentifier = "x86_64";
         } else version (X86) {
@@ -136,7 +136,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.pADIGetIDMSRouting = cast(ADIGetIDMSRouting_t) libstoreservicescore.load("madsvsfvjk");
 
         if (identifier == null)
-            this.identifier = genAndroidId;
+            this.identifier = genAndroidId();
         else
             this.identifier = identifier;
 

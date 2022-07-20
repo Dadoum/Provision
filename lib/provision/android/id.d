@@ -42,14 +42,14 @@ sd_id128_t* make_id(byte[16] b) {
     return id;
 }
 
-string toString(sd_id128_t* id) {
+char[] toString(sd_id128_t* id) {
     return std.format.format("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
     id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3], id.bytes[4],
     id.bytes[5], id.bytes[6], id.bytes[7], id.bytes[8], id.bytes[9],
-    id.bytes[10], id.bytes[11], id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
+    id.bytes[10], id.bytes[11], id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]).dup;
 }
 
-string genAndroidId() {
+char[] genAndroidId() {
     auto libsystemd = dlopen("libsystemd.so", RTLD_LAZY);
     if (libsystemd) {
         scope(exit) dlclose(libsystemd);
@@ -73,5 +73,5 @@ string genAndroidId() {
 
   error:
     stderr.writeln("WARN: Generation of unique identifier failed, using a generic one instead. ");
-    return "9774d56d682e549c";
+    return "9774d56d682e549c".dup;
 }
