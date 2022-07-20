@@ -1413,8 +1413,19 @@ private mixin template JavaImportImpl(T, alias method, size_t overloadIndex) {
 
 	private static jfieldID _jfieldID;
 
+	version (LDC) {
+		pragma(mangle, method.mangleof)
+		private static ReturnType!method methodImpl(T this_, Parameters!method args) {
+			return implementation(args, this_);
+		}
+	} else {
+		pragma(mangle, method.mangleof)
+		private static ReturnType!method methodImpl(Parameters!method args, T this_) {
+			return implementation(args, this_);
+		}
+	}
+
 	static if(__traits(isStaticFunction, method))
-	pragma(mangle, method.mangleof)
 	private static ReturnType!method implementation(Parameters!method args) {
 		auto env = activeEnv;
 		if(env is null)
@@ -1545,7 +1556,6 @@ private mixin template JavaImportImpl(T, alias method, size_t overloadIndex) {
 	}
 
 	else
-	pragma(mangle, method.mangleof)
 	private static ReturnType!method implementation(Parameters!method args, T this_) {
 		auto env = activeEnv;
 		if(env is null)
@@ -1680,7 +1690,6 @@ private mixin template JavaImportImpl(T, alias method, size_t overloadIndex) {
 	private static jmethodID _jmethodID;
 
 	static if(__traits(identifier, method) == "__ctor")
-	pragma(mangle, method.mangleof)
 	private static T implementation(Parameters!method args, T this_) {
 		auto env = activeEnv;
 		if(env is null)
@@ -1721,7 +1730,6 @@ private mixin template JavaImportImpl(T, alias method, size_t overloadIndex) {
 		return this_;
 	}
 	else static if(__traits(isStaticFunction, method))
-	pragma(mangle, method.mangleof)
 	private static ReturnType!method implementation(Parameters!method args) {
 		auto env = activeEnv;
 		if(env is null)
@@ -1752,7 +1760,6 @@ private mixin template JavaImportImpl(T, alias method, size_t overloadIndex) {
 		mixin(ImportImplementationString_static);
 	}
 	else
-	pragma(mangle, method.mangleof)
 	private static ReturnType!method implementation(Parameters!method args, T this_) {
 		auto env = activeEnv;
 		if(env is null)
