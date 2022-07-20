@@ -15,9 +15,9 @@ import provision.plist;
 
 @nogc:
 
-alias ADILoadLibraryWithPath_t = extern(C) int function(immutable char*);
-alias ADISetAndroidID_t = extern(C) int function(immutable char*, uint);
-alias ADISetProvisioningPath_t = extern(C) int function(immutable char*);
+alias ADILoadLibraryWithPath_t = extern(C) int function(const char*);
+alias ADISetAndroidID_t = extern(C) int function(const char*, uint);
+alias ADISetProvisioningPath_t = extern(C) int function(const char*);
 
 alias ADIProvisioningErase_t = extern(C) int function(ulong);
 alias ADISynchronize_t = extern(C) int function(uint, ubyte*, uint, ubyte**, uint*, ubyte**, uint*);
@@ -120,9 +120,17 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
         this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
 
+        debug {
+            stderr.writeln("Loading Android-specific symbols...");
+        }
+
         this.pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) libstoreservicescore.load("kq56gsgHG6");
         this.pADISetAndroidID = cast(ADISetAndroidID_t) libstoreservicescore.load("Sph98paBcz");
         this.pADISetProvisioningPath = cast(ADISetProvisioningPath_t) libstoreservicescore.load("nf92ngaK92");
+
+        debug {
+            stderr.writeln("Loading ADI symbols...");
+        }
 
         this.pADIProvisioningErase = cast(ADIProvisioningErase_t) libstoreservicescore.load("p435tmhbla");
         this.pADISynchronize = cast(ADISynchronize_t) libstoreservicescore.load("tn46gtiuhw");
@@ -135,17 +143,33 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.pADISetIDMSRouting = cast(ADISetIDMSRouting_t) libstoreservicescore.load("ksbafgljkb");
         this.pADIGetIDMSRouting = cast(ADIGetIDMSRouting_t) libstoreservicescore.load("madsvsfvjk");
 
+        debug {
+            stderr.writeln("Generating an identifier...");
+        }
+
         if (identifier == null)
             this.identifier = genAndroidId();
         else
             this.identifier = identifier;
+
+        debug {
+            stderr.writeln("First calls...");
+        }
 
         this.path = provisioningPath;
         pADISetProvisioningPath(/+path+/ path.toStringz);
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
         pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
 
+        debug {
+            stderr.writeln("Setting fields...");
+        }
+
         dsId = -2;
+
+        debug {
+            stderr.writeln("Ctor done !");
+        }
     }
 
     private HTTP makeHttpClient() {
@@ -256,10 +280,23 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     }
 
     public bool isMachineProvisioned() {
-        return pADIGetLoginCode(dsId) == 0;
+        debug {
+            stderr.writeln("isMachineProvisioned called !");
+        }
+
+        int i = pADIGetLoginCode(dsId);
+
+        debug {
+            stderr.writefln("isMachineProvisioned -> %d", i);
+        }
+
+        return i == 0;
     }
 
     public void provisionDevice(out ulong routingInformation) {
+        debug {
+            stderr.writeln("provisionDevice called !");
+        }
         auto client = makeHttpClient();
 
         client.addRequestHeader("X-Mme-Client-Info", clientInfo);
@@ -267,9 +304,21 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         client.addRequestHeader("X-Apple-I-MD-LU", localUserUUID);
         client.addRequestHeader("X-Apple-I-SRL-NO", serialNo);
 
+        debug {
+            stderr.writeln("First request... (urlBag)");
+        }
+
         populateUrlBag(client);
 
+        debug {
+            stderr.writeln("Erasing provisioning...");
+        }
+
         pADIProvisioningErase(dsId);
+
+        debug {
+            stderr.writeln("Second request... (spim)");
+        }
 
         ubyte[] spim = downloadSPIM(client);
 
@@ -277,6 +326,10 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         uint l;
 
         uint session;
+
+        debug {
+            stderr.writeln("Start provisioning...");
+        }
 
         int ret = pADIProvisioningStart(
         /+dsId+/ dsId,
@@ -292,8 +345,16 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
         ubyte[] cpim = cpimPtr[0..l];
 
+        debug {
+            stderr.writeln("Third request... (ptm & tk)");
+        }
+
         auto secondStep = sendCPIM(client, cpim);
         routingInformation = to!ulong(secondStep.rinfo);
+
+        debug {
+            stderr.writeln("setIDMSRouting...");
+        }
 
         ret = pADISetIDMSRouting(
         routingInformation,
@@ -302,6 +363,10 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
         if (ret)
             throw new AnisetteException(ret);
+
+        debug {
+            stderr.writeln("End provisioning...");
+        }
 
         ret = pADIProvisioningEnd(
         session,
@@ -314,6 +379,11 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         if (ret)
             throw new AnisetteException(ret);
 
+
+        debug {
+            stderr.writeln("Cleanup...");
+        }
+
         ret = pADIDispose(cpimPtr);
 
         if (ret)
@@ -321,6 +391,10 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     }
 
     public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
+        debug {
+            stderr.writeln("getOneTimePassword called !");
+        }
+
         ubyte* midPtr;
         uint midLen;
         ubyte* otpPtr;
@@ -334,11 +408,19 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         /+(out) oneTimePW length+/ &otpLen,
         );
 
+        debug {
+            stderr.writefln("getOneTimePassword -> %d", ret);
+        }
+
         if (ret)
             throw new AnisetteException(ret);
 
         machineId = midPtr[0..midLen].dup;
         oneTimePassword = otpPtr[0..otpLen].dup;
+
+        debug {
+            stderr.writeln("Cleaning up...");
+        }
 
         ret = pADIDispose(midPtr);
 
@@ -352,10 +434,18 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     }
 
     public void getRoutingInformation(out ulong routingInfo) {
+        debug {
+            stderr.writeln("getRoutingInformation called !");
+        }
+
         auto ret = pADIGetIDMSRouting(
         /+(out) routingInfo+/ &routingInfo,
         /+accountID+/ dsId,
         );
+
+        debug {
+            stderr.writefln("getRoutingInformation -> %d", ret);
+        }
 
         if (ret)
             throw new AnisetteException(ret);
