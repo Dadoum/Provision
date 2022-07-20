@@ -1,26 +1,24 @@
 module java;
 
 import arsd.jni;
+import core.stdc.stdlib;
 static import provision;
 
-extern(C) void Java_yeah();
-
 final class OneTimePassword: JavaClass!("dadoum", OneTimePassword) {
-    byte[] machineId;
-    byte[] oneTimePassword;
+    @Import @property void machineId(byte[]);
+    @Import @property void oneTimePassword(byte[]);
 
-    this(byte[] machineId, byte[] oneTimePassword) {
-        this.machineId = machineId;
-        this.oneTimePassword = oneTimePassword;
+    @Export void initialize(long otpPtr) {
+        Fields* fields = cast(Fields*) otpPtr;
+        this.machineId(cast(byte[]) fields.machineId);
+        this.oneTimePassword(cast(byte[]) fields.oneTimePassword);
+        free(fields);
     }
+}
 
-    @Export byte[] getMachineId() {
-        return machineId;
-    }
-
-    @Export byte[] getOneTimePassword() {
-        return oneTimePassword;
-    }
+struct Fields {
+    ubyte[] machineId;
+    ubyte[] oneTimePassword;
 }
 
 final class ADI : JavaClass!("dadoum", ADI) {
@@ -46,10 +44,15 @@ final class ADI : JavaClass!("dadoum", ADI) {
         return rinfo;
     }
 
-    @Export OneTimePassword getOneTimePassword() {
+    @Export long getOneTimePassword() {
         ubyte[] machineId, oneTimePassword;
         hndl.getOneTimePassword(machineId, oneTimePassword);
-        return new OneTimePassword(cast(byte[]) machineId, cast(byte[]) oneTimePassword);
+
+        Fields* fields = cast(Fields*) malloc(Fields.sizeof);
+        fields.machineId = machineId;
+        fields.oneTimePassword = oneTimePassword;
+
+        return cast(long) fields;
     }
 
     @Export ulong getRoutingInformation() {

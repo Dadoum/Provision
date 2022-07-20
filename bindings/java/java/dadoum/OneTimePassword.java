@@ -1,6 +1,16 @@
 package dadoum;
 
 public class OneTimePassword {
-    public native byte[] getMachineId();
-    public native byte[] getOneTimePassword();
+    private byte[] machineId;
+    private byte[] oneTimePassword;
+
+    protected native void initialize(long otpPtr);
+
+    public byte[] getOneTimePassword() {
+        return oneTimePassword;
+    }
+
+    public byte[] getMachineId() {
+        return machineId;
+    }
 }
