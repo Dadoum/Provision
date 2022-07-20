@@ -122,6 +122,9 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     if (strcmp(s, "arc4random".ptr) == 0)
         return &arc4randomHook;
 
+    if (strncmp(s, "pthread_".ptr, 8) == 0)
+        return &emptyStub;
+
     // Hooks to load libandroidappmusic
     // if (strcmp(s, "powf".ptr) == 0 ||
     //     strcmp(s, "sqrtf".ptr) == 0 ||
