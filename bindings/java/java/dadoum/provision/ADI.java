@@ -10,12 +10,10 @@ public class ADI {
     private native void initialize(String provisioningPath);
     public native boolean isMachineProvisioned();
     public native int provisionDevice();
-    private native long getOneTimePassword();
     public native int getRoutingInformation();
+    private native long getOneTimePasswordPtr();
 
-    public OneTimePassword getOTP() {
-        var otp = new OneTimePassword();
-        otp.initialize(getOneTimePassword());
-        return otp;
+    public OneTimePassword getOneTimePassword() {
+        return new OneTimePassword(getOneTimePasswordPtr());
     }
 }

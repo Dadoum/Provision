@@ -27,7 +27,7 @@ jobs:
       run: sudo apt-get install -y build-essential gcc g++ ninja-build libgtk-3-dev libplist-dev libimobiledevice-dev
 
     - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dbuild_javabindings=ON
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
@@ -38,6 +38,7 @@ jobs:
         path: |
           ${{github.workspace}}/build/anisette_server
           ${{github.workspace}}/build/libprovision.a
+          ${{github.workspace}}/build/libprovision-java.so
           ${{github.workspace}}/build/retrieve_headers
           ${{github.workspace}}/build/sideload_ipa
 

@@ -39,7 +39,7 @@ target_link_libraries(retrieve_headers provision)
 if (build_javabindings)
     set_property(TARGET hybris PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-    set(JAVA_B_SOURCE_DIR "bindings/java/source/")
+    set(JAVA_B_SOURCE_DIR "bindings/java/d/")
     file(GLOB_RECURSE JAVA_B_D_SOURCES "${JAVA_B_SOURCE_DIR}*.d")
 
     add_library(provision-java SHARED ${JAVA_B_D_SOURCES})

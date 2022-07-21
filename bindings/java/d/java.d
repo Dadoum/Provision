@@ -1,5 +1,9 @@
 module java;
 
+version (DigitalMars) { } else {
+    static assert(false, "This library can only work with DMD (yet)");
+}
+
 import arsd.jni;
 import core.stdc.stdlib;
 static import provision;
@@ -44,7 +48,7 @@ final class ADI : JavaClass!("dadoum", ADI) {
         return rinfo;
     }
 
-    @Export long getOneTimePassword() {
+    @Export long getOneTimePasswordPtr() {
         ubyte[] machineId, oneTimePassword;
         hndl.getOneTimePassword(machineId, oneTimePassword);
 
