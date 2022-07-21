@@ -4,7 +4,11 @@ public class OneTimePassword {
     private byte[] machineId;
     private byte[] oneTimePassword;
 
-    protected native void initialize(long otpPtr);
+    private native void initialize(long otpPtr);
+
+    protected OneTimePassword(long otpPtr) {
+        initialize(otpPtr);
+    }
 
     public byte[] getOneTimePassword() {
         return oneTimePassword;
