@@ -1,7 +1,7 @@
 module java;
 
-version (DigitalMars) { } else {
-    static assert(false, "This library can only work with DMD (yet)");
+version (DigitalMars) { } else version (LDC) { } else {
+    static assert(false, "This library can only work with DMD or LDC (yet)");
 }
 
 import arsd.jni;
