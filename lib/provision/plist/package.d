@@ -234,6 +234,12 @@ class PlistArray: Plist {
         plist_array_new_iter(handle, &iter);
         return new PlistArrayIter(iter, this);
     }
+
+    public void append(Plist[] array) {
+        foreach (element; array) {
+            this ~= element;
+        }
+    }
 }
 
 class PlistDict: Plist {
@@ -293,6 +299,12 @@ class PlistDict: Plist {
         plist_dict_iter iter;
         plist_dict_new_iter(handle, &iter);
         return new PlistDictIter(iter, this);
+    }
+
+    public void append(Plist[string] array) {
+        foreach (element; array.byKeyValue) {
+            this[element.key] = element.value;
+        }
     }
 }
 

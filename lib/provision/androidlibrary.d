@@ -139,8 +139,20 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     //     strcmp(s, "exp".ptr) == 0 ||
     //     strcmp(s, "lroundf".ptr) == 0)
     //     return &emptyStub;
+    auto symbolStr = s.fromStringz;
+    auto sym = libc.load(symbolStr);
 
-    return libc.load(s.fromStringz);
+    debug {
+        if (!sym) {
+            if (l.fromStringz[$-13..$] == "libCoreADI.so") {
+                stderr.writefln("Cannot load %s from libc ! ", symbolStr);
+            } // else if (!(symbolStr.canFind("_") || symbolStr.canFind("CF"))) {
+              //   stderr.writefln("Cannot load %s from libc ! (2)", symbolStr);
+              // }
+        }
+    }
+
+    return sym;
 }
 
 void initHybris() {
