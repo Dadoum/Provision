@@ -27,7 +27,7 @@ endif()
 # set_source_files_properties(lib/provision/c.d PROPERTIES COMPILE_FLAGS "-HC -HCf=${CMAKE_BINARY_DIR}/include-provision/provision.h")
 # target_include_directories(provision PUBLIC ${CMAKE_BINARY_DIR}/include-provision)
 
-target_link_libraries(provision PUBLIC PkgConfig::plist hybris stdc++)
+target_link_libraries(provision PUBLIC PkgConfig::plist hybris stdc++ pthread rt)
 
 set(RETRIEVE_HEADERS_SOURCE_DIR "retrieve_headers/")
 file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d")
