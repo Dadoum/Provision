@@ -22,8 +22,13 @@ extern (C) __gshared @nogc {
     void hybris_set_hook_callback(void* function(immutable(char)* symbol_name,
             immutable(char)* requester));
     void hybris_set_skip_props(bool value);
+
+    // hopefully fixing few issues
+    void fstat();
+    void lstat();
 }
 
+__gshared:
 public struct AndroidLibrary {
     private void* libraryHandle;
 
@@ -78,11 +83,30 @@ struct ADIMessage {
     ulong flags;
 }
 
+static const string[ulong] functionNames;
+static this() {
+    functionNames = [
+        0x3e58e7f9: "pADIDispose",
+        0xcfe0b46a: "pADIOTPRequest",
+        0xb2b3196: "pADIProvisioningEnd",
+        0x12db31c5: "pADISetIDMSRouting",
+        0x716bd86c: "pADIProvisioningStart",
+        0x7715488c: "pADIProvisioningErase",
+        0xc774d292: "pADISetAndroidID",
+        0xb23c691e: "pADISetProvisioningPath",
+    ];
+}
+
 // alias vdfut_t = extern(C) int function(Parameters!vdfut768igHook);
 // extern(C) static __gshared vdfut_t vdef;
 //
-// extern(C) int vdfut768igHook(int functionIdentifier, ADIMessage* message) {
-//     // writefln!"%x"(functionIdentifier);
+// extern(C) int vdfut768igHook(ulong functionIdentifier, ADIMessage* message, uint* unknown1, uint* unknown2 /+ = 0xeac78141+/, uint** testedArg) {
+//     writef!"%s "(functionNames[functionIdentifier]);
+//     if (testedArg) {
+//         writefln!"%x"(*testedArg);
+//     } else {
+//         writeln();
+//     }
 //     return vdef(__traits(parameters));
 // }
 
