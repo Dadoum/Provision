@@ -146,6 +146,12 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     if (strcmp(s, "arc4random".ptr) == 0)
         return &arc4randomHook;
 
+    if (strcmp(s, "fstat".ptr) == 0)
+        return &fstat;
+
+    if (strcmp(s, "lstat".ptr) == 0)
+        return &lstat;
+
     if (strncmp(s, "pthread_".ptr, 8) == 0)
         return &emptyStub;
 
@@ -179,16 +185,9 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
     return sym;
 }
 
-void* sym;
-
 void initHybris() {
     if (!libc)
         libc = new PosixLibrary(null);
     hybris_set_skip_props(true);
     hybris_set_hook_callback(&hookFinder);
-
-    if (sym) {
-        sym = &fstat;
-        sym = &lstat;
-    }
 }
