@@ -12,7 +12,7 @@ int main(string[] args) {
     adi.customHeaders["X-Apple-Locale"] = "en_US";
 
     ulong rinfo;
-    if (!adi.isMachineProvisioned()) {
+    if (true) {// !adi.isMachineProvisioned()) {
         stderr.write("Machine requires provisioning... ");
         adi.provisionDevice(rinfo);
         stderr.writeln("done !");

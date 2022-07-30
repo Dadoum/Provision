@@ -45,7 +45,7 @@ shared class AppleLoginSession {
         client.setUserAgent("Xcode");
         client.handle.set(curl.CurlOption.ssl_verifypeer, 0);
         client.addRequestHeader("Accept", "*/*");
-        client.addRequestHeader("Content-Type", "text/x-xml-plist");
+        client.addRequestHeader("Content-Type", "text/x-xml-plist; charset=utf-8");
         client.addRequestHeader("Accept-Language", "en");
         client.addRequestHeader("Accept-Encoding", "gzip, deflate");
         client.addRequestHeader("Connection", "keep-alive");
@@ -213,9 +213,11 @@ shared class AppleLoginSession {
 
             auto requestRoot = cast(PlistDict) root["Request"];
 
-            requestRoot["u"] = new PlistString(appleId);
-            requestRoot["c"] = new PlistString(c);
-            requestRoot["o"] = new PlistString("complete");
+            requestRoot.append([
+                "u": new PlistString(appleId),
+                "c": new PlistString(c),
+                "o": new PlistString("complete")
+            ]);
 
             exchange.put(cast(ubyte[]) "|");
             exchange.put(cast(ubyte[]) sp);
@@ -357,8 +359,6 @@ shared class AppleLoginSession {
                 PaddingMode.PKCS7
             ));
 
-            writeln(extraData.toXml);
-
             string adsid = cast(string) cast(PlistString) extraData["adsid"];
             string idmsToken = cast(string) cast(PlistString) extraData["GsIdmsToken"];
 
@@ -368,6 +368,40 @@ shared class AppleLoginSession {
             } else {
                 ubyte[] sk = cast(ubyte[]) cast(PlistData) extraData["sk"];
                 ubyte[] c = cast(ubyte[]) cast(PlistData) extraData["c"];
+
+                enum appId = "com.apple.gs.xcode.auth";
+
+                auto apps = new PlistArray();
+                apps ~= new PlistString(appId);
+
+                auto appTokensHmac = HMAC!SHA256(sk);
+                appTokensHmac.put(cast(ubyte[]) "apptokens");
+                appTokensHmac.put(cast(ubyte[]) adsid);
+                appTokensHmac.put(cast(ubyte[]) appId);
+                auto checksum = appTokensHmac.finish();
+
+                root = requestTemplate.copy();
+
+                auto requestRoot = cast(PlistDict) root["Request"];
+
+                requestRoot.append([
+                    "u": new PlistString(adsid),
+                    "app": apps,
+                    "c": new PlistData(c),
+                    "t": new PlistString(idmsToken),
+                    "checksum": new PlistData(checksum),
+                    "o": new PlistString("apptokens")
+                ]);
+                writeln(root.toXml());
+
+                responsePlist = cast(PlistDict) Plist.fromXml(post(urlBag["gsService"], root.toXml()));
+                writeln(responsePlist.toXml());
+                responseDict = cast(PlistDict) responsePlist["Response"];
+                statusDict = cast(PlistDict) responseDict["Status"];
+                error = checkStatus(statusDict);
+                if (error) {
+                    return AppleLoginResponse.errored;
+                }
             }
         }
 
@@ -379,7 +413,9 @@ shared class AppleLoginSession {
         int ec = cast(int) cast(uint) cast(PlistUint) status["ec"];
         if (ec != 0) {
             import std.format;
-            return format!"%s (%d)"(cast(string) cast(PlistString) status["em"], ec);
+            import UTF = std.utf;
+
+            return format!"%s (%d)"(cast(dstring) cast(PlistString) status["em"], ec);
         }
         return null;
     }
