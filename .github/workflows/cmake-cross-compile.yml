@@ -10,7 +10,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build-anisette-server:
+  build-anisette-server-aarch64:
     runs-on: ubuntu-22.04
 
     steps:
@@ -29,6 +29,6 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: anisette-server
+        name: anisette-server-aarch64
         path: |
           ${{github.workspace}}/build/anisette_server
