@@ -17,6 +17,10 @@ un appareil Apple.
 
 Note: *sideload_ipa* n'est pas encore fini.
 
+## Téléchargements
+
+Vous pouvez télécharger les exécutables depuis la page [Actions](https://github.com/Dadoum/Provision/actions) du projet.
+
 ## Dépendances
 
 Pour lancer les programmes vous devrez extraire les bibliothèques de l'application Android Apple
@@ -25,10 +29,11 @@ Music. Vous pouvez ne télécharger que la tranche de votre architecture. Placez
 ne garder que libstoreservicescore.so et libCoreADI.so. Ce sont les seuls nécessaire. 
 
 Pour compiler n'importe lequel des projets, vous devez avoir CMake, le kit de développement 
-pour le D (le compilateur + dub), un compilateur C et C++, et le paquet de dev de libplist.
+pour le D (le compilateur + dub), un compilateur C et C++, et le paquet de dév de libplist 
+(il est possible de compiler certains projets sans libplist).
 
 Pour compiler *sideload_ipa*, il est nécessaire en plus d'avoir ce qu'il faut pour développer avec 
-GTK+ et libimobiledevice.
+GTK+, libimobiledevice et libgmp.
 
 ## Compilation
 

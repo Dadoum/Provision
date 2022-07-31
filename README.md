@@ -17,6 +17,10 @@ on an Apple device.
 
 Note: *sideload_ipa* isn't finished yet.
 
+## Downloads
+
+You can download the executables in the [Actions](https://github.com/Dadoum/Provision/actions) tab of the project.
+
 ## Dependencies
 At runtime, libprovision requires some Apple libraries to be next to the executables. You should
 download Apple Music APK (or just the architecture slice for your device if you prefer), and extract
@@ -25,9 +29,9 @@ folder all the libraries except libstoreservicescore.so and libCoreADI.so, since
 needed to run the app.
 
 To build any of these projects, you need CMake, a C and C++ compiler, the D SDK, with the compiler
-and dub and libplist development packages.
+and dub and libplist development packages if possible (you can compile most projects without it).
 
-To build *sideload_ipa*, you also need GTK+ and libimobiledevice development packages. 
+To build *sideload_ipa*, you also need GTK+, libimobiledevice and libgmp development packages. 
 
 ## Compilation
 
