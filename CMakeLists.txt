@@ -16,10 +16,12 @@ find_package(PkgConfig REQUIRED)
 add_library(provision STATIC ${PROVISION_D_SOURCES})
 target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 
-pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
+if(NOT CMAKE_CROSSCOMPILING)
+    pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
 
-if (NOT plist_FOUND)
-    pkg_check_modules(plist IMPORTED_TARGET libplist)
+    if (NOT plist_FOUND)
+        pkg_check_modules(plist IMPORTED_TARGET libplist)
+    endif()
 endif()
 
 if (plist_FOUND)
