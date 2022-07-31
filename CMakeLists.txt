@@ -19,7 +19,25 @@ target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
 
 if (NOT plist_FOUND)
-    pkg_check_modules(plist REQUIRED IMPORTED_TARGET libplist)
+    pkg_check_modules(plist IMPORTED_TARGET libplist)
+endif()
+
+if (plist_FOUND)
+    add_library(plist ALIAS PkgConfig::plist)
+    target_compile_versions(provision PUBLIC LibPlist)
+    message("Using libplist. ")
+else()
+    if (build_sideloadipa)
+        message(FATAL_ERROR "Sideload IPA requires libplist development headers")
+    endif()
+    message(WARNING "Using fallback Property list parser. ")
+
+    FetchContent_Declare(
+            plist_proj
+            GIT_REPOSITORY https://github.com/hatf0/plist
+            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
+    )
+    FetchContent_MakeAvailable(plist_proj)
 endif()
 
 # Generate C++ header
@@ -27,7 +45,7 @@ endif()
 # set_source_files_properties(lib/provision/c.d PROPERTIES COMPILE_FLAGS "-HC -HCf=${CMAKE_BINARY_DIR}/include-provision/provision.h")
 # target_include_directories(provision PUBLIC ${CMAKE_BINARY_DIR}/include-provision)
 
-target_link_libraries(provision PUBLIC PkgConfig::plist hybris stdc++ pthread rt)
+target_link_libraries(provision PUBLIC plist hybris stdc++ pthread rt)
 
 set(RETRIEVE_HEADERS_SOURCE_DIR "retrieve_headers/")
 file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d")

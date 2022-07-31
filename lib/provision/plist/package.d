@@ -1,5 +1,7 @@
 module provision.plist;
 
+version (LibPlist):
+
 import core.stdc.stdlib;
 import provision.plist.c;
 import std.traits;
