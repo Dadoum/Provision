@@ -8,6 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  VERBOSE: 1
 
 jobs:
   build-anisette-server-aarch64:
