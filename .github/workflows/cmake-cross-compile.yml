@@ -19,7 +19,7 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-aarch64-linux-gnu
+      run: sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-aarch64-linux-gnu dub
 
     - name: Configure CMake
       run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-4.cmake
