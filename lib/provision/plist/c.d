@@ -1,5 +1,7 @@
 module provision.plist.c;
 
+version (LibPlist):
+
 /**
  * @file plist/plist.h
  * @brief Main include of libplist
