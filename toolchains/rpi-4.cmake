@@ -3,9 +3,9 @@ SET(CMAKE_SYSTEM_NAME Linux)
 
 SET(_CMAKE_TOOLCHAIN_PREFIX "aarch64-linux-gnu-")
 
-SET(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-SET(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-SET(CMAKE_D_COMPILER aarch64-linux-gnu-gdc)
+SET(CMAKE_C_COMPILER aarch64-linux-gnu-gcc-12)
+SET(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++-12)
+SET(CMAKE_D_COMPILER aarch64-linux-gnu-gdc-12)
 
 # Below call is necessary to avoid non-RT problem.
 SET(CMAKE_LIBRARY_ARCHITECTURE aarch64-linux-gnu)
