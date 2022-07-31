@@ -1,4 +1,4 @@
-name: CMake
+name: x86_64 builds
 
 on:
   push:
@@ -41,7 +41,6 @@ jobs:
           ${{github.workspace}}/build/libprovision-java.so
           ${{github.workspace}}/build/retrieve_headers
           ${{github.workspace}}/build/sideload_ipa
-
   build-anisette-server:
     runs-on: ubuntu-20.04
 
@@ -95,3 +94,4 @@ jobs:
         with:
           name: retrieve-headers-debug
           path: ${{github.workspace}}/build/retrieve_headers
+          

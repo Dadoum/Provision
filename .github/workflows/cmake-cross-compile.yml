@@ -1,4 +1,4 @@
-name: CMake
+name: aarch64 builds
 
 on:
   push:
