@@ -87,5 +87,5 @@ if(build_anisetteserver)
     add_executable(anisette_server ${ANISETTE_SERVER_D_SOURCES})
     target_include_directories(anisette_server PUBLIC ${ANISETTE_SERVER_SOURCE_DIR})
 
-    target_link_libraries(anisette_server provision archttp)
+    target_link_libraries(anisette_server provision serverino)
 endif()
