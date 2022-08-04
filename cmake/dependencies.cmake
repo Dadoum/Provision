@@ -24,14 +24,6 @@ if(build_sideloadipa OR build_anisetteserver)
     endif()
 
     if(build_anisetteserver)
-        # DubProject_Add(serverino ~0.2.4 NoTLS)
-
-        FetchContent_Declare(
-                serverino_proj
-                GIT_REPOSITORY https://github.com/trikko/serverino
-                GIT_TAG cb58408db5e8e81a2052706e024ff11c6fccbd0e
-                PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -c NoTLS -s serverino -p serverino
-        )
-        FetchContent_MakeAvailable(serverino_proj)
+        DubProject_Add(archttp ~1.1.0)
     endif()
 endif()

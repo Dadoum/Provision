@@ -41,7 +41,6 @@ jobs:
           ${{github.workspace}}/build/libprovision-java.so
           ${{github.workspace}}/build/retrieve_headers
           ${{github.workspace}}/build/sideload_ipa
-  
   build-anisette-server:
     runs-on: ubuntu-20.04
 
