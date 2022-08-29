@@ -1,4 +1,5 @@
 import archttp;
+import std.algorithm.searching;
 import std.array;
 import std.base64;
 import std.format;
@@ -8,7 +9,18 @@ import provision;
 
 void main(string[] args) {
     auto app = new Archttp;
-    ADI* adi = new ADI(expandTilde("~/.adi"));
+    ADI* adi;
+
+    if (args.canFind("--remember-machine")) {
+        adi = new ADI(expandTilde("~/.adi"));
+    } else {
+        import std.digest: toHexString;
+        import std.random;
+        import std.range;
+        import std.uni;
+        ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
+        adi = new ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
+    }
 
     ulong rinfo;
     if (!adi.isMachineProvisioned()) {
