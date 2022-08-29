@@ -2,6 +2,10 @@
 
 [English](README.md) ⋅ Français
 
+> **Warning** **(attention)**  \
+> N'utilisez pas votre compte Apple personnel ! Préférez un compte secondaire sans importance.  \
+> Je **NE** suis **PAS** responsable si quoi que ce soit advient à votre compte Apple. 
+
 ## Kesako ?
 
 Provision est un jeu d'outils intéragissant avec les serveurs d'Apple sur Linux.
@@ -16,6 +20,10 @@ les en-têtes HTTP à utiliser pour identifier l'appareil.
 un appareil Apple.
 
 Note: *sideload_ipa* n'est pas encore fini.
+
+Plus précisément, libprovision enregistre l'appareil auprès d'apple et récupère les données ADI pour celui-ci.
+Une fois connecté avec cette machine, les serveurs d'Apple se rappeleront de votre appareil comme sûre,
+donc assurez vous de ne pas vous connecter n'importe où, et à conserver précieusement les données ADI à `~/.adi/adi.pb`.
 
 ## Téléchargements
 

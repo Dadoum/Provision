@@ -72,6 +72,12 @@ char[] genAndroidId() {
     }
 
   error:
-    stderr.writeln("WARN: Generation of unique identifier failed, using a generic one instead. ");
-    return "9774d56d682e549c".dup;
+    stderr.writeln("WARN: Generation of unique identifier failed, using a random one instead. ");
+    import std.digest: toHexString;
+    import std.random;
+    import std.range;
+    import std.uni;
+    ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
+    return id.toHexString().toLower().dup;
+    // return "9774d56d682e549c".dup;
 }

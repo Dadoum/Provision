@@ -2,20 +2,28 @@
 
 English ⋅ [Français](LISEZMOI.md)
 
+> **Warning**  \
+> Don't use your main Apple account! Prefer a secondary Apple account.  \
+> I am NOT responsible if something happens with your Apple account.
+
 ## What is this ?
 
 Provision is a set of tools interracting with Apple servers on Linux.
 
 It includes:
 - *libprovision*, a library used to register device on Apple servers.
-- *anisette_server*, an Anisette provisioning server for other software such as 
-[AltServer-Linux](https://github.com/NyaMisty/AltServer-Linux).
+- *anisette_server*, an Anisette provisioning server for other software such as
+  [AltServer-Linux](https://github.com/NyaMisty/AltServer-Linux).
 - *retrieve_headers*, which registers the device with libprovision and returns in the terminal in
-JSON the headers to use to identify the device on future requests.
+  JSON the headers to use to identify the device on future requests.
 - *sideload_ipa*, an example on how to use libprovision and continue requests to install application
-on an Apple device. 
+  on an Apple device.
 
 Note: *sideload_ipa* isn't finished yet.
+
+More precisely, libprovision registers the device to Apple servers and retrieve ADI data for your device. 
+Once you logged in once with your machine, your machine is remembered as safe by Apple using this data, 
+so be careful to log-in only on safe machines, and don't leak your ADI data, which is stored in `~/.adi/adi.pb`.
 
 ## Downloads
 
@@ -31,7 +39,7 @@ needed to run the app.
 To build any of these projects, you need CMake, a C and C++ compiler, the D SDK, with the compiler
 and dub and libplist development packages if possible (you can compile most projects without it).
 
-To build *sideload_ipa*, you also need GTK+, libimobiledevice and libgmp development packages. 
+To build *sideload_ipa*, you also need GTK+, libimobiledevice and libgmp development packages.
 
 ## Compilation
 
