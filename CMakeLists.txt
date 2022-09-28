@@ -5,6 +5,7 @@ project(Provision D)
 option(build_javabindings "Java bindings" OFF)
 option(build_sideloadipa "Build Sideload IPA" ON)
 option(build_anisetteserver "Build Anisette server" ON)
+option(link_libplist_dynamic "Load libplist at runtime" ON)
 
 include(cmake/dependencies.cmake)
 
@@ -28,6 +29,10 @@ if (plist_FOUND)
     add_library(plist ALIAS PkgConfig::plist)
     target_compile_versions(provision PUBLIC LibPlist)
     message("Using libplist. ")
+
+    if (link_libplist_dynamic)
+        target_compile_versions(provision PUBLIC LibPlistDynamic)
+    endif()
 else()
     if (build_sideloadipa)
         message(FATAL_ERROR "Sideload IPA requires libplist development headers")
