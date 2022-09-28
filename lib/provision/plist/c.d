@@ -25,9 +25,57 @@ version (LibPlist):
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+import core.sys.posix.dlfcn;
 import core.stdc.stdarg;
+import core.stdc.stdlib;
+import std.traits: getSymbolsByUDA, ReturnType, Parameters;
 
-extern (C):
+private struct PlistImport {
+
+}
+
+version (LibPlistDynamic) {
+    template delegateStorage(string name) {
+        __gshared void* delegateStorage;
+    }
+
+    private __gshared void* libplistHandle;
+
+    shared static this() {
+        import std.stdio;
+        static foreach (libplistName; ["libplist.so.3", "libplist-2.0.so.3"]) {
+            libplistHandle = dlopen(libplistName, RTLD_LAZY);
+            if (libplistHandle) {
+                return;
+            }
+        }
+        stderr.writeln("libplist is not available on this machine. ");
+        abort();
+    }
+
+    mixin template implementSymbol(alias symbol) {
+        static if (is(typeof(symbol) == function)) {
+            alias DelT = typeof(&symbol);
+            enum funcName = __traits(identifier, symbol);
+            alias del = delegateStorage!funcName;
+
+            shared static this() {
+                del = dlsym(libplistHandle, funcName);
+            }
+
+            pragma(mangle, symbol.mangleof)
+            extern (C) ReturnType!symbol impl(Parameters!symbol params) {
+                return (cast(DelT) del)(params);
+            }
+        }
+    }
+
+    static foreach (symbol; getSymbolsByUDA!(provision.plist.c, PlistImport)) {
+        mixin implementSymbol!symbol;
+    }
+}
+
+@PlistImport extern (C):
 
 /**
  * \mainpage libplist : A library to handle Apple Property Lists
@@ -695,7 +743,7 @@ int plist_is_binary (const(char)* plist_data, uint length);
  * @param length length of the path to access
  * @return the value to access.
  */
-plist_t plist_access_path (plist_t plist, uint length, ...);
+// plist_t plist_access_path (plist_t plist, uint length, ...);
 
 /**
  * Variadic version of #plist_access_path.
