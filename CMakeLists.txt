@@ -5,7 +5,7 @@ project(Provision D)
 option(build_javabindings "Java bindings" OFF)
 option(build_sideloadipa "Build Sideload IPA" ON)
 option(build_anisetteserver "Build Anisette server" ON)
-option(link_libplist_dynamic "Load libplist at runtime" ON)
+option(link_libplist_dynamic "Load libplist at runtime" OFF)
 
 include(cmake/dependencies.cmake)
 
@@ -17,34 +17,36 @@ find_package(PkgConfig REQUIRED)
 add_library(provision STATIC ${PROVISION_D_SOURCES})
 target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 
-if(NOT CMAKE_CROSSCOMPILING)
-    pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
-
-    if (NOT plist_FOUND)
-        pkg_check_modules(plist IMPORTED_TARGET libplist)
-    endif()
-endif()
-
-if (plist_FOUND)
-    add_library(plist ALIAS PkgConfig::plist)
+if (link_libplist_dynamic)
+    add_library(plist INTERFACE)
     target_compile_versions(provision PUBLIC LibPlist)
-    message("Using libplist. ")
-
-    if (link_libplist_dynamic)
-        target_compile_versions(provision PUBLIC LibPlistDynamic)
-    endif()
+    target_compile_versions(plist INTERFACE LibPlistDynamic)
 else()
-    if (build_sideloadipa)
-        message(FATAL_ERROR "Sideload IPA requires libplist development headers")
-    endif()
-    message(WARNING "Using fallback Property list parser. ")
+    if(NOT CMAKE_CROSSCOMPILING)
+        pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
 
-    FetchContent_Declare(
-            plist_proj
-            GIT_REPOSITORY https://github.com/hatf0/plist
-            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
-    )
-    FetchContent_MakeAvailable(plist_proj)
+        if (NOT plist_FOUND)
+            pkg_check_modules(plist IMPORTED_TARGET libplist)
+        endif()
+    endif()
+
+    if (plist_FOUND)
+        message("Using libplist. ")
+        add_library(plist ALIAS PkgConfig::plist)
+        target_compile_versions(provision PUBLIC LibPlist)
+    else()
+        if (build_sideloadipa)
+            message(FATAL_ERROR "Sideload IPA requires libplist development package. ")
+        endif()
+        message(WARNING "Using fallback Property list parser. ")
+
+        FetchContent_Declare(
+        plist_proj
+        GIT_REPOSITORY https://github.com/hatf0/plist
+        PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
+        )
+        FetchContent_MakeAvailable(plist_proj)
+    endif()
 endif()
 
 # Generate C++ header

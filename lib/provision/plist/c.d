@@ -25,16 +25,17 @@ version (LibPlist):
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-import core.sys.posix.dlfcn;
 import core.stdc.stdarg;
-import core.stdc.stdlib;
-import std.traits: getSymbolsByUDA, ReturnType, Parameters;
 
 private struct PlistImport {
 
 }
 
 version (LibPlistDynamic) {
+    import core.sys.posix.dlfcn;
+    import core.stdc.stdlib;
+    import std.traits: getSymbolsByUDA, ReturnType, Parameters;
+
     template delegateStorage(string name) {
         __gshared void* delegateStorage;
     }
@@ -64,7 +65,7 @@ version (LibPlistDynamic) {
             }
 
             pragma(mangle, symbol.mangleof)
-            extern (C) ReturnType!symbol impl(Parameters!symbol params) {
+            extern (C) ReturnType!symbol impl(Parameters!symbol params) @(__traits(getAttributes, symbol)) {
                 return (cast(DelT) del)(params);
             }
         }
