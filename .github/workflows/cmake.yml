@@ -24,10 +24,10 @@ jobs:
         compiler: ldc-latest
 
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential gcc g++ ninja-build libgtk-3-dev libplist-dev libimobiledevice-dev
+      run: sudo apt-get install -y build-essential gcc g++ ninja-build libgtk-3-dev libimobiledevice-dev
 
     - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dbuild_javabindings=ON
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dbuild_javabindings=ON -Dlink_libplist_dynamic=ON
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
@@ -55,10 +55,10 @@ jobs:
           compiler: ldc-latest
 
       - name: Install dependencies
-        run: sudo apt-get install -y build-essential gcc g++ ninja-build libplist-dev
+        run: sudo apt-get install -y build-essential gcc g++ ninja-build
 
       - name: Configure CMake
-        run: cmake -G Ninja -Dbuild_sideloadipa=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2
+        run: cmake -G Ninja -Dbuild_sideloadipa=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dlink_libplist_dynamic=ON
 
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
@@ -82,10 +82,10 @@ jobs:
           compiler: ldc-latest
 
       - name: Install dependencies
-        run: sudo apt-get install -y build-essential gcc g++ ninja-build libplist-dev
+        run: sudo apt-get install -y build-essential gcc g++ ninja-build
 
       - name: Configure CMake
-        run: cmake -G Ninja -Dbuild_sideloadipa=OFF -Dbuild_anisetteserver=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_D_COMPILER=ldc2
+        run: cmake -G Ninja -Dbuild_sideloadipa=OFF -Dbuild_anisetteserver=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_D_COMPILER=ldc2 -Dlink_libplist_dynamic=ON
 
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config Debug
