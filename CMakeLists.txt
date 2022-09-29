@@ -84,7 +84,7 @@ if(build_sideloadipa)
 
     pkg_check_modules(imobiledevice REQUIRED IMPORTED_TARGET libimobiledevice-1.0)
 
-    target_link_libraries(sideload_ipa provision gtk-d gmp-d PkgConfig::imobiledevice PkgConfig::plist pbkdf2 crypto)
+    target_link_libraries(sideload_ipa provision gtk-d gmp-d PkgConfig::imobiledevice plist pbkdf2 crypto)
 endif()
 
 if(build_anisetteserver)
