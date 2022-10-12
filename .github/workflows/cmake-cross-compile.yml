@@ -33,3 +33,26 @@ jobs:
         name: anisette-server-aarch64
         path: |
           ${{github.workspace}}/build/anisette_server
+          
+  build-anisette-server-armv7:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-arm-linux-gnueabihf dub
+
+    - name: Configure CMake
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake -Dbuild_anisetteserver=OFF 
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: retrieve-headers-armv7
+        path: |
+          ${{github.workspace}}/build/retrieve_headers

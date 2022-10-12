@@ -487,7 +487,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 }
 
 public class AnisetteException: Exception {
-    this(int error, string file = __FILE__, ulong line = __LINE__) {
+    this(int error, string file = __FILE__, size_t line = __LINE__) {
         string msg;
         if (error == -45054) {
             msg = "ADI error: cannot create folder. ";
