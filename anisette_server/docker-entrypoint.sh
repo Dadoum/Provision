@@ -1,5 +1,8 @@
 #!/bin/bash
 
+curl https://apps.mzstatic.com/content/android-apple-music-apk/applemusic.apk -O
+unzip applemusic.apk "lib/*"
+
 if [ "$(uname -m)" = 'aarch64' ]; then
   mv lib/arm64-v8a .
   rm -r applemusic.apk lib/*
@@ -17,3 +20,5 @@ elif [ "$(uname -m)" = 'i686' ]; then
   rm -r applemusic.apk lib/*
   mv x86 lib/
 fi
+
+/opt/anisette_server
