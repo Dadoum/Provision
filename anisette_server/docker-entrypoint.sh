@@ -11,5 +11,5 @@ elif [ "$(uname -m)" = 'x86_64' ]; then
 elif [ "$(uname -m)" = 'i686' ]; then
   unzip applemusic.apk "lib/x86/*"
 fi
-
+rm applemusic.apk
 /opt/anisette_server
