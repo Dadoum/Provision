@@ -2,7 +2,7 @@ name: x86_64 builds
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "patch-1" ]
   pull_request:
     branches: [ "main" ]
 
