@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ ! -d "lib/" ]; then
+if [ -z "$(ls -A lib/ 2> /dev/null)" ]; then
   curl https://apps.mzstatic.com/content/android-apple-music-apk/applemusic.apk -O
   if [ "$(uname -m)" = 'aarch64' ]; then
     unzip applemusic.apk 'lib/arm64-v8a/libstoreservicescore.so' 'lib/arm64-v8a/libCoreADI.so'
