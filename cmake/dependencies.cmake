@@ -24,6 +24,6 @@ if(build_sideloadipa OR build_anisetteserver)
     endif()
 
     if(build_anisetteserver)
-        DubProject_Add(archttp ~1.1.0)
+        DubProject_Add(handy-httpd ~3.2.0)
     endif()
 endif()
