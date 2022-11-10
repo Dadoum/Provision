@@ -1,4 +1,4 @@
-name: aarch64 builds
+name: ARM builds
 
 on:
   push:
@@ -46,13 +46,13 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-arm-linux-gnueabihf dub
 
     - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake -Dbuild_anisetteserver=OFF 
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - uses: actions/upload-artifact@v3
       with:
-        name: retrieve-headers-armv7
+        name: anisette-server-armv7
         path: |
-          ${{github.workspace}}/build/retrieve_headers
+          ${{github.workspace}}/build/anisette_server

@@ -1,4 +1,4 @@
-import archttp;
+import handy_httpd;
 import std.algorithm.searching;
 import std.array;
 import std.base64;
@@ -7,10 +7,10 @@ import std.path;
 import std.stdio;
 import provision;
 
-void main(string[] args) {
-    auto app = new Archttp;
-    ADI* adi;
+__gshared static ADI* adi;
+__gshared static ulong rinfo;
 
+void main(string[] args) {
     if (args.canFind("--remember-machine")) {
         adi = new ADI(expandTilde("~/.adi"));
     } else {
@@ -22,7 +22,6 @@ void main(string[] args) {
         adi = new ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
     }
 
-    ulong rinfo;
     if (!adi.isMachineProvisioned()) {
         stderr.write("Machine requires provisioning... ");
         adi.provisionDevice(rinfo);
@@ -31,36 +30,37 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    app.get("/reprovision", (req, res) {
-        writefln!"[%s >>] GET /reprovision"(req.ip);
-        adi.provisionDevice(rinfo);
-        writefln!"[>> %s] 200 OK"(req.ip);
-        res.code(HttpStatusCode.OK);
-    });
-
-    app.get("/", (req, res) {
-        try {
-            import std.datetime.systime;
-            import std.datetime.timezone;
-            import core.time;
-            auto time = Clock.currTime();
-
-            writefln!"[%s >>] GET /"(req.ip);
-
-            ubyte[] mid;
-            ubyte[] otp;
+    auto serverConfig = ServerConfig.defaultValues;
+    serverConfig.port = 6969;
+    auto s = new HttpServer(simpleHandler((ref req, ref res) {
+        if (req.url == "/reprovision") {
+            writeln("[<<] GET /reprovision");
+            adi.provisionDevice(rinfo);
+            writeln("[>>] 200 OK");
+            res.setStatus(200);
+        } else {
             try {
-                adi.getOneTimePassword(mid, otp);
-            } catch {
-                writeln("Reprovision needed.");
-                adi.provisionDevice(rinfo);
-                adi.getOneTimePassword(mid, otp);
-            }
+                import std.datetime.systime;
+                import std.datetime.timezone;
+                import core.time;
+                auto time = Clock.currTime();
 
-            import std.conv;
-            import std.json;
+                writefln("[<<] GET /");
 
-            JSONValue response = [
+                ubyte[] mid;
+                ubyte[] otp;
+                try {
+                    adi.getOneTimePassword(mid, otp);
+                } catch (Throwable) {
+                    writeln("Reprovision needed.");
+                    adi.provisionDevice(rinfo);
+                    adi.getOneTimePassword(mid, otp);
+                }
+
+                import std.conv;
+                import std.json;
+
+                JSONValue response = [
                 "X-Apple-I-Client-Time": time.toISOExtString.split('.')[0] ~ "Z",
                 "X-Apple-I-MD":  Base64.encode(otp),
                 "X-Apple-I-MD-M": Base64.encode(mid),
@@ -71,18 +71,36 @@ void main(string[] args) {
                 "X-Apple-I-TimeZone": time.timezone.dstName,
                 "X-Apple-Locale": "en_US",
                 "X-Mme-Device-Id": adi.deviceId,
-            ];
+                ];
 
-            writefln!"[>> %s] 200 OK %s"(req.ip, response);
+                writefln!"[>>] 200 OK %s"(response);
 
-            res.code(HttpStatusCode.OK);
-            res.send(response);
-        } catch(Throwable t) {
-            res.code(HttpStatusCode.INTERNAL_SERVER_ERROR);
-            res.send(t.toString());
+                res.setStatus(200);
+                res.writeBody(to!string(response));
+            } catch(Throwable t) {
+                res.setStatus(500);
+                res.writeBody(t.toString());
+            }
         }
-    });
+    }), serverConfig);
+    s.start();
 
-    app.listen(6969);
+    /+
+
+
+
+    with (vib) {
+        Get("/reprovision", (req, res) => "Hello World!");
+
+        Get("", (req, res) {
+        });
+    }
+
+    // listenHTTP is called automatically
+    runApplication();
+
+    scope (exit)
+    vib.Stop();
+    // +/
 }
 
