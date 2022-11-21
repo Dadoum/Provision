@@ -29,6 +29,6 @@ jobs:
         with:
           push: true
           tags: |
-            dadoum/anisette_server:latest
+            dadoum/anisette-server:latest
  #           ghcr.io/Dadoum/Provision:latest
           platforms: linux/amd64,linux/arm64,linux/386,linux/arm/v7
