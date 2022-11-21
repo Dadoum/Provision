@@ -35,7 +35,7 @@ You can download the executables in the [Actions](https://github.com/Dadoum/Prov
 If you wish to run Anisette within docker to host a server public or privately. Make sure to install docker/podman and run the following command:
 
 ```bash
-docker run -d -v lib_cache:/opt/lib/ -p 6969:6969 --name anisette usernamereplace/nameimagereplace:latest
+docker run -d -v lib_cache:/opt/lib/ -p 6969:6969 --name anisette dadoum/anisette-server:latest
 ```
 
 The above command will pull the image and also run it in the background. The volume (lib_cache:/opt/lib/) will cache the libraries needed that are fetched at runtime. This is done as to not redistribute Applemusic lib's.
