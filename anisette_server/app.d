@@ -32,6 +32,7 @@ void main(string[] args) {
 
     auto serverConfig = ServerConfig.defaultValues;
     serverConfig.port = 6969;
+    serverConfig.hostname = "0.0.0.0";
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
         if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
