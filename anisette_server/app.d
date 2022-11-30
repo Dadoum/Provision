@@ -3,6 +3,7 @@ import std.algorithm.searching;
 import std.array;
 import std.base64;
 import std.format;
+import std.getopt;
 import std.path;
 import std.stdio;
 import provision;
@@ -11,7 +12,24 @@ __gshared static ADI* adi;
 __gshared static ulong rinfo;
 
 void main(string[] args) {
-    if (args.canFind("--remember-machine")) {
+    auto serverConfig = ServerConfig.defaultValues;
+    serverConfig.hostname = "0.0.0.0";
+    serverConfig.port = 6969;
+
+    bool rememberMachine;
+    auto helpInformation = getopt(
+		    args,
+		    "n|host", "The hostname to bind to", &serverConfig.hostname,
+		    "p|port", "The port to bind to", &serverConfig.port,
+		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine
+    );
+    if (helpInformation.helpWanted) {
+        defaultGetoptPrinter("This program allows you to host anisette through libprovision!",
+	    helpInformation.options);
+	return;
+    }
+
+    if (rememberMachine) {
         adi = new ADI(expandTilde("~/.adi"));
     } else {
         import std.digest: toHexString;
@@ -30,9 +48,6 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    auto serverConfig = ServerConfig.defaultValues;
-    serverConfig.port = 6969;
-    serverConfig.hostname = "0.0.0.0";
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
         if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
