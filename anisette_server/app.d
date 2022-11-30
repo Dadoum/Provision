@@ -1,4 +1,5 @@
 import handy_httpd;
+import core.exception;
 import std.algorithm.searching;
 import std.array;
 import std.base64;
@@ -11,6 +12,30 @@ __gshared static ADI* adi;
 __gshared static ulong rinfo;
 
 void main(string[] args) {
+    auto serverConfig = ServerConfig.defaultValues;
+    serverConfig.port = 6969;
+
+    auto hostFound = countUntil(args, "--host");
+    auto portFound = countUntil(args, "--port");
+
+    try {
+        if (hostFound != -1)
+	    serverConfig.hostname = args[hostFound + 1];
+    } catch(ArrayIndexError e) {
+	    writeln("Hostname not found!");
+	    return;
+    }
+
+    try {
+        if (portFound != -1) {
+	    import std.conv;
+	    serverConfig.port = to!ushort(args[portFound + 1]);
+        }
+    } catch(ArrayIndexError e) {
+	    writeln("Port not found!");
+	    return;
+    }
+
     if (args.canFind("--remember-machine")) {
         adi = new ADI(expandTilde("~/.adi"));
     } else {
@@ -30,8 +55,6 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    auto serverConfig = ServerConfig.defaultValues;
-    serverConfig.port = 6969;
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
         if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
