@@ -13,6 +13,7 @@ __gshared static ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
+    serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
 
     bool rememberMachine;
