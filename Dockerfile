@@ -19,6 +19,8 @@ WORKDIR /opt/
 COPY docker-entrypoint.sh .
 COPY --from=builder /opt/build/anisette_server .
 
-RUN useradd -ms /bin/bash Chester
+RUN useradd -ms /bin/bash Chester \
+ && chown Chester ~/
+
 USER Chester
 ENTRYPOINT [ "/opt/docker-entrypoint.sh" ]
