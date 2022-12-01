@@ -20,8 +20,8 @@ COPY docker-entrypoint.sh .
 COPY --from=builder /opt/build/anisette_server .
 
 RUN useradd -ms /bin/bash Chester \
- && chown Chester ~/* \
- && chmod +x ~/*
+ && chown Chester /opt/* \
+ && chmod +x /opt/*
 
 USER Chester
 ENTRYPOINT [ "/opt/docker-entrypoint.sh" ]
