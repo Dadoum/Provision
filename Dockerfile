@@ -18,4 +18,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates
 WORKDIR /opt/
 COPY docker-entrypoint.sh .
 COPY --from=builder /opt/build/anisette_server .
+
+RUN useradd -ms /bin/bash Chester
+USER Chester
 ENTRYPOINT [ "/opt/docker-entrypoint.sh" ]
