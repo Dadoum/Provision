@@ -14,5 +14,4 @@ if [ -z "$(ls -A lib/ 2> /dev/null)" ]; then
   rm applemusic.apk
 fi
 
-chmod +x anisette_server
 /opt/anisette_server
