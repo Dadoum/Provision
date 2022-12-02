@@ -92,6 +92,7 @@ void main(string[] args) {
                 writefln!"[>>] 200 OK %s"(response);
 
                 res.setStatus(200);
+                res.addHeader("Content-Type", "application/json");
                 res.writeBody(response.toString(JSONOptions.doNotEscapeSlashes));
             } catch(Throwable t) {
                 res.setStatus(500);
