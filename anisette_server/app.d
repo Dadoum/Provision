@@ -92,7 +92,7 @@ void main(string[] args) {
                 writefln!"[>>] 200 OK %s"(response);
 
                 res.setStatus(200);
-                res.writeBody(to!string(response));
+                res.writeBody(response.toString(JSONOptions.doNotEscapeSlashes));
             } catch(Throwable t) {
                 res.setStatus(500);
                 res.writeBody(t.toString());
