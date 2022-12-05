@@ -99,8 +99,8 @@ if(build_anisetteserver)
     set(ADI_SERVER_SOURCE_DIR "adi_server/")
     file(GLOB_RECURSE ADI_SERVER_D_SOURCES "${ADI_SERVER_SOURCE_DIR}*.d")
 
-    add_executable(adi_server ${ADI_SERVER_D_SOURCES})
-    target_include_directories(adi_server PUBLIC ${ADI_SERVER_D_SOURCES})
+    # add_executable(adi_server ${ADI_SERVER_D_SOURCES})
+    # target_include_directories(adi_server PUBLIC ${ADI_SERVER_D_SOURCES})
 
-    target_link_libraries(adi_server provision handy-httpd)
+    # target_link_libraries(adi_server provision handy-httpd)
 endif()
