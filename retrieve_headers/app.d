@@ -9,7 +9,6 @@ import provision;
 
 int main(string[] args) {
     ADI* adi = new ADI(expandTilde("~/.adi"));
-    adi.customHeaders["X-Apple-Locale"] = "en_US";
 
     ulong rinfo;
     if (true) {// !adi.isMachineProvisioned()) {

@@ -18,9 +18,6 @@ version (LibPlist) {
     import plist.types;
 }
 
-
-@nogc:
-
 alias ADILoadLibraryWithPath_t = extern(C) int function(const char*);
 alias ADISetAndroidID_t = extern(C) int function(const char*, uint);
 alias ADISetProvisioningPath_t = extern(C) int function(const char*);
@@ -38,11 +35,10 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
 @nogc public struct ADI {
     private string path;
-    private char[] identifier;
     private ulong dsId;
 
+    private string __identifier;
     private string[string] urlBag;
-    private string[string] __customHeaders;
 
     AndroidLibrary* libcoreadi;
     AndroidLibrary* libstoreservicescore;
@@ -84,16 +80,21 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return this.path;
     }
 
+    public void identifier(string value) {
+        pADISetAndroidID(/+identifierStr+/ value.toStringz, /+length+/ cast(uint) value.length);
+        __identifier = value;
+    }
+
+    public string identifier() {
+        return __identifier;
+    }
+
     public @property string deviceId() {
         return sha1Of(this.identifier).toHexString().toUpper().dup();
     }
 
     public @property string localUserUUID() {
         return sha256Of(this.identifier).toHexString().toUpper().dup();
-    }
-
-    public @property string[string] customHeaders() {
-        return this.__customHeaders;
     }
 
     @disable this();
@@ -153,19 +154,19 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             stderr.writeln("Generating an identifier...");
         }
 
-        if (identifier == null)
-            this.identifier = genAndroidId();
-        else
-            this.identifier = identifier;
-
         debug {
             stderr.writeln("First calls...");
         }
 
         this.path = provisioningPath;
         pADISetProvisioningPath(/+path+/ path.toStringz);
+
+        if (identifier == null)
+            this.identifier = cast(string) genAndroidId();
+        else
+            this.identifier = cast(string) identifier;
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
-        pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
+        // pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
 
         debug {
             stderr.writeln("Setting fields...");
@@ -194,11 +195,11 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         client.addRequestHeader("Connection", "keep-alive");
         client.addRequestHeader("Proxy-Connection", "keep-alive");
 
-        if (__customHeaders !is null) {
-            foreach (customHeader; customHeaders.byKeyValue()) {
-                client.addRequestHeader(customHeader.key, customHeader.value);
-            }
-        }
+        // if (__customHeaders !is null) {
+        //     foreach (customHeader; customHeaders.byKeyValue()) {
+        //         client.addRequestHeader(customHeader.key, customHeader.value);
+        //     }
+        // }
 
         return client;
     }
@@ -488,12 +489,21 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
 public class AnisetteException: Exception {
     this(int error, string file = __FILE__, size_t line = __LINE__) {
-        string msg;
-        if (error == -45054) {
-            msg = "ADI error: cannot create folder. ";
-        } else {
-            msg = format!"ADI error: %d"(error);
-        }
-        super(msg, file, line);
+        super(format!"ADI error: %s."(translateADIErrorCode(error)), file, line);
     }
+}
+
+enum knownErrorCodes = [
+    -45054: "cannot create folder",
+    -45061: "invalid adi file"
+];
+
+string translateADIErrorCode(int errorCode) {
+    foreach (knownErrorCode; knownErrorCodes.byKeyValue) {
+        if (errorCode == knownErrorCode.key) {
+            return knownErrorCode.value;
+        }
+    }
+
+    return format!"%d"(errorCode);
 }

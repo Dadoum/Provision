@@ -16,38 +16,18 @@ void main(string[] args) {
     serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
 
-    bool rememberMachine = false;
     auto helpInformation = getopt(
 		    args,
 		    "n|host", "The hostname to bind to", &serverConfig.hostname,
 		    "p|port", "The port to bind to", &serverConfig.port,
-		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine
     );
     if (helpInformation.helpWanted) {
-        defaultGetoptPrinter("This program allows you to host anisette through libprovision!",
+        defaultGetoptPrinter("Server serving new ADI data fresh out of the oven.",
 	    helpInformation.options);
 	return;
     }
 
-    if (rememberMachine) {
-        adi = new ADI(expandTilde("~/.adi"));
-    } else {
-        import std.digest: toHexString;
-        import std.random;
-        import std.range;
-        import std.uni;
-        ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
-        adi = new ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
-    }
-
-    if (!adi.isMachineProvisioned()) {
-        stderr.write("Machine requires provisioning... ");
-        adi.provisionDevice(rinfo);
-        stderr.writeln("done !");
-    } else {
-        adi.getRoutingInformation(rinfo);
-    }
-
+    adi = new ADI(expandTilde("~/.adi"), cast(char[]) rndGen.take(2).array.toHexString().toLower());
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
         if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
@@ -120,4 +100,3 @@ void main(string[] args) {
     vib.Stop();
     // +/
 }
-
