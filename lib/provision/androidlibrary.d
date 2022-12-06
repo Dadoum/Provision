@@ -20,7 +20,7 @@ extern (C) __gshared @nogc {
     void* hybris_dlsym(const void* handle, immutable(char)* symbol);
     immutable(char)* hybris_dlerror();
     void hybris_set_hook_callback(void* function(immutable(char)* symbol_name,
-            immutable(char)* requester));
+        immutable(char)* requester));
     void hybris_set_skip_props(bool value);
 
     // hopefully fixing few issues
@@ -29,10 +29,10 @@ extern (C) __gshared @nogc {
 }
 
 __gshared:
-public struct AndroidLibrary {
-    private void* libraryHandle;
+public shared struct AndroidLibrary {
+    private __gshared void* libraryHandle;
 
-    public this(string libraryName) {
+    public shared this(string libraryName) {
         libraryHandle = hybris_dlopen(libraryName.ptr, RTLD_LAZY);
         if (libraryHandle == null) {
             stderr.writefln!"ERR: cannot load library %s"(libraryName);
@@ -45,7 +45,7 @@ public struct AndroidLibrary {
         }
     }
 
-    void* load(string symbol) const {
+    void* load(string symbol) const shared {
         void* sym = hybris_dlsym(libraryHandle, toStringz(symbol));
         if (sym == null) {
             string hybris_err = hybris_dlerror().fromStringz();
@@ -177,8 +177,8 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
             if (l.fromStringz[$-13..$] == "libCoreADI.so") {
                 stderr.writefln("Cannot load %s from libc ! ", symbolStr);
             } // else if (!(symbolStr.canFind("_") || symbolStr.canFind("CF"))) {
-              //   stderr.writefln("Cannot load %s from libc ! (2)", symbolStr);
-              // }
+            //   stderr.writefln("Cannot load %s from libc ! (2)", symbolStr);
+            // }
         }
     }
 

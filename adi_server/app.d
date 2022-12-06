@@ -8,8 +8,8 @@ import std.path;
 import std.stdio;
 import provision;
 
-__gshared static ADI* adi;
-__gshared static ulong rinfo;
+static shared ADI* adi;
+static shared ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
@@ -27,7 +27,7 @@ void main(string[] args) {
 	return;
     }
 
-    adi = new ADI(expandTilde("~/.adi"), cast(char[]) rndGen.take(2).array.toHexString().toLower());
+    adi = new shared ADI(expandTilde("~/.adi"), "");
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
         if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");

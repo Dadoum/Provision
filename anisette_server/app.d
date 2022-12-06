@@ -8,8 +8,8 @@ import std.path;
 import std.stdio;
 import provision;
 
-__gshared static ADI* adi;
-__gshared static ulong rinfo;
+static shared ADI* adi;
+static shared ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
@@ -30,14 +30,14 @@ void main(string[] args) {
     }
 
     if (rememberMachine) {
-        adi = new ADI(expandTilde("~/.adi"));
+        adi = new shared ADI(expandTilde("~/.adi"));
     } else {
         import std.digest: toHexString;
         import std.random;
         import std.range;
         import std.uni;
         ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
-        adi = new ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
+        adi = new shared ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
     }
 
     if (!adi.isMachineProvisioned()) {
