@@ -161,8 +161,10 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.path = provisioningPath;
         pADISetProvisioningPath(/+path+/ path.toStringz);
 
-        if (identifier == null)
-            this.identifier = cast(string) genAndroidId();
+        if (identifier == null) {
+            scope string workaround = cast(string) genAndroidId();
+            this.identifier = workaround;
+        }
         else
             this.identifier = cast(string) identifier;
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);

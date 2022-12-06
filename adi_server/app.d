@@ -9,7 +9,7 @@ import std.stdio;
 import provision;
 
 static shared ADI* adi;
-static shared ulong rinfo;
+static __gshared ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
