@@ -161,10 +161,8 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.path = provisioningPath;
         pADISetProvisioningPath(/+path+/ path.toStringz);
 
-        if (identifier == null) {
-            scope string workaround = cast(string) genAndroidId();
-            this.identifier = workaround;
-        }
+        if (identifier == null)
+            this.identifier = cast(string) genAndroidId();
         else
             this.identifier = cast(string) identifier;
         // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
@@ -471,6 +469,12 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     }
 
     public void getRoutingInformation(out ulong routingInfo) shared {
+        debug {
+            stderr.writeln("getRoutingInformation ignored");
+        }
+
+        return;
+
         debug {
             stderr.writeln("getRoutingInformation called !");
         }
