@@ -15,7 +15,7 @@ RUN cmake .. -DCMAKE_BUILD_TYPE=Release -Dbuild_sideloadipa=OFF -Dlink_libplist_
 
 # Base for run
 FROM debian:unstable-slim
-RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates libplist3 curl unzip libgphobos3 \
+RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates libplist3 curl unzip libgphobos3 libphobos2-ldc-shared100 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
