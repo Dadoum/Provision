@@ -4,14 +4,31 @@ import std.array;
 import std.base64;
 import std.format;
 import std.path;
+import std.file;
+import std.getopt;
 import std.stdio;
 import provision;
 
-int main(string[] args) {
-    ADI* adi = new ADI(expandTilde("~/.adi"));
+static shared ADI* adi;
+static __gshared ulong rinfo;
 
-    ulong rinfo;
-    if (true) {// !adi.isMachineProvisioned()) {
+int main(string[] args) {
+    string adiPB = getcwd();
+    bool rememberMachine = false;
+    auto helpInformation = getopt(
+		    args,
+		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine,
+            "f|file", "Which adi.pb directory to use", &adiPB
+    );
+    if (helpInformation.helpWanted) {
+        defaultGetoptPrinter("This program allows you to generate anisette through libprovision!",
+	    helpInformation.options);
+	return 0;
+    }
+    
+    adi = new shared ADI(adiPB);
+
+    if (!rememberMachine) {// !adi.isMachineProvisioned()) {
         stderr.write("Machine requires provisioning... ");
         adi.provisionDevice(rinfo);
         stderr.writeln("done !");
