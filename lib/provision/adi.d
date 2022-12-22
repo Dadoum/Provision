@@ -58,7 +58,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     __gshared ADISetIDMSRouting_t pADISetIDMSRouting;
     __gshared ADIGetIDMSRouting_t pADIGetIDMSRouting;
 
-    string __clientInfo = "<iMac11,3> <Mac OS X;10.15.6;19G2021> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
+    string __clientInfo = "<iMac20,2> <Mac OS X;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
     public @property string clientInfo() shared {
         return __clientInfo;
     }
