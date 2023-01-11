@@ -427,7 +427,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
     public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) shared {
         debug {
-            stderr.writeln("getOneTimePassword called !");
+            // stderr.writeln("getOneTimePassword called !");
         }
 
         ubyte* midPtr;
@@ -444,7 +444,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         );
 
         debug {
-            stderr.writefln("getOneTimePassword -> %d", ret);
+            // stderr.writefln("getOneTimePassword -> %d", ret);
         }
 
         if (ret)
@@ -454,7 +454,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         oneTimePassword = otpPtr[0..otpLen].dup;
 
         debug {
-            stderr.writeln("Cleaning up...");
+            // stderr.writeln("Cleaning up...");
         }
 
         ret = pADIDispose(midPtr);

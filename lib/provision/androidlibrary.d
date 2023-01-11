@@ -119,6 +119,15 @@ extern(C) void* hookable_dlsym(void *handle, immutable char *s) {
     return hybris_dlsym(handle, s);
 }
 
+int time_shift = 0;
+
+import core.sys.posix.sys.time;
+extern(C) int gettimeofdayHook(timeval* param1, void* param2) {
+    int ret = gettimeofday(param1, param2);
+    param1.tv_sec += 30 * time_shift;
+    return ret;
+}
+
 extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
     import core.stdc.errno;
 
@@ -142,6 +151,9 @@ extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l
 
     if (strcmp(s, "__system_property_get".ptr) == 0)
         return &__system_property_getHook;
+
+    if (strcmp(s, "gettimeofday".ptr) == 0)
+        return &gettimeofdayHook;
 
     if (strcmp(s, "arc4random".ptr) == 0)
         return &arc4randomHook;

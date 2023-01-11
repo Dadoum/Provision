@@ -19,37 +19,34 @@ int main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
+    import core.memory: GC;
+    GC.disable();
+    import std.datetime.stopwatch: StopWatch;
+    StopWatch sw;
+    sw.start();
     ubyte[] mid;
     ubyte[] otp;
-    adi.getOneTimePassword(mid, otp);
+    foreach (num; 0..(2*60*24*7)) {
+        import provision.androidlibrary: time_shift;
+        adi.getOneTimePassword(mid, otp);
 
-    import std.datetime.systime;
-    auto time = Clock.currTime();
+        time_shift++;
 
-    writeln(
-        format!`{
+        //+
+        writeln(
+            format!`{
     "X-Apple-I-MD": "%s",
     "X-Apple-I-MD-M": "%s",
-    "X-Apple-I-MD-RINFO": "%d",
-    "X-Apple-I-MD-LU": "%s",
-    "X-Apple-I-SRL-NO": "%s",
-    "X-Mme-Client-Info": "%s",
-    "X-Apple-I-Client-Time": "%s",
-    "X-Apple-I-TimeZone": "%s",
-    "X-Apple-Locale": "en_US",
-    "X-Mme-Device-Id": "%s"
 }`(
-            Base64.encode(otp),
-            Base64.encode(mid),
-            rinfo,
-            adi.localUserUUID,
-            adi.serialNo,
-            adi.clientInfo,
-            time.toISOExtString.split('.')[0] ~ "Z",
-            time.timezone.dstName,
-            adi.deviceId
-        )
-    );
+                Base64.encode(otp),
+                Base64.encode(mid),
+            )
+        );
+        // +/
+    }
+    sw.stop();
+    writeln("Success. Duration: ", sw.peek());
+    GC.collect();
 
     return 0;
 }
