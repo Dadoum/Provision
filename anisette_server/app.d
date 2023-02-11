@@ -8,8 +8,8 @@ import std.path;
 import std.stdio;
 import provision;
 
-static shared ADI* adi;
-static __gshared ulong rinfo;
+static ADI* adi;
+static ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
@@ -17,11 +17,13 @@ void main(string[] args) {
     serverConfig.port = 6969;
 
     bool rememberMachine = false;
+    string path = "~/.adi";
     auto helpInformation = getopt(
 		    args,
 		    "n|host", "The hostname to bind to", &serverConfig.hostname,
 		    "p|port", "The port to bind to", &serverConfig.port,
-		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine
+		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine,
+		    "a|adi-path", "Where the provisioning information should be stored on the computer", &path,
     );
     if (helpInformation.helpWanted) {
         defaultGetoptPrinter("This program allows you to host anisette through libprovision!",
@@ -30,14 +32,14 @@ void main(string[] args) {
     }
 
     if (rememberMachine) {
-        adi = new shared ADI(expandTilde("~/.adi"));
+        adi = new ADI(expandTilde(path));
     } else {
         import std.digest: toHexString;
         import std.random;
         import std.range;
         import std.uni;
         ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
-        adi = new shared ADI(expandTilde("~/.adi"), cast(char[]) id.toHexString().toLower());
+        adi = new ADI(expandTilde(path), cast(char[]) id.toHexString().toLower());
     }
 
     if (!adi.isMachineProvisioned()) {
@@ -48,14 +50,15 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    auto s = new HttpServer(simpleHandler((ref req, ref res) {
-        if (req.url == "/version") {
+    auto s = new HttpServer((ref ctx) {
+        auto res = ctx.response;
+        if (ctx.request.url == "/version") {
             import constants;
             writeln("[<<] GET /version");
             res.writeBody(anisetteServerVersion);
             writeln("[>>] 200 OK");
             res.setStatus(200);
-        } else if (req.url == "/reprovision") {
+        } else if (ctx.request.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
             adi.provisionDevice(rinfo);
             writeln("[>>] 200 OK");
@@ -105,25 +108,7 @@ void main(string[] args) {
                 res.writeBody(t.toString());
             }
         }
-    }), serverConfig);
+    }, serverConfig);
     s.start();
-
-    /+
-
-
-
-    with (vib) {
-        Get("/reprovision", (req, res) => "Hello World!");
-
-        Get("", (req, res) {
-        });
-    }
-
-    // listenHTTP is called automatically
-    runApplication();
-
-    scope (exit)
-    vib.Stop();
-    // +/
 }
 

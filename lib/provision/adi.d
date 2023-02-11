@@ -30,8 +30,6 @@ alias ADIProvisioningStart_t = extern(C) int function(ulong, ubyte*, uint, ubyte
 alias ADIGetLoginCode_t = extern(C) int function(ulong);
 alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
-alias ADISetIDMSRouting_t = extern(C) int function(ulong, ulong);
-alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
 @nogc public struct ADI {
     private string path;
@@ -54,8 +52,6 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
     ADIGetLoginCode_t pADIGetLoginCode;
     ADIDispose_t pADIDispose;
     ADIOTPRequest_t pADIOTPRequest;
-    ADISetIDMSRouting_t pADISetIDMSRouting;
-    ADIGetIDMSRouting_t pADIGetIDMSRouting;
 
     string __clientInfo = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
     public @property string clientInfo() shared {
@@ -139,16 +135,12 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         this.pADIGetLoginCode = cast(ADIGetLoginCode_t) libstoreservicescore.load("aslgmuibau");
         this.pADIDispose = cast(ADIDispose_t) libstoreservicescore.load("jk24uiwqrg");
         this.pADIOTPRequest = cast(ADIOTPRequest_t) libstoreservicescore.load("qi864985u0");
-        this.pADISetIDMSRouting = cast(ADISetIDMSRouting_t) libstoreservicescore.load("ksbafgljkb");
-        this.pADIGetIDMSRouting = cast(ADIGetIDMSRouting_t) libstoreservicescore.load("madsvsfvjk");
-
-        debug {
-            stderr.writeln("Generating an identifier...");
-        }
 
         debug {
             stderr.writeln("First calls...");
         }
+
+        pADILoadLibraryWithPath(/+path+/ libraryPath.toStringz);
 
         this.path = provisioningPath;
         pADISetProvisioningPath(/+path+/ path.toStringz);
@@ -157,8 +149,6 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             this.identifier = cast(string) genAndroidId();
         else
             this.identifier = cast(string) identifier;
-
-        pADILoadLibraryWithPath(/+path+/ libraryPath.toStringz);
 
         debug {
             stderr.writeln("Setting fields...");
@@ -380,18 +370,6 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         routingInformation = to!ulong(secondStep.rinfo);
 
         debug {
-            stderr.writeln("setIDMSRouting...");
-        }
-
-        ret = pADISetIDMSRouting(
-            routingInformation,
-            dsId,
-        );
-
-        if (ret)
-            throw new AnisetteException(ret);
-
-        debug {
             stderr.writeln("End provisioning...");
         }
 
@@ -465,21 +443,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             stderr.writeln("getRoutingInformation ignored");
         }
 
-        debug {
-            stderr.writeln("getRoutingInformation called !");
-        }
-
-        auto ret = 0 /+ pADIGetIDMSRouting(
-            /+(out) routingInfo+/ &routingInfo,
-            /+accountID+/ dsId,
-        ) +/;
-
-        debug {
-            stderr.writefln("getRoutingInformation -> %d", ret);
-        }
-
-        if (ret)
-            throw new AnisetteException(ret);
+        routingInfo = 17106176;
     }
 }
 
