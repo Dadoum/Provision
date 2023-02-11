@@ -49,7 +49,13 @@ void main(string[] args) {
     }
 
     auto s = new HttpServer(simpleHandler((ref req, ref res) {
-        if (req.url == "/reprovision") {
+        if (req.url == "/version") {
+            import constants;
+            writeln("[<<] GET /version");
+            res.writeBody(anisetteServerVersion);
+            writeln("[>>] 200 OK");
+            res.setStatus(200);
+        } else if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
             adi.provisionDevice(rinfo);
             writeln("[>>] 200 OK");
