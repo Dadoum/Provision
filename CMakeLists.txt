@@ -63,8 +63,6 @@ target_include_directories(retrieve_headers PUBLIC ${RETRIEVE_HEADERS_SOURCE_DIR
 target_link_libraries(retrieve_headers provision)
 
 if (build_javabindings)
-    set_property(TARGET hybris PROPERTY POSITION_INDEPENDENT_CODE ON)
-
     set(JAVA_B_SOURCE_DIR "bindings/java/d/")
     file(GLOB_RECURSE JAVA_B_D_SOURCES "${JAVA_B_SOURCE_DIR}*.d")
 
