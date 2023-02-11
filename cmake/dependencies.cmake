@@ -1,16 +1,6 @@
  # ==============================================================================
 # Fetching external libraries
 
-include(FetchContent)
-
-FetchContent_Declare(
-        libhybris
-        GIT_REPOSITORY https://github.com/Dadoum/libhybris
-        GIT_TAG master
-)
-FetchContent_MakeAvailable(libhybris)
-target_compile_definitions(hybris PUBLIC BROKEN_MODE)
-
 if(build_sideloadipa OR build_anisetteserver)
     include(UseDub)
 
@@ -24,6 +14,6 @@ if(build_sideloadipa OR build_anisetteserver)
     endif()
 
     if(build_anisetteserver)
-        DubProject_Add(handy-httpd ~3.3.0)
+        DubProject_Add(handy-httpd ~5.1.0)
     endif()
 endif()

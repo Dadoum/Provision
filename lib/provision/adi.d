@@ -33,98 +33,90 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
 alias ADISetIDMSRouting_t = extern(C) int function(ulong, ulong);
 alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
 
-@nogc public shared struct ADI {
-    private shared string path;
-    private shared ulong dsId;
+@nogc public struct ADI {
+    private string path;
+    private ulong dsId;
 
-    private shared string __identifier;
-    private shared string[string] urlBag;
+    private string __identifier;
+    private string[string] urlBag;
 
-    shared AndroidLibrary* libcoreadi;
-    shared AndroidLibrary* libstoreservicescore;
+    AndroidLibrary* libstoreservicescore;
 
-    __gshared ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
-    __gshared ADISetAndroidID_t pADISetAndroidID;
-    __gshared ADISetProvisioningPath_t pADISetProvisioningPath;
+    ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
+    ADISetAndroidID_t pADISetAndroidID;
+    ADISetProvisioningPath_t pADISetProvisioningPath;
 
-    __gshared ADIProvisioningErase_t pADIProvisioningErase;
-    __gshared ADISynchronize_t pADISynchronize;
-    __gshared ADIProvisioningDestroy_t pADIProvisioningDestroy;
-    __gshared ADIProvisioningEnd_t pADIProvisioningEnd;
-    __gshared ADIProvisioningStart_t pADIProvisioningStart;
-    __gshared ADIGetLoginCode_t pADIGetLoginCode;
-    __gshared ADIDispose_t pADIDispose;
-    __gshared ADIOTPRequest_t pADIOTPRequest;
-    __gshared ADISetIDMSRouting_t pADISetIDMSRouting;
-    __gshared ADIGetIDMSRouting_t pADIGetIDMSRouting;
+    ADIProvisioningErase_t pADIProvisioningErase;
+    ADISynchronize_t pADISynchronize;
+    ADIProvisioningDestroy_t pADIProvisioningDestroy;
+    ADIProvisioningEnd_t pADIProvisioningEnd;
+    ADIProvisioningStart_t pADIProvisioningStart;
+    ADIGetLoginCode_t pADIGetLoginCode;
+    ADIDispose_t pADIDispose;
+    ADIOTPRequest_t pADIOTPRequest;
+    ADISetIDMSRouting_t pADISetIDMSRouting;
+    ADIGetIDMSRouting_t pADIGetIDMSRouting;
 
     string __clientInfo = "<MacBookPro17,1> <macOS;12.2.1;21D62> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
-    public @property string clientInfo() shared {
+    public @property string clientInfo() {
         return __clientInfo;
     }
 
-    public @property void clientInfo(string value) shared {
+    public @property void clientInfo(string value) {
         __clientInfo = value;
     }
 
-    shared string __serialNo = "0";
-    public @property string serialNo() shared {
+    string __serialNo = "0";
+    public @property string serialNo() {
         return __serialNo;
     }
 
-    public @property void serialNo(string value) shared {
+    public @property void serialNo(string value) {
         __serialNo = value;
     }
 
-    public @property string provisionPath() shared {
+    public @property string provisionPath() {
         return this.path;
     }
 
-    public void identifier(string value) shared {
+    public void identifier(string value) {
         pADISetAndroidID(/+identifierStr+/ value.toStringz, /+length+/ cast(uint) value.length);
         __identifier = value;
     }
 
-    public string identifier() shared {
+    public string identifier() {
         return __identifier;
     }
 
-    public @property string deviceId() shared {
+    public @property string deviceId() {
         return sha1Of(this.identifier).toHexString().toUpper().dup();
     }
 
-    public @property string localUserUUID() shared {
+    public @property string localUserUUID() {
         return sha256Of(this.identifier).toHexString().toUpper().dup();
     }
 
     @disable this();
 
-    public shared this(string provisioningPath, char[] identifier = null) {
+    public this(string provisioningPath, char[] identifier = null) {
         version (X86_64) {
             enum string architectureIdentifier = "x86_64";
         } else version (X86) {
             enum string architectureIdentifier = "x86";
         } else version (AArch64) {
-                enum string architectureIdentifier = "arm64-v8a";
-            } else version (ARM) {
-                    enum string architectureIdentifier = "armeabi-v7a";
-                } else {
-                    static assert(false, "Architecture not supported :(");
-                }
+            enum string architectureIdentifier = "arm64-v8a";
+        } else version (ARM) {
+            enum string architectureIdentifier = "armeabi-v7a";
+        } else {
+            static assert(false, "Architecture not supported :(");
+        }
 
         enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
-
-        initHybris();
-
-        if (!exists(libraryPath ~ "libCoreADI.so")) {
-            throw new FileException(libraryPath ~ "libCoreADI.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
-        }
 
         if (!exists(libraryPath ~ "libstoreservicescore.so")) {
             throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
         }
 
-        this.libcoreadi = new AndroidLibrary(libraryPath ~ "libCoreADI.so");
         this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
 
         debug {
@@ -165,8 +157,8 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             this.identifier = cast(string) genAndroidId();
         else
             this.identifier = cast(string) identifier;
-        // pADILoadLibraryWithPath(/+path+/ applePrefix.toStringz);
-        // pADISetAndroidID(/+identifierStr+/ identifier.toStringz, /+length+/ cast(uint) identifier.length);
+
+        pADILoadLibraryWithPath(/+path+/ libraryPath.toStringz);
 
         debug {
             stderr.writeln("Setting fields...");
@@ -179,7 +171,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         }
     }
 
-    private HTTP makeHttpClient() shared {
+    private HTTP makeHttpClient() {
         auto client = HTTP();
 
         client.setUserAgent("iCloud.exe (unknown version) CFNetwork/520.44.6");
@@ -204,7 +196,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return client;
     }
 
-    private void populateUrlBag(HTTP client) shared {
+    private void populateUrlBag(HTTP client) {
         auto content = cast(string) std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", client);
 
         version (LibPlist) {
@@ -227,7 +219,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         }
     }
 
-    private ubyte[] downloadSPIM(HTTP client) shared {
+    private ubyte[] downloadSPIM(HTTP client) {
         import std.datetime.systime;
         auto time = Clock.currTime();
 
@@ -262,7 +254,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return Base64.decode(spimStr);
     }
 
-    auto sendCPIM(HTTP client, ubyte[] cpim) shared {
+    auto sendCPIM(HTTP client, ubyte[] cpim) {
         string body_ = format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
@@ -314,7 +306,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return secondStepAnswers;
     }
 
-    public bool isMachineProvisioned() shared {
+    public bool isMachineProvisioned() {
         debug {
             stderr.writeln("isMachineProvisioned called !");
         }
@@ -328,7 +320,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
         return i == 0;
     }
 
-    public void provisionDevice(out ulong routingInformation) shared {
+    public void provisionDevice(out ulong routingInformation) {
         debug {
             stderr.writeln("provisionDevice called !");
         }
@@ -425,7 +417,7 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             throw new AnisetteException(ret);
     }
 
-    public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) shared {
+    public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
         debug {
             stderr.writeln("getOneTimePassword called !");
         }
@@ -468,21 +460,19 @@ alias ADIGetIDMSRouting_t = extern(C) int function(ulong*, ulong);
             throw new AnisetteException(ret);
     }
 
-    public void getRoutingInformation(out ulong routingInfo) shared {
+    public void getRoutingInformation(out ulong routingInfo) {
         debug {
             stderr.writeln("getRoutingInformation ignored");
         }
-
-        return;
 
         debug {
             stderr.writeln("getRoutingInformation called !");
         }
 
-        auto ret = pADIGetIDMSRouting(
+        auto ret = 0 /+ pADIGetIDMSRouting(
             /+(out) routingInfo+/ &routingInfo,
             /+accountID+/ dsId,
-        );
+        ) +/;
 
         debug {
             stderr.writefln("getRoutingInformation -> %d", ret);
