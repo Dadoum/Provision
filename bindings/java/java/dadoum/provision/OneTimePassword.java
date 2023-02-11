@@ -1,6 +1,6 @@
 package dadoum;
 
-public class OneTimePassword {
+public class OneTimePassword implements java.lang.AutoCloseable {
     private byte[] machineId;
     private byte[] oneTimePassword;
 
@@ -8,6 +8,10 @@ public class OneTimePassword {
 
     protected OneTimePassword(long otpPtr) {
         initialize(otpPtr);
+    }
+
+    ~OneTimePassword() {
+        dispose();
     }
 
     public byte[] getOneTimePassword() {
