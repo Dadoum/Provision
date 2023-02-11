@@ -2,9 +2,9 @@ name: x86_64 builds
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 env:
   BUILD_TYPE: Release
