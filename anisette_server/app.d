@@ -50,15 +50,16 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    auto s = new HttpServer((ref ctx) {
-        auto res = ctx.response;
-        if (ctx.request.url == "/version") {
+    auto s = new HttpServer((ref req, ref res) {
+        // auto req = ctx.request;
+        // auto res = ctx.response;
+        if (req.url == "/version") {
             import constants;
             writeln("[<<] GET /version");
             res.writeBody(anisetteServerVersion);
             writeln("[>>] 200 OK");
             res.setStatus(200);
-        } else if (ctx.request.url == "/reprovision") {
+        } else if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
             adi.provisionDevice(rinfo);
             writeln("[>>] 200 OK");
