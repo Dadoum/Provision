@@ -6,6 +6,8 @@ version (DigitalMars) { } else version (LDC) { } else {
 
 import arsd.jni;
 import core.stdc.stdlib;
+import std.experimental.allocator;
+import std.experimental.allocator.mallocator;
 static import provision;
 
 final class OneTimePassword: JavaClass!("dadoum", OneTimePassword) {
@@ -35,7 +37,11 @@ final class ADI : JavaClass!("dadoum", ADI) {
     }
 
     @Export void initialize(string provisioningPath) {
-        handle = cast(long) new provision.ADI(provisioningPath);
+        handle = cast(long) Mallocator.instance.make!(provision.ADI)(provisioningPath);
+    }
+
+    @Export void dispose(string provisioningPath) {
+        handle = cast(long) Mallocator.instance.make!(provision.ADI)(provisioningPath);
     }
 
     @Export bool isMachineProvisioned() {

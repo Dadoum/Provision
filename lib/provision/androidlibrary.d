@@ -3,22 +3,30 @@ module provision.androidlibrary;
 import core.exception;
 import core.memory;
 import core.stdc.stdint;
-import core.sys.elf;
+import core.sys.linux.elf;
 import core.sys.linux.link;
 import core.sys.posix.sys.mman;
 import std.algorithm;
 import std.conv;
+import std.experimental.allocator;
+import std.experimental.allocator.mallocator;
+import std.experimental.allocator.mmap_allocator;
 import std.mmfile;
 import std.path;
 import std.random;
+import std.range;
 import std.stdio;
 import std.string;
 import std.traits;
-import provision.posixlibrary;
 
 public struct AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
+
+    package char[] sectionNamesTable;
+    package char[] dynamicStringTable;
+    package ElfW!"Sym"[] dynamicSymbolTable;
+    package GnuHashTable* gnuHashTable;
 
     public this(string libraryName) {
         elfFile = new MmFile(libraryName);
@@ -56,30 +64,34 @@ public struct AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        allocation = GC.malloc(allocSize)[0..allocSize];
+        allocation = MmapAllocator.instance.allocate(allocSize)[0..allocSize];
         writefln!("Allocated %1$d bytes (%1$x) of memory, at %2$x")(allocSize, allocation.ptr);
-        allocation[minimum - alignedMinimum..maximumFile - alignedMinimum] = elfFile[minimum..maximumFile];
-
-        size_t pageStart;
-        size_t pageEnd;
 
         foreach (programHeader; programHeaders) {
             if (programHeader.p_type == PT_LOAD) {
-                pageStart = pageFloor(programHeader.p_vaddr);
-                pageEnd = pageCeil(programHeader.p_vaddr + programHeader.p_memsz);
+                headerStart = programHeader.p_vaddr;
+                headerEnd = programHeader.p_vaddr + programHeader.p_filesz;
+                allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[headerStart..headerEnd];
 
-                mprotect(allocation.ptr + pageStart, allocSize, programHeader.memoryProtection());
+                mprotect(allocation.ptr + headerStart, headerEnd - headerStart, programHeader.memoryProtection());
             }
         }
 
         auto sectionHeaders = elfFile.identifyArray!(ElfW!"Shdr")(elfHeader.e_shoff, elfHeader.e_shnum);
+        auto sectionStrTable = sectionHeaders[elfHeader.e_shstrndx];
+        sectionNamesTable = cast(char[]) elfFile[sectionStrTable.sh_offset..sectionStrTable.sh_offset + sectionStrTable.sh_size];
+
         foreach (sectionHeader; sectionHeaders) {
             switch (sectionHeader.sh_type) {
                 case SHT_DYNSYM:
+                    dynamicSymbolTable = elfFile.identifyArray!(ElfW!"Sym")(sectionHeader.sh_offset, sectionHeader.sh_size / ElfW!"Sym".sizeof);
                     break;
                 case SHT_STRTAB:
+                    if (getSectionName(sectionHeader) == ".dynstr")
+                        dynamicStringTable = cast(char[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size];
                     break;
                 case SHT_GNU_HASH:
+                    gnuHashTable = new GnuHashTable(cast(ubyte[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size]);
                     break;
                 case SHT_REL:
                     this.relocate!(ElfW!"Rel")(sectionHeader);
@@ -93,8 +105,115 @@ public struct AndroidLibrary {
         }
     }
 
-    void* load(string symbol) const {
-        return null;
+    private void relocate(RelocationType)(ref ElfW!"Shdr" shdr) {
+        auto relocations = this.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
+        auto allocation = cast(ubyte[]) allocation;
+
+        foreach (relocation; relocations) {
+            auto relocationType = ELFW!"R_TYPE"(relocation.r_info);
+            auto symbolIndex = ELFW!"R_SYM"(relocation.r_info);
+
+            auto offset = relocation.r_offset;
+            size_t addend;
+            static if (__traits(hasMember, relocation, "r_addend")) {
+                addend = relocation.r_addend;
+            } else {
+                if (relocationType == R_GENERIC_NATIVE_ABS) {
+                    addend = 0;
+                } else {
+                    addend = *cast(size_t*) (allocation.ptr + offset);
+                }
+            }
+            auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
+
+            auto location = cast(size_t*) (cast(size_t) allocation.ptr + offset);
+
+            switch (relocationType) {
+                case R_GENERIC!"RELATIVE":
+                    *location = cast(size_t) (allocation.ptr + addend);
+                    break;
+                case R_GENERIC!"GLOB_DAT":
+                case R_GENERIC!"JUMP_SLOT":
+                    *location = cast(size_t) (symbol + addend);
+                    break;
+                case R_GENERIC_NATIVE_ABS:
+                    *location = cast(size_t) (symbol + addend);
+                    break;
+                default:
+                    throw new LoaderException("Unknown relocation type: " ~ to!string(relocationType));
+            }
+        }
+    }
+
+    private string getSymbolName(ElfW!"Sym" symbol) {
+        return cast(string) fromStringz(&dynamicStringTable[symbol.st_name]);
+    }
+
+    private string getSectionName(ElfW!"Shdr" section) {
+        return cast(string) fromStringz(&sectionNamesTable[section.sh_name]);
+    }
+
+    void* load(string symbolName) {
+        return gnuHashTable.lookup(symbolName, this);
+    }
+}
+
+package struct GnuHashTable {
+    struct GnuHashTableStruct {
+        uint nbuckets;
+        uint symoffset;
+        uint bloomSize;
+        uint bloomShift;
+    }
+
+    GnuHashTableStruct table;
+    ulong[] bloom;
+    uint[] buckets;
+    uint[] chain;
+
+    this(ubyte[] tableData) {
+        table = *cast(GnuHashTableStruct*) tableData.ptr;
+        auto bucketsLocation = GnuHashTableStruct.sizeof + table.bloomSize * (ulong.sizeof / ubyte.sizeof);
+        auto chainLocation = bucketsLocation + table.nbuckets * (uint.sizeof / ubyte.sizeof);
+
+        bloom = cast(ulong[]) tableData[GnuHashTableStruct.sizeof..bucketsLocation];
+        buckets = cast(uint[]) tableData[bucketsLocation..chainLocation];
+        chain = cast(uint[]) tableData[chainLocation..$];
+    }
+
+    static uint hash(string name) {
+        uint32_t h = 5381;
+
+        foreach (c; name) {
+            h = (h << 5) + h + c;
+        }
+
+        return h;
+    }
+
+    void* lookup(string symbolName, AndroidLibrary library) {
+        auto targetHash = hash(symbolName);
+        auto bucket = buckets[targetHash % table.nbuckets];
+
+        if (bucket < table.symoffset) {
+            throw new LoaderException("Symbol not found: " ~ symbolName);
+        }
+
+        auto chain_index = bucket - table.symoffset;
+        targetHash &= ~1;
+        auto chains = chain[chain_index..$];
+        auto dynsyms = library.dynamicSymbolTable[bucket..$];
+        foreach (hash, symbol; zip(chains, dynsyms)) {
+            if ((hash &~ 1) == targetHash && symbolName == library.getSymbolName(symbol)) {
+                return cast(void*) (cast(size_t) library.allocation.ptr + symbol.st_value);
+            }
+
+            if (hash & 1) {
+                break;
+            }
+        }
+
+        throw new LoaderException("Symbol not found: " ~ symbolName);
     }
 }
 
@@ -140,28 +259,6 @@ template R_GENERIC(string relocationType) {
     enum R_GENERIC = mixin("R_" ~ relocationArch ~ "_" ~ relocationType);
 }
 
-void relocate(RelocationType)(ref AndroidLibrary library, ref ElfW!"Shdr" shdr) {
-    auto relocations = library.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
-
-    foreach (relocation; relocations) {
-        auto relocationType = ELFW!"R_TYPE"(relocation.r_info);
-
-        auto offset = relocation.r_offset;
-
-        switch (relocationType) {
-            case R_GENERIC!"RELATIVE":
-                break;
-            case R_GENERIC!"GLOB_DAT":
-            case R_GENERIC!"JUMP_SLOT":
-                break;
-            case R_GENERIC_NATIVE_ABS:
-                break;
-            default:
-                throw new LoaderException("Unknown relocation type: " ~ to!string(relocationType));
-        }
-    }
-}
-
 size_t pageFloor(size_t number) {
     return number & pageMask;
 }
@@ -182,74 +279,11 @@ RetType reinterpret(RetType, FromType)(FromType[] obj) {
     return (cast(RetType[]) obj)[0];
 }
 
-private static __gshared PosixLibrary* libc;
+private static void* getSymbolImplementation(string symbolName) {
+    import provision.symbols;
+    auto symbol = in_word_set(symbolName);
 
-extern(C) int __system_property_get_impl(const char* n, char *value) {
-    auto name = n.fromStringz;
-
-    enum str = "no s/n number";
-
-    value[0..str.length] = str;
-    // strncpy(value, str.ptr, str.length);
-    return cast(int) str.length;
-}
-
-extern(C) uint arc4random_impl() {
-    return Random(unpredictableSeed()).front;
-}
-
-extern(C) int emptyStub() {
-    return 0;
-}
-
-extern(C) noreturn undefinedSymbol() {
-    throw new UndefinedSymbolException();
-}
-
-extern(C) private static void* hookFinder(string symbolName) {
-    import core.stdc.errno;
-    import core.stdc.stdlib;
-    import core.stdc.string;
-    import core.sys.posix.fcntl;
-    import core.sys.posix.sys.stat;
-    import core.sys.posix.sys.time;
-    import core.sys.posix.unistd;
-
-    auto defaultHooks = [
-        "arc4random": cast(void*) &arc4random_impl,
-        "chmod": cast(void*) &chmod,
-        "__system_property_get": cast(void*) &__system_property_get_impl,
-        "__errno": cast(void*) &errno,
-        "close": cast(void*) &close,
-        "free": cast(void*) &free,
-        "fstat": cast(void*) &fstat,
-        "ftruncate": cast(void*) &ftruncate,
-        "gettimeofday": cast(void*) &gettimeofday,
-        "lstat": cast(void*) &lstat,
-        "malloc": cast(void*) &malloc,
-        "mkdir": cast(void*) &mkdir,
-        "open": cast(void*) &open,
-        "read": cast(void*) &read,
-        "strncpy": cast(void*) &strncpy,
-        "umask": cast(void*) &umask,
-        "write": cast(void*) &write,
-        "pthread_rwlock_destroy": cast(void*) &emptyStub,
-        "pthread_rwlock_init": cast(void*) &emptyStub,
-        "pthread_rwlock_rdlock": cast(void*) &emptyStub,
-        "pthread_rwlock_unlock": cast(void*) &emptyStub,
-        "pthread_rwlock_wrlock": cast(void*) &emptyStub,
-        "pthread_create": cast(void*) &emptyStub,
-        "pthread_mutex_lock": cast(void*) &emptyStub,
-        "pthread_mutex_unlock": cast(void*) &emptyStub,
-        "pthread_once": cast(void*) &emptyStub,
-        "pthread_rwlock_init": cast(void*) &emptyStub,
-        "pthread_rwlock_unlock": cast(void*) &emptyStub,
-        "pthread_rwlock_wrlock": cast(void*) &emptyStub,
-    ];
-
-    auto symbol = symbolName in defaultHooks;
-
-    if (symbol) return *symbol;
+    if (symbol) return symbol;
 
     return &undefinedSymbol;
 }

@@ -3,7 +3,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D)
 option(build_javabindings "Java bindings" OFF)
-option(build_sideloadipa "Build Sideload IPA" OFF)
 option(build_anisetteserver "Build Anisette server" ON)
 option(link_libplist_dynamic "Load libplist at runtime" OFF)
 
@@ -75,18 +74,6 @@ if (build_javabindings)
     target_link_libraries(provision-java provision)
 endif()
 
-if(build_sideloadipa)
-    set(SIDELOAD_IPA_SOURCE_DIR "sideload_ipa/")
-    file(GLOB_RECURSE SIDELOAD_IPA_D_SOURCES "${SIDELOAD_IPA_SOURCE_DIR}*.d")
-
-    add_executable(sideload_ipa ${SIDELOAD_IPA_D_SOURCES})
-    target_include_directories(sideload_ipa PUBLIC ${SIDELOAD_IPA_SOURCE_DIR})
-
-    pkg_check_modules(imobiledevice REQUIRED IMPORTED_TARGET libimobiledevice-1.0)
-
-    target_link_libraries(sideload_ipa provision gtk-d gmp-d PkgConfig::imobiledevice plist pbkdf2 crypto)
-endif()
-
 if(build_anisetteserver)
     set(ANISETTE_SERVER_SOURCE_DIR "anisette_server/")
     file(GLOB_RECURSE ANISETTE_SERVER_D_SOURCES "${ANISETTE_SERVER_SOURCE_DIR}*.d")
@@ -95,12 +82,4 @@ if(build_anisetteserver)
     target_include_directories(anisette_server PUBLIC ${ANISETTE_SERVER_SOURCE_DIR})
 
     target_link_libraries(anisette_server provision handy-httpd)
-
-    set(ADI_SERVER_SOURCE_DIR "adi_server/")
-    file(GLOB_RECURSE ADI_SERVER_D_SOURCES "${ADI_SERVER_SOURCE_DIR}*.d")
-
-    # add_executable(adi_server ${ADI_SERVER_D_SOURCES})
-    # target_include_directories(adi_server PUBLIC ${ADI_SERVER_D_SOURCES})
-
-    # target_link_libraries(adi_server provision handy-httpd)
 endif()

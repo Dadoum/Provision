@@ -14,7 +14,7 @@ configuration "plist-d" {
 }
 
 configuration "libplist" {
-    version "LibPlist"
+    versions "LibPlist"
 }
 
 subPackage {
