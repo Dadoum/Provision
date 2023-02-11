@@ -72,3 +72,7 @@ ninja
 ```
 
 This repository include arsd/jni.d, under Boost license. See [original repo](https://github.com/adamdruppe/arsd) for further info.
+
+## Support
+
+Donations are welcome with GitHub Sponsor.
