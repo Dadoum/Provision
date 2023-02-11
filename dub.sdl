@@ -39,5 +39,5 @@ subPackage {
     sourcePaths "anisette_server"
 
     dependency "provision" version="*"
-    dependency "handy-httpd" version="~>5.1.0"
+    dependency "handy-httpd" version="~>3.3.0"
 }

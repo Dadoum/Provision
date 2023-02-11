@@ -14,6 +14,6 @@ if(build_sideloadipa OR build_anisetteserver)
     endif()
 
     if(build_anisetteserver)
-        DubProject_Add(handy-httpd ~5.1.0)
+        DubProject_Add(handy-httpd ~3.3.0)
     endif()
 endif()
