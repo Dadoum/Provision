@@ -3,6 +3,7 @@ module provision.androidlibrary;
 import core.exception;
 import core.memory;
 import core.stdc.stdint;
+import core.stdc.stdlib;
 import core.sys.linux.elf;
 import core.sys.linux.link;
 import core.sys.posix.sys.mman;
@@ -65,7 +66,7 @@ public struct AndroidLibrary {
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
         allocation = GC.malloc(allocSize)[0..allocSize];
-        writefln!("Allocated %1$d bytes (%1$x) of memory, at %2$x")(allocSize, allocation.ptr);
+        stderr.writefln!("Allocated %1$d bytes (%1$x) of memory, at %2$x")(allocSize, allocation.ptr);
 
         foreach (programHeader; programHeaders) {
             if (programHeader.p_type == PT_LOAD) {
@@ -104,6 +105,12 @@ public struct AndroidLibrary {
             }
         }
     }
+
+    ~this() {
+        GC.free(allocation.ptr);
+    }
+
+    @disable this(this);
 
     private void relocate(RelocationType)(ref ElfW!"Shdr" shdr) {
         auto relocations = this.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
@@ -156,7 +163,7 @@ public struct AndroidLibrary {
     }
 
     void* load(string symbolName) {
-        return gnuHashTable.lookup(symbolName, this);
+        return gnuHashTable.lookup(symbolName, &this);
     }
 }
 
@@ -193,7 +200,7 @@ package struct GnuHashTable {
         return h;
     }
 
-    void* lookup(string symbolName, AndroidLibrary library) {
+    void* lookup(string symbolName, AndroidLibrary* library) {
         auto targetHash = hash(symbolName);
         auto bucket = buckets[targetHash % table.nbuckets];
 
@@ -285,11 +292,7 @@ RetType reinterpret(RetType, FromType)(FromType[] obj) {
 
 private static void* getSymbolImplementation(string symbolName) {
     import provision.symbols;
-    auto symbol = in_word_set(symbolName);
-
-    if (symbol) return symbol;
-
-    return &undefinedSymbol;
+    return lookupSymbol(symbolName);
 }
 
 class LoaderException: Exception {

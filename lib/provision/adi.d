@@ -301,13 +301,18 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
             stderr.writeln("isMachineProvisioned called !");
         }
 
-        int i = pADIGetLoginCode(dsId);
+        int loginCode = pADIGetLoginCode(dsId);
 
         debug {
-            stderr.writefln("isMachineProvisioned -> %d", i);
+            stderr.writefln("isMachineProvisioned -> %d", loginCode);
         }
 
-        return i == 0;
+        if (loginCode == 0) {
+            return true;
+        } else if (loginCode == -45061) {
+            return false;
+        }
+        throw new AnisetteException(loginCode);
     }
 
     public void provisionDevice(out ulong routingInformation) {
@@ -395,7 +400,7 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
             throw new AnisetteException(ret);
     }
 
-    public void getOneTimePassword(out ubyte[] machineId, out ubyte[] oneTimePassword) {
+    public void getOneTimePassword(bool writeMachineId = true)(out ubyte[] machineId, out ubyte[] oneTimePassword) {
         debug {
             stderr.writeln("getOneTimePassword called !");
         }
@@ -420,8 +425,10 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
         if (ret)
             throw new AnisetteException(ret);
 
-        machineId = midPtr[0..midLen].dup;
-        oneTimePassword = otpPtr[0..otpLen].dup;
+        static if (writeMachineId) {
+            machineId = midPtr[0..midLen];
+        }
+        oneTimePassword = otpPtr[0..otpLen];
 
         debug {
             stderr.writeln("Cleaning up...");

@@ -11,40 +11,33 @@ import provision.androidlibrary;
 import std.experimental.allocator;
 import std.experimental.allocator.mallocator;
 import std.random;
-import std.stdio : writeln;
+import std.stdio : stderr, writeln;
 import std.string;
+import std.traits : Parameters, ReturnType;
 
-enum TOTAL_KEYWORDS = 29;
-enum MIN_WORD_LENGTH = 4;
-enum MAX_WORD_LENGTH = 22;
-enum MIN_HASH_VALUE = 4;
-enum MAX_HASH_VALUE = 45;
-/* maximum key range = 42, duplicates = 0 */
-
-extern (C) int __system_property_get_impl(const char* n, char* value) {
+private extern (C) int __system_property_get_impl(const char* n, char* value) {
     auto name = n.fromStringz;
 
     enum str = "no s/n number";
 
     value[0 .. str.length] = str;
-    // strncpy(value, str.ptr, str.length);
     return cast(int) str.length;
 }
 
-extern (C) uint arc4random_impl() {
+private extern (C) uint arc4random_impl() {
     return Random(unpredictableSeed()).front;
 }
 
-extern (C) int emptyStub() {
+private extern (C) int emptyStub() {
     return 0;
 }
 
-extern (C) noreturn undefinedSymbol() {
+private extern (C) noreturn undefinedSymbol() {
     throw new UndefinedSymbolException();
 }
 
-extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
-    writeln("Attempting to load ", name.fromStringz());
+private extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
+    stderr.writeln("Attempting to load ", name.fromStringz());
     try {
         return Mallocator.instance.make!AndroidLibrary(cast(string) name.fromStringz());
     } catch (Throwable) {
@@ -52,16 +45,37 @@ extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
     }
 }
 
-extern (C) void* dlsymWrapper(AndroidLibrary* library, const char* symbolName) {
-    writeln("Attempting to load ", symbolName.fromStringz());
+private extern (C) void* dlsymWrapper(AndroidLibrary* library, const char* symbolName) {
+    stderr.writeln("Attempting to load ", symbolName.fromStringz());
     return library.load(cast(string) symbolName.fromStringz());
 }
 
-extern (C) void dlcloseWrapper(AndroidLibrary* library) {
+private extern (C) void dlcloseWrapper(AndroidLibrary* library) {
     return Mallocator.instance.dispose(library);
 }
 
-pragma(inline, true) uint hash(string str, uint len) {
+public bool doTimeTravel = false;
+public timeval targetTime;
+
+private extern (C) ReturnType!gettimeofday gettimeofday_timeTravel(timeval* timeval, void*) {
+    auto ret = gettimeofday(__traits(parameters));
+    if (doTimeTravel) {
+        *timeval = targetTime;
+    }
+
+    return ret;
+}
+
+// gperf generated code:
+
+private enum totalKeywords = 29;
+private enum minWordLength = 4;
+private enum maxWordLength = 22;
+private enum minHashValue = 4;
+private enum maxHashValue = 45;
+/* maximum key range = 42, duplicates = 0 */
+
+pragma(inline, true) private uint hash(string str, uint len) {
     static ubyte[] asso_values = [
         46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46,
         46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46,
@@ -108,14 +122,14 @@ pragma(inline, true) uint hash(string str, uint len) {
     return hval;
 }
 
-struct function_pair {
+private struct FunctionPair {
     string name;
     void* ptr;
 }
 
-void* in_word_set(string str) {
+package void* lookupSymbol(string str) {
     auto len = cast(uint) str.length;
-    enum function_pair[] wordlist = [
+    enum FunctionPair[] wordlist = [
             {""}, {""}, {""}, {""}, {"open", &open}, {"dlsym", &dlsymWrapper},
             {"dlopen", &dlopenWrapper}, {"dlclose", &dlcloseWrapper},
             {"close", &close}, {""}, {"umask", &umask}, {""},
@@ -137,15 +151,15 @@ void* in_word_set(string str) {
             {""}, {"arc4random", &arc4random_impl},
         ];
 
-    if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH) {
+    if (len <= maxWordLength && len >= minWordLength) {
         uint key = hash(str, len);
 
-        if (key <= MAX_HASH_VALUE) {
+        if (key <= maxHashValue) {
             string s = wordlist[key].name;
 
             if (str == s)
                 return wordlist[key].ptr;
         }
     }
-    return null;
+    return &undefinedSymbol;
 }
