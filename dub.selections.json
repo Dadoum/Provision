@@ -2,6 +2,8 @@
 	"fileVersion": 1,
 	"versions": {
 		"dxml": "0.4.3",
+		"handy-httpd": "3.3.0",
+		"httparsed": "1.2.1",
 		"plist": "~master"
 	}
 }
