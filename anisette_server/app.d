@@ -8,8 +8,8 @@ import std.path;
 import std.stdio;
 import provision;
 
-static ADI* adi;
-static ulong rinfo;
+static __gshared ADI* adi;
+static __gshared ulong rinfo;
 
 void main(string[] args) {
     auto serverConfig = ServerConfig.defaultValues;
