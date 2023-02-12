@@ -40,4 +40,14 @@ subPackage {
 
     dependency "provision" version="*"
     dependency "handy-httpd" version="~>3.3.0"
+
+    configuration "default" {
+    	targetType "executable"
+    }
+
+    configuration "static" {
+    	targetType "executable"
+    	lflags "-lz"
+        dflags "--link-defaultlib-shared=false"
+    }
 }
