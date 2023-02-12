@@ -11,7 +11,7 @@ int main(string[] args) {
     ADI* adi = new ADI(expandTilde("~/.adi"));
 
     ulong rinfo;
-    if (true) {// !adi.isMachineProvisioned()) {
+    if (!adi.isMachineProvisioned()) {
         stderr.write("Machine requires provisioning... ");
         adi.provisionDevice(rinfo);
         stderr.writeln("done !");
