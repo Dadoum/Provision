@@ -64,7 +64,7 @@ public struct AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        allocation = MmapAllocator.instance.allocate(allocSize)[0..allocSize];
+        allocation = GC.malloc(allocSize)[0..allocSize];
         writefln!("Allocated %1$d bytes (%1$x) of memory, at %2$x")(allocSize, allocation.ptr);
 
         foreach (programHeader; programHeaders) {
@@ -118,10 +118,10 @@ public struct AndroidLibrary {
             static if (__traits(hasMember, relocation, "r_addend")) {
                 addend = relocation.r_addend;
             } else {
-                if (relocationType == R_GENERIC_NATIVE_ABS) {
+                if (relocationType == R_386_JUMP_SLOT) {
                     addend = 0;
                 } else {
-                    addend = *cast(size_t*) (allocation.ptr + offset);
+                    addend = *cast(size_t*) (cast(size_t) allocation.ptr + offset);
                 }
             }
             auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
@@ -130,11 +130,13 @@ public struct AndroidLibrary {
 
             switch (relocationType) {
                 case R_GENERIC!"RELATIVE":
-                    *location = cast(size_t) (allocation.ptr + addend);
+                    *location = cast(size_t) allocation.ptr + addend;
                     break;
                 case R_GENERIC!"GLOB_DAT":
-                case R_GENERIC!"JUMP_SLOT":
                     *location = cast(size_t) (symbol + addend);
+                    break;
+                case R_GENERIC!"JUMP_SLOT":
+                    *location = cast(size_t) (symbol);
                     break;
                 case R_GENERIC_NATIVE_ABS:
                     *location = cast(size_t) (symbol + addend);
@@ -167,22 +169,22 @@ package struct GnuHashTable {
     }
 
     GnuHashTableStruct table;
-    ulong[] bloom;
+    size_t[] bloom;
     uint[] buckets;
     uint[] chain;
 
     this(ubyte[] tableData) {
         table = *cast(GnuHashTableStruct*) tableData.ptr;
-        auto bucketsLocation = GnuHashTableStruct.sizeof + table.bloomSize * (ulong.sizeof / ubyte.sizeof);
+        auto bucketsLocation = GnuHashTableStruct.sizeof + table.bloomSize * (size_t.sizeof / ubyte.sizeof);
         auto chainLocation = bucketsLocation + table.nbuckets * (uint.sizeof / ubyte.sizeof);
 
-        bloom = cast(ulong[]) tableData[GnuHashTableStruct.sizeof..bucketsLocation];
+        bloom = cast(size_t[]) tableData[GnuHashTableStruct.sizeof..bucketsLocation];
         buckets = cast(uint[]) tableData[bucketsLocation..chainLocation];
         chain = cast(uint[]) tableData[chainLocation..$];
     }
 
     static uint hash(string name) {
-        uint32_t h = 5381;
+        uint h = 5381;
 
         foreach (c; name) {
             h = (h << 5) + h + c;
@@ -254,6 +256,8 @@ version (X86_64) {
     private enum string relocationArch = "ARM";
     private enum R_GENERIC_NATIVE_ABS = R_ARM_ABS32;
 }
+
+alias R_386_JUMP_SLOT = R_386_JMP_SLOT;
 
 template R_GENERIC(string relocationType) {
     enum R_GENERIC = mixin("R_" ~ relocationArch ~ "_" ~ relocationType);
