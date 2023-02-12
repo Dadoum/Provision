@@ -65,16 +65,21 @@ public struct AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        allocation = GC.malloc(allocSize)[0..allocSize];
-        stderr.writefln!("Allocated %1$d bytes (%1$x) of memory, at %2$x")(allocSize, allocation.ptr);
+        allocation = MmapAllocator.instance.allocate(allocSize)[0..allocSize];
+
+        size_t fileStart;
+        size_t fileEnd;
 
         foreach (programHeader; programHeaders) {
             if (programHeader.p_type == PT_LOAD) {
                 headerStart = programHeader.p_vaddr;
                 headerEnd = programHeader.p_vaddr + programHeader.p_filesz;
-                allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[headerStart..headerEnd];
+                fileStart = programHeader.p_offset;
+                fileEnd = programHeader.p_offset + programHeader.p_filesz;
 
-                mprotect(allocation.ptr + headerStart, headerEnd - headerStart, programHeader.memoryProtection());
+                allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[fileStart..fileEnd];
+
+                auto protectionResult = mprotect(allocation.ptr + pageFloor(headerStart), pageCeil(headerEnd) - pageFloor(headerStart), programHeader.memoryProtection());
             }
         }
 
@@ -107,7 +112,7 @@ public struct AndroidLibrary {
     }
 
     ~this() {
-        GC.free(allocation.ptr);
+        MmapAllocator.instance.deallocate(allocation);
     }
 
     @disable this(this);
@@ -236,12 +241,15 @@ shared static this()
 int memoryProtection(ref ElfW!"Phdr" phdr)
 {
     int prot = 0;
-    if (phdr.p_flags & PF_R)
+    if (phdr.p_flags & PF_R) {
         prot |= PROT_READ;
-    if (phdr.p_flags & PF_W)
+    }
+    if (phdr.p_flags & PF_W) {
         prot |= PROT_WRITE;
-    if (phdr.p_flags & PF_X)
+    }
+    if (phdr.p_flags & PF_X) {
         prot |= PROT_EXEC;
+    }
 
     return prot;
 }
