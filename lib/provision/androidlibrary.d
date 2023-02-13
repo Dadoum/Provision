@@ -80,6 +80,10 @@ public struct AndroidLibrary {
                 allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[fileStart..fileEnd];
 
                 auto protectionResult = mprotect(allocation.ptr + pageFloor(headerStart), pageCeil(headerEnd) - pageFloor(headerStart), programHeader.memoryProtection());
+
+                if (protectionResult != 0) {
+                    throw new LoaderException("Cannot protect the memory correctly.");
+                }
             }
         }
 
@@ -112,7 +116,9 @@ public struct AndroidLibrary {
     }
 
     ~this() {
-        MmapAllocator.instance.deallocate(allocation);
+        if (allocation) {
+            MmapAllocator.instance.deallocate(allocation);
+        }
     }
 
     @disable this(this);
