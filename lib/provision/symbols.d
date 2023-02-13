@@ -15,6 +15,8 @@ import std.stdio : stderr, writeln;
 import std.string;
 import std.traits : Parameters, ReturnType;
 
+__gshared:
+
 private extern (C) int __system_property_get_impl(const char* n, char* value) {
     auto name = n.fromStringz;
 
@@ -57,8 +59,8 @@ private extern (C) void dlcloseWrapper(AndroidLibrary* library) {
 public bool doTimeTravel = false;
 public timeval targetTime;
 
-private extern (C) ReturnType!gettimeofday gettimeofday_timeTravel(timeval* timeval, void*) {
-    auto ret = gettimeofday(__traits(parameters));
+private extern (C) ReturnType!gettimeofday gettimeofday_timeTravel(timeval* timeval, void* ptr) {
+    auto ret = gettimeofday(timeval, ptr);
     if (doTimeTravel) {
         *timeval = targetTime;
     }
@@ -144,7 +146,7 @@ package void* lookupSymbol(string str) {
             {"pthread_mutex_unlock", &emptyStub},
             {"pthread_rwlock_rdlock", &emptyStub}, {
                 "gettimeofday",
-                &gettimeofday
+                &gettimeofday_timeTravel
             }, {""}, {"read", &read},
             {"mkdir", &mkdir}, {"malloc", &malloc}, {""}, {""}, {""}, {""},
             {"__system_property_get", &__system_property_get_impl}, {""}, {""},
