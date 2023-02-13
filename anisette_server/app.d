@@ -50,13 +50,13 @@ void main(string[] args) {
         adi.getRoutingInformation(rinfo);
     }
 
-    auto s = new HttpServer((ref req, ref res) {
-        // auto req = ctx.request;
-        // auto res = ctx.response;
+    auto s = new HttpServer((ref ctx) {
+        auto req = ctx.request;
+        auto res = ctx.response;
         if (req.url == "/version") {
             import constants;
             writeln("[<<] GET /version");
-            res.writeBody(anisetteServerVersion);
+            res.writeBodyString(anisetteServerVersion);
             writeln("[>>] 200 OK");
             res.setStatus(200);
         } else if (req.url == "/reprovision") {
@@ -103,10 +103,10 @@ void main(string[] args) {
 
                 res.setStatus(200);
                 res.addHeader("Content-Type", "application/json");
-                res.writeBody(response.toString(JSONOptions.doNotEscapeSlashes));
+                res.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes));
             } catch(Throwable t) {
                 res.setStatus(500);
-                res.writeBody(t.toString());
+                res.writeBodyString(t.toString());
             }
         }
     }, serverConfig);
