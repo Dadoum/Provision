@@ -426,9 +426,9 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
             throw new AnisetteException(ret);
 
         static if (writeMachineId) {
-            machineId = midPtr[0..midLen];
+            machineId = midPtr[0..midLen].dup;
         }
-        oneTimePassword = otpPtr[0..otpLen];
+        oneTimePassword = otpPtr[0..otpLen].dup;
 
         debug {
             stderr.writeln("Cleaning up...");
