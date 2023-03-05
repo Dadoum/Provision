@@ -2,9 +2,9 @@ name: ARM builds
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 env:
   BUILD_TYPE: Release
@@ -20,10 +20,10 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-aarch64-linux-gnu dub
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake gdc ninja-build gdc-12-aarch64-linux-gnu dub
 
     - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-4.cmake
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-4.cmake
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
@@ -43,10 +43,10 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential gcc g++ gdc ninja-build gdc-12-arm-linux-gnueabihf dub
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake gdc ninja-build gdc-12-arm-linux-gnueabihf dub
 
     - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dbuild_sideloadipa=OFF -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake
+      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}

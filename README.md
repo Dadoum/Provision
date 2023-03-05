@@ -17,14 +17,14 @@ It includes:
   [AltServer-Linux](https://github.com/NyaMisty/AltServer-Linux).
 - *retrieve_headers*, which registers the device with libprovision and returns in the terminal in
   JSON the headers to use to identify the device on future requests.
-- *sideload_ipa*, an example on how to use libprovision and continue requests to install application
-  on an Apple device.
-
-Note: *sideload_ipa* isn't finished yet.
 
 More precisely, libprovision registers the device to Apple servers and retrieve ADI data for your device.
 Once you logged in once with your machine, your machine is remembered as safe by Apple using this data
 Be careful to log-in only on trusted machines, and don't leak your ADI data, which is stored in `~/.adi/adi.pb`.
+
+There used to be a software called *sideload-ipa* listed here. The code has now been removed, as it was not working,
+and that I am now helping the development of [SideServer]() (no official link yet), which reimplements the full AltServer
+with few more features.
 
 ## Downloads
 
@@ -48,14 +48,19 @@ the lib/ folder next to the executables. If you want to reduce further the size,
 folder all the libraries except libstoreservicescore.so and libCoreADI.so, since they are the only one
 needed to run the app.
 
-To build any of these projects, you need CMake, a C and C++ compiler, the D SDK, with the compiler
-and dub and libplist development packages if possible (you can compile most projects without it).
-
-To build *sideload_ipa*, you also need GTK+, libimobiledevice and libgmp development packages.
+To build any of these projects, you need the D SDK, with the compiler and dub. As an option, you can also use libplist.
 
 ## Compilation
 
-Clone the project and compile it with CMake:
+Clone the project and compile it with DUB:
+
+```bash
+git clone https://github.com/Dadoum/Provision --recursive
+cd Provision
+dub build -b release
+```
+
+or with CMake:
 
 ```bash
 git clone https://github.com/Dadoum/Provision --recursive
@@ -67,3 +72,7 @@ ninja
 ```
 
 This repository include arsd/jni.d, under Boost license. See [original repo](https://github.com/adamdruppe/arsd) for further info.
+
+## Support
+
+Donations are welcome with GitHub Sponsor.

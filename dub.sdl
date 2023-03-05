@@ -1,0 +1,53 @@
+name "provision"
+description "Set of tools interracting with Apple servers."
+authors "Dadoum"
+copyright "Copyright © 2023, Dadoum"
+
+targetType "library"
+targetPath "bin"
+
+sourcePaths "lib"
+importPaths "lib"
+
+configuration "plist-d" {
+    dependency "plist" version="~master"
+}
+
+configuration "libplist" {
+    versions "LibPlist"
+}
+
+subPackage {
+    name "retrieve-headers"
+    targetType "executable"
+    targetPath "bin"
+
+    workingDirectory "bin"
+
+    sourcePaths "retrieve_headers"
+
+    dependency "provision" version="*"
+}
+
+subPackage {
+    name "anisette-server"
+    targetType "executable"
+    targetPath "bin"
+
+    workingDirectory "bin"
+
+    sourcePaths "anisette_server"
+
+    dependency "provision" version="*"
+    dependency "handy-httpd" version="~>5.2.1"
+
+    configuration "default" {
+    	targetType "executable"
+    }
+
+    configuration "static" {
+    	targetType "executable"
+    	lflags "-lz"
+        dflags "--link-defaultlib-shared=false"
+    }
+}

@@ -1,193 +1,322 @@
 module provision.androidlibrary;
 
-import core.stdc.string;
-import core.sys.posix.dlfcn;
+import core.exception;
+import core.memory;
+import core.stdc.stdint;
+import core.stdc.stdlib;
+import core.sys.linux.elf;
+import core.sys.linux.link;
+import core.sys.posix.sys.mman;
 import std.algorithm;
 import std.conv;
-import std.stdio;
+import std.experimental.allocator;
+import std.experimental.allocator.mallocator;
+import std.experimental.allocator.mmap_allocator;
+import std.mmfile;
 import std.path;
-import std.traits;
-import std.algorithm;
+import std.random;
+import std.range;
+import std.stdio;
 import std.string;
-import core.exception;
-import core.stdc.stdint;
-import provision.posixlibrary;
+import std.traits;
 
-extern (C) __gshared @nogc {
-    int hybris_dladdr(const void *addr, void *info);
-    void* hybris_dlopen(immutable(char)* path, int flag);
-    void hybris_dlclose(void* handle);
-    void* hybris_dlsym(const void* handle, immutable(char)* symbol);
-    immutable(char)* hybris_dlerror();
-    void hybris_set_hook_callback(void* function(immutable(char)* symbol_name,
-        immutable(char)* requester));
-    void hybris_set_skip_props(bool value);
+public struct AndroidLibrary {
+    package MmFile elfFile;
+    package void[] allocation;
 
-    // hopefully fixing few issues
-    void fstat();
-    void lstat();
-}
+    package char[] sectionNamesTable;
+    package char[] dynamicStringTable;
+    package ElfW!"Sym"[] dynamicSymbolTable;
+    package GnuHashTable* gnuHashTable;
 
-__gshared:
-public shared struct AndroidLibrary {
-    private __gshared void* libraryHandle;
+    public this(string libraryName) {
+        elfFile = new MmFile(libraryName);
 
-    public shared this(string libraryName) {
-        libraryHandle = hybris_dlopen(libraryName.ptr, RTLD_LAZY);
-        if (libraryHandle == null) {
-            stderr.writefln!"ERR: cannot load library %s"(libraryName);
+        auto elfHeader = elfFile.identify!(ElfW!"Ehdr")(0);
+        auto programHeaders = elfFile.identifyArray!(ElfW!"Phdr")(elfHeader.e_phoff, elfHeader.e_phnum);
+
+        size_t minimum = size_t.max;
+        size_t maximumFile = size_t.min;
+        size_t maximumMemory = size_t.min;
+
+        size_t headerStart;
+        size_t headerEnd;
+        size_t headerMemoryEnd;
+
+        foreach (programHeader; programHeaders) {
+            if (programHeader.p_type == PT_LOAD) {
+                headerStart = programHeader.p_vaddr;
+                headerEnd = programHeader.p_vaddr + programHeader.p_filesz;
+                headerMemoryEnd = programHeader.p_vaddr + programHeader.p_memsz;
+
+                if (headerStart < minimum) {
+                    minimum = headerStart;
+                }
+                if (headerEnd > maximumFile) {
+                    maximumFile = headerEnd;
+                }
+                if (headerMemoryEnd > maximumMemory) {
+                    maximumMemory = headerMemoryEnd;
+                }
+            }
+        }
+
+        auto alignedMinimum = pageFloor(minimum);
+        auto alignedMaximumMemory = pageCeil(maximumMemory);
+
+        auto allocSize = alignedMaximumMemory - alignedMinimum;
+        allocation = MmapAllocator.instance.allocate(allocSize)[0..allocSize];
+
+        size_t fileStart;
+        size_t fileEnd;
+
+        foreach (programHeader; programHeaders) {
+            if (programHeader.p_type == PT_LOAD) {
+                headerStart = programHeader.p_vaddr;
+                headerEnd = programHeader.p_vaddr + programHeader.p_filesz;
+                fileStart = programHeader.p_offset;
+                fileEnd = programHeader.p_offset + programHeader.p_filesz;
+
+                allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[fileStart..fileEnd];
+
+                auto protectionResult = mprotect(allocation.ptr + pageFloor(headerStart), pageCeil(headerEnd) - pageFloor(headerStart), programHeader.memoryProtection());
+
+                if (protectionResult != 0) {
+                    throw new LoaderException("Cannot protect the memory correctly.");
+                }
+            }
+        }
+
+        auto sectionHeaders = elfFile.identifyArray!(ElfW!"Shdr")(elfHeader.e_shoff, elfHeader.e_shnum);
+        auto sectionStrTable = sectionHeaders[elfHeader.e_shstrndx];
+        sectionNamesTable = cast(char[]) elfFile[sectionStrTable.sh_offset..sectionStrTable.sh_offset + sectionStrTable.sh_size];
+
+        foreach (sectionHeader; sectionHeaders) {
+            switch (sectionHeader.sh_type) {
+                case SHT_DYNSYM:
+                    dynamicSymbolTable = elfFile.identifyArray!(ElfW!"Sym")(sectionHeader.sh_offset, sectionHeader.sh_size / ElfW!"Sym".sizeof);
+                    break;
+                case SHT_STRTAB:
+                    if (getSectionName(sectionHeader) == ".dynstr")
+                        dynamicStringTable = cast(char[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size];
+                    break;
+                case SHT_GNU_HASH:
+                    gnuHashTable = new GnuHashTable(cast(ubyte[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size]);
+                    break;
+                case SHT_REL:
+                    this.relocate!(ElfW!"Rel")(sectionHeader);
+                    break;
+                case SHT_RELA:
+                    this.relocate!(ElfW!"Rela")(sectionHeader);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
     ~this() {
-        if (libraryHandle !is null) {
-            hybris_dlclose(libraryHandle);
+        if (allocation) {
+            MmapAllocator.instance.deallocate(allocation);
         }
     }
 
-    void* load(string symbol) const shared {
-        void* sym = hybris_dlsym(libraryHandle, toStringz(symbol));
-        if (sym == null) {
-            string hybris_err = hybris_dlerror().fromStringz();
-            stderr.writefln!"ERR: cannot load symbol %s: %s"(symbol, hybris_err);
-        }
-        return sym;
-    }
-}
+    @disable this(this);
 
-private static __gshared PosixLibrary* libc;
+    private void relocate(RelocationType)(ref ElfW!"Shdr" shdr) {
+        auto relocations = this.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
+        auto allocation = cast(ubyte[]) allocation;
 
-extern(C) int __system_property_getHook(const char* n, char *value) {
-    auto name = n.fromStringz;
+        foreach (relocation; relocations) {
+            auto relocationType = ELFW!"R_TYPE"(relocation.r_info);
+            auto symbolIndex = ELFW!"R_SYM"(relocation.r_info);
 
-    enum str = "no s/n number";
+            auto offset = relocation.r_offset;
+            size_t addend;
+            static if (__traits(hasMember, relocation, "r_addend")) {
+                addend = relocation.r_addend;
+            } else {
+                if (relocationType == R_386_JUMP_SLOT) {
+                    addend = 0;
+                } else {
+                    addend = *cast(size_t*) (cast(size_t) allocation.ptr + offset);
+                }
+            }
+            auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
 
-    strncpy(value, str.ptr, str.length);
-    return cast(int) str.length;
-}
+            auto location = cast(size_t*) (cast(size_t) allocation.ptr + offset);
 
-extern(C) uint arc4randomHook() {
-    // import std.random;
-    return 0; // Random(unpredictableSeed()).front;
-}
-
-extern(C) int emptyStub() {
-    return 0;
-}
-
-struct ADIMessage {
-    void** inputPointer;
-    uint inputSize;
-    void** outputPointer;
-    uint outputSize;
-    ulong flags;
-}
-
-static const string[ulong] functionNames;
-static this() {
-    functionNames = [
-        0x3e58e7f9: "pADIDispose",
-        0xcfe0b46a: "pADIOTPRequest",
-        0xb2b3196: "pADIProvisioningEnd",
-        0x12db31c5: "pADISetIDMSRouting",
-        0x716bd86c: "pADIProvisioningStart",
-        0x7715488c: "pADIProvisioningErase",
-        0xc774d292: "pADISetAndroidID",
-        0xb23c691e: "pADISetProvisioningPath",
-    ];
-}
-
-// alias vdfut_t = extern(C) int function(Parameters!vdfut768igHook);
-// extern(C) static __gshared vdfut_t vdef;
-//
-// extern(C) int vdfut768igHook(ulong functionIdentifier, ADIMessage* message, uint* unknown1, uint* unknown2 /+ = 0xeac78141+/, uint** testedArg) {
-//     writef!"%s "(functionNames[functionIdentifier]);
-//     if (testedArg) {
-//         writefln!"%x"(*testedArg);
-//     } else {
-//         writeln();
-//     }
-//     return vdef(__traits(parameters));
-// }
-
-extern(C) void* hookable_dlsym(void *handle, immutable char *s) {
-    // if (strcmp(s, "vdfut768ig".ptr) == 0) {
-    //     vdef = cast(vdfut_t) hybris_dlsym(handle, s);
-    //     return &vdfut768igHook;
-    // }
-
-    return hybris_dlsym(handle, s);
-}
-
-extern(C) private static void* hookFinder(immutable(char)* s, immutable(char)* l) {
-    import core.stdc.errno;
-
-    if (strcmp(s, "__errno".ptr) == 0)
-        return &errno;
-
-    if (strcmp(s, "dladdr".ptr) == 0)
-        return &hybris_dladdr;
-
-    if (strcmp(s, "dlclose".ptr) == 0)
-        return &hybris_dlclose;
-
-    if (strcmp(s, "dlerror".ptr) == 0)
-        return &hybris_dlerror;
-
-    if (strcmp(s, "dlopen".ptr) == 0)
-        return &hybris_dlopen;
-
-    if (strcmp(s, "dlsym".ptr) == 0)
-        return &hookable_dlsym;
-
-    if (strcmp(s, "__system_property_get".ptr) == 0)
-        return &__system_property_getHook;
-
-    if (strcmp(s, "arc4random".ptr) == 0)
-        return &arc4randomHook;
-
-    if (strcmp(s, "fstat".ptr) == 0)
-        return &fstat;
-
-    if (strcmp(s, "lstat".ptr) == 0)
-        return &lstat;
-
-    if (strncmp(s, "pthread_".ptr, 8) == 0)
-        return &emptyStub;
-
-    // Hooks to load libandroidappmusic
-    // if (strcmp(s, "powf".ptr) == 0 ||
-    //     strcmp(s, "sqrtf".ptr) == 0 ||
-    //     strcmp(s, "cos".ptr) == 0 ||
-    //     strcmp(s, "sin".ptr) == 0 ||
-    //     strcmp(s, "log10f".ptr) == 0 ||
-    //     strcmp(s, "atan2f".ptr) == 0 ||
-    //     strcmp(s, "sqrt".ptr) == 0 ||
-    //     strcmp(s, "pow".ptr) == 0 ||
-    //     strcmp(s, "log".ptr) == 0 ||
-    //     strcmp(s, "roundf".ptr) == 0 ||
-    //     strcmp(s, "exp".ptr) == 0 ||
-    //     strcmp(s, "lroundf".ptr) == 0)
-    //     return &emptyStub;
-    auto symbolStr = s.fromStringz;
-    auto sym = libc.load(symbolStr);
-
-    debug {
-        if (!sym) {
-            if (l.fromStringz[$-13..$] == "libCoreADI.so") {
-                stderr.writefln("Cannot load %s from libc ! ", symbolStr);
-            } // else if (!(symbolStr.canFind("_") || symbolStr.canFind("CF"))) {
-            //   stderr.writefln("Cannot load %s from libc ! (2)", symbolStr);
-            // }
+            switch (relocationType) {
+                case R_GENERIC!"RELATIVE":
+                    *location = cast(size_t) allocation.ptr + addend;
+                    break;
+                case R_GENERIC!"GLOB_DAT":
+                    *location = cast(size_t) (symbol + addend);
+                    break;
+                case R_GENERIC!"JUMP_SLOT":
+                    *location = cast(size_t) (symbol);
+                    break;
+                case R_GENERIC_NATIVE_ABS:
+                    *location = cast(size_t) (symbol + addend);
+                    break;
+                default:
+                    throw new LoaderException("Unknown relocation type: " ~ to!string(relocationType));
+            }
         }
     }
 
-    return sym;
+    private string getSymbolName(ElfW!"Sym" symbol) {
+        return cast(string) fromStringz(&dynamicStringTable[symbol.st_name]);
+    }
+
+    private string getSectionName(ElfW!"Shdr" section) {
+        return cast(string) fromStringz(&sectionNamesTable[section.sh_name]);
+    }
+
+    void* load(string symbolName) {
+        return gnuHashTable.lookup(symbolName, &this);
+    }
 }
 
-void initHybris() {
-    if (!libc)
-        libc = new PosixLibrary(null);
-    hybris_set_skip_props(true);
-    hybris_set_hook_callback(&hookFinder);
+package struct GnuHashTable {
+    struct GnuHashTableStruct {
+        uint nbuckets;
+        uint symoffset;
+        uint bloomSize;
+        uint bloomShift;
+    }
+
+    GnuHashTableStruct table;
+    size_t[] bloom;
+    uint[] buckets;
+    uint[] chain;
+
+    this(ubyte[] tableData) {
+        table = *cast(GnuHashTableStruct*) tableData.ptr;
+        auto bucketsLocation = GnuHashTableStruct.sizeof + table.bloomSize * (size_t.sizeof / ubyte.sizeof);
+        auto chainLocation = bucketsLocation + table.nbuckets * (uint.sizeof / ubyte.sizeof);
+
+        bloom = cast(size_t[]) tableData[GnuHashTableStruct.sizeof..bucketsLocation];
+        buckets = cast(uint[]) tableData[bucketsLocation..chainLocation];
+        chain = cast(uint[]) tableData[chainLocation..$];
+    }
+
+    static uint hash(string name) {
+        uint h = 5381;
+
+        foreach (c; name) {
+            h = (h << 5) + h + c;
+        }
+
+        return h;
+    }
+
+    void* lookup(string symbolName, AndroidLibrary* library) {
+        auto targetHash = hash(symbolName);
+        auto bucket = buckets[targetHash % table.nbuckets];
+
+        if (bucket < table.symoffset) {
+            throw new LoaderException("Symbol not found: " ~ symbolName);
+        }
+
+        auto chain_index = bucket - table.symoffset;
+        targetHash &= ~1;
+        auto chains = chain[chain_index..$];
+        auto dynsyms = library.dynamicSymbolTable[bucket..$];
+        foreach (hash, symbol; zip(chains, dynsyms)) {
+            if ((hash &~ 1) == targetHash && symbolName == library.getSymbolName(symbol)) {
+                return cast(void*) (cast(size_t) library.allocation.ptr + symbol.st_value);
+            }
+
+            if (hash & 1) {
+                break;
+            }
+        }
+
+        throw new LoaderException("Symbol not found: " ~ symbolName);
+    }
+}
+
+private size_t pageMask;
+
+shared static this()
+{
+    pageMask = ~(pageSize - 1);
+}
+
+int memoryProtection(ref ElfW!"Phdr" phdr)
+{
+    int prot = 0;
+    if (phdr.p_flags & PF_R) {
+        prot |= PROT_READ;
+    }
+    if (phdr.p_flags & PF_W) {
+        prot |= PROT_WRITE;
+    }
+    if (phdr.p_flags & PF_X) {
+        prot |= PROT_EXEC;
+    }
+
+    return prot;
+}
+
+template ELFW(string func) {
+    alias ELFW = mixin("ELF" ~ to!string(size_t.sizeof * 8) ~ "_" ~ func);
+}
+
+version (X86_64) {
+    private enum string relocationArch = "X86_64";
+    private enum R_GENERIC_NATIVE_ABS = R_X86_64_64;
+} else version (X86) {
+    private enum string relocationArch = "386";
+    private enum R_GENERIC_NATIVE_ABS = R_386_32;
+} else version (AArch64) {
+    private enum string relocationArch = "AARCH64";
+    private enum R_GENERIC_NATIVE_ABS = R_AARCH64_ABS64;
+} else version (ARM) {
+    private enum string relocationArch = "ARM";
+    private enum R_GENERIC_NATIVE_ABS = R_ARM_ABS32;
+}
+
+alias R_386_JUMP_SLOT = R_386_JMP_SLOT;
+
+template R_GENERIC(string relocationType) {
+    enum R_GENERIC = mixin("R_" ~ relocationArch ~ "_" ~ relocationType);
+}
+
+size_t pageFloor(size_t number) {
+    return number & pageMask;
+}
+
+size_t pageCeil(size_t number) {
+    return (number + pageSize - 1) & pageMask;
+}
+
+RetType[] identifyArray(RetType, FromType)(FromType obj, size_t offset, size_t length) {
+    return (cast(RetType[]) obj[offset..offset + (RetType.sizeof * length)]).ptr[0..length];
+}
+
+RetType identify(RetType, FromType)(FromType obj, size_t offset) {
+    return obj[offset..offset + RetType.sizeof].reinterpret!(RetType);
+}
+
+RetType reinterpret(RetType, FromType)(FromType[] obj) {
+    return (cast(RetType[]) obj)[0];
+}
+
+private static void* getSymbolImplementation(string symbolName) {
+    import provision.symbols;
+    return lookupSymbol(symbolName);
+}
+
+class LoaderException: Exception {
+    this(string message, string file = __FILE__, size_t line = __LINE__) {
+        super("Cannot load library: " ~ message, file, line);
+    }
+}
+
+class UndefinedSymbolException: Exception {
+    this(string file = __FILE__, size_t line = __LINE__) {
+        super("An undefined symbol has been called!", file, line);
+    }
 }
