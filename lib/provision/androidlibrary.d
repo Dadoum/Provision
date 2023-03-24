@@ -2,6 +2,7 @@ module provision.androidlibrary;
 
 import core.exception;
 import core.memory;
+import core.stdc.errno;
 import core.stdc.stdint;
 import core.stdc.stdlib;
 import core.sys.linux.elf;
@@ -27,7 +28,7 @@ public struct AndroidLibrary {
     package char[] sectionNamesTable;
     package char[] dynamicStringTable;
     package ElfW!"Sym"[] dynamicSymbolTable;
-    package GnuHashTable* gnuHashTable;
+    package SymbolHashTable hashTable;
 
     public this(string libraryName) {
         elfFile = new MmFile(libraryName);
@@ -65,7 +66,12 @@ public struct AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        allocation = MmapAllocator.instance.allocate(allocSize)[0..allocSize];
+        auto mmapped_alloc = mmap(null, allocSize, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANON, -1, 0);
+        if (mmapped_alloc == MAP_FAILED) {
+            throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
+        }
+        allocation = mmapped_alloc[0..allocSize];
 
         size_t fileStart;
         size_t fileEnd;
@@ -101,7 +107,12 @@ public struct AndroidLibrary {
                         dynamicStringTable = cast(char[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size];
                     break;
                 case SHT_GNU_HASH:
-                    gnuHashTable = new GnuHashTable(cast(ubyte[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size]);
+                    hashTable = new GnuHashTable(cast(ubyte[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size]);
+                    break;
+                case SHT_HASH:
+                    if (!hashTable) {
+                        hashTable = new ElfHashTable(cast(ubyte[]) elfFile[sectionHeader.sh_offset..sectionHeader.sh_offset + sectionHeader.sh_size]);
+                    }
                     break;
                 case SHT_REL:
                     this.relocate!(ElfW!"Rel")(sectionHeader);
@@ -117,7 +128,7 @@ public struct AndroidLibrary {
 
     ~this() {
         if (allocation) {
-            MmapAllocator.instance.deallocate(allocation);
+            munmap(allocation.ptr, allocation.length);
         }
     }
 
@@ -174,11 +185,74 @@ public struct AndroidLibrary {
     }
 
     void* load(string symbolName) {
-        return gnuHashTable.lookup(symbolName, &this);
+        ElfW!"Sym" sym;
+        if (hashTable) {
+            sym = hashTable.lookup(symbolName, &this);
+        } else {
+            foreach (symbol; dynamicSymbolTable) {
+                if (getSymbolName(symbol) == symbolName) {
+                    sym = symbol;
+                    break;
+                }
+            }
+        }
+        return cast(void*) (cast(size_t) allocation.ptr + sym.st_value);
     }
 }
 
-package struct GnuHashTable {
+interface SymbolHashTable {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library);
+}
+
+package class ElfHashTable: SymbolHashTable {
+    struct ElfHashTableStruct {
+        uint nbucket;
+        uint nchain;
+    }
+
+    ElfHashTableStruct table;
+
+    uint[] buckets;
+    uint[] chain;
+
+    this(ubyte[] tableData) {
+        table = *cast(ElfHashTableStruct*) tableData.ptr;
+        auto chainLocation = ElfHashTableStruct.sizeof + table.nbucket * uint.sizeof;
+
+        buckets = cast(uint[]) tableData[ElfHashTableStruct.sizeof..chainLocation];
+        chain = cast(uint[]) tableData[chainLocation..$];
+    }
+
+    static uint hash(string name) {
+        uint h = 0, g;
+
+        foreach (c; name) {
+            h = (h << 4) + c;
+            if ((g = h & 0xf0000000) != 0) {
+                h ^= g >> 24;
+            }
+            h &= ~g;
+        }
+
+        return h;
+    }
+
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+        auto targetHash = hash(symbolName);
+
+        scope ElfW!"Sym" symbol;
+        for (uint i = buckets[targetHash % table.nbucket]; i; i = chain[i]) {
+            symbol = library.dynamicSymbolTable[i];
+            if (symbolName == library.getSymbolName(symbol)) {
+                return symbol;
+            }
+        }
+
+        throw new LoaderException("Symbol not found: " ~ symbolName);
+    }
+}
+
+package class GnuHashTable: SymbolHashTable {
     struct GnuHashTableStruct {
         uint nbuckets;
         uint symoffset;
@@ -211,7 +285,7 @@ package struct GnuHashTable {
         return h;
     }
 
-    void* lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
         auto targetHash = hash(symbolName);
         auto bucket = buckets[targetHash % table.nbuckets];
 
@@ -225,7 +299,7 @@ package struct GnuHashTable {
         auto dynsyms = library.dynamicSymbolTable[bucket..$];
         foreach (hash, symbol; zip(chains, dynsyms)) {
             if ((hash &~ 1) == targetHash && symbolName == library.getSymbolName(symbol)) {
-                return cast(void*) (cast(size_t) library.allocation.ptr + symbol.st_value);
+                return symbol;
             }
 
             if (hash & 1) {

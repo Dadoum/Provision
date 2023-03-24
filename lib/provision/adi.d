@@ -54,7 +54,7 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
     ADIOTPRequest_t pADIOTPRequest;
 
     string __clientInfo = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
-    public @property string clientInfo() shared {
+    public @property string clientInfo() {
         return __clientInfo;
     }
 
