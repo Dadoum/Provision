@@ -31,6 +31,19 @@ alias ADIGetLoginCode_t = extern(C) int function(ulong);
 alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 
+version (X86_64) {
+    enum string architectureIdentifier = "x86_64";
+} else version (X86) {
+    enum string architectureIdentifier = "x86";
+} else version (AArch64) {
+    enum string architectureIdentifier = "arm64-v8a";
+} else version (ARM) {
+    enum string architectureIdentifier = "armeabi-v7a";
+} else {
+    static assert(false, "Architecture not supported :(");
+}
+enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
+
 @nogc public struct ADI {
     private string path;
     private ulong dsId;
@@ -95,20 +108,6 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
     @disable this();
 
     public this(string provisioningPath, char[] identifier = null) {
-        version (X86_64) {
-            enum string architectureIdentifier = "x86_64";
-        } else version (X86) {
-            enum string architectureIdentifier = "x86";
-        } else version (AArch64) {
-            enum string architectureIdentifier = "arm64-v8a";
-        } else version (ARM) {
-            enum string architectureIdentifier = "armeabi-v7a";
-        } else {
-            static assert(false, "Architecture not supported :(");
-        }
-
-        enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
-
         if (!exists(libraryPath ~ "libstoreservicescore.so")) {
             throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
         }
@@ -176,12 +175,6 @@ alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, u
         client.addRequestHeader("Accept-Encoding", "gzip, deflate");
         client.addRequestHeader("Connection", "keep-alive");
         client.addRequestHeader("Proxy-Connection", "keep-alive");
-
-        // if (__customHeaders !is null) {
-        //     foreach (customHeader; customHeaders.byKeyValue()) {
-        //         client.addRequestHeader(customHeader.key, customHeader.value);
-        //     }
-        // }
 
         return client;
     }
@@ -461,14 +454,38 @@ public class AnisetteException: Exception {
 }
 
 enum knownErrorCodes = [
-    -45054: "cannot create folder",
-    -45061: "invalid adi file"
+    -45001: "invalid parameters",
+    -45002: "invalid parameters (for decipher)",
+    -45003: "invalid Trust Key",
+    -45006: "ptm and tk are not matching the transmitted cpim",
+    // -45017: exists (observed: iOS), unknown meaning
+    -45018: "invalid input data header (first uint) (pointer is correct tho)",
+    -45019: "vdfut768ig doesn't know the asked function",
+    -45020: "invalid input data (not the first uint)",
+    -45025: "unknown session",
+    -45026: "empty session",
+    -45031: "invalid data (header)",
+    -45032: "data too short",
+    -45033: "invalid data (body)",
+    -45034: "unknown ADI call flags",
+    -45036: "time error",
+    // -45044: exists (observed: macOS iTunes, from Google), unknown meaning
+    // -45045: probably a typo of -45054
+    -45046: "identifier generation failure: empty hardware ids",
+    // -45048: exists (observed: windows iTunes, from Google), unknown meaning, resolved by adi file suppression
+    -45054: "generic libc/file manipulation error",
+    -45061: "not provisioned",
+    -45062: "cannot erase provisioning: not provisioned",
+    -45063: "provisioning first step is already pending",
+    -45066: "2nd step fail: session already consumed",
+    -45075: "library loading error",
+    // -45076: exists (observed: macOS iTunes, from Google), unknown meaning, seems related to backward compatibility between 12.6.x and 12.7
 ];
 
 string translateADIErrorCode(int errorCode) {
     foreach (knownErrorCode; knownErrorCodes.byKeyValue) {
         if (errorCode == knownErrorCode.key) {
-            return knownErrorCode.value;
+            return format!"%s (%d)"(knownErrorCode.value, errorCode);
         }
     }
 
