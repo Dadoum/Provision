@@ -2,11 +2,18 @@ import handy_httpd;
 import std.algorithm.searching;
 import std.array;
 import std.base64;
+import file = std.file;
 import std.format;
 import std.getopt;
+import std.math;
+import std.net.curl;
 import std.path;
 import std.stdio;
+import std.zip;
+
 import provision;
+
+import constants;
 
 static __gshared ADI* adi;
 static __gshared ulong rinfo;
@@ -18,17 +25,58 @@ void main(string[] args) {
 
     bool rememberMachine = false;
     string path = "~/.adi";
+    bool onlyInit = false;
     auto helpInformation = getopt(
 		    args,
 		    "n|host", "The hostname to bind to", &serverConfig.hostname,
 		    "p|port", "The port to bind to", &serverConfig.port,
 		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine,
 		    "a|adi-path", "Where the provisioning information should be stored on the computer", &path,
+		    "init-only", "Download libraries and exit", &onlyInit,
     );
+
     if (helpInformation.helpWanted) {
-        defaultGetoptPrinter("This program allows you to host anisette through libprovision!",
-	    helpInformation.options);
-	return;
+        defaultGetoptPrinter("This program allows you to host anisette through libprovision!", helpInformation.options);
+	    return;
+    }
+
+    auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
+    auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
+
+    if (!(file.exists(coreADIPath) && file.exists(SSCPath))) {
+        auto http = HTTP();
+        http.onProgress = (size_t dlTotal, size_t dlNow, size_t ulTotal, size_t ulNow) {
+            write("Downloading libraries from Apple servers... ");
+            if (dlTotal != 0) {
+                write((dlNow * 100)/dlTotal, "%     \r");
+            } else {
+                // Convert dlNow (in bytes) to a human readable string
+                float downloadedSize = dlNow;
+
+                enum units = ["B", "kB", "MB", "GB", "TB"];
+                int i = 0;
+                while (downloadedSize > 1000 && i < units.length - 1) {
+                    downloadedSize = floor(downloadedSize) / 1000;
+                    ++i;
+                }
+
+                write(downloadedSize, units[i], "     \r");
+            }
+            return 0;
+        };
+        auto apkData = get!(HTTP, ubyte)(nativesUrl, http);
+        writeln("Downloading libraries from Apple servers... done!     \r");
+        auto apk = new ZipArchive(apkData);
+        auto dir = apk.directory();
+
+        file.mkdir("lib/");
+        file.mkdir(libraryPath);
+        file.write(coreADIPath, apk.expand(dir[coreADIPath]));
+        file.write(SSCPath, apk.expand(dir[SSCPath]));
+    }
+
+    if (onlyInit) {
+        return;
     }
 
     if (rememberMachine) {
@@ -43,9 +91,9 @@ void main(string[] args) {
     }
 
     if (!adi.isMachineProvisioned()) {
-        stderr.write("Machine requires provisioning... ");
+        write("Machine requires provisioning... ");
         adi.provisionDevice(rinfo);
-        stderr.writeln("done !");
+        writeln("done !");
     } else {
         adi.getRoutingInformation(rinfo);
     }
@@ -54,7 +102,6 @@ void main(string[] args) {
         auto req = ctx.request;
         auto res = ctx.response;
         if (req.url == "/version") {
-            import constants;
             writeln("[<<] GET /version");
             res.writeBodyString(anisetteServerVersion);
             writeln("[>>] 200 OK");
@@ -110,6 +157,8 @@ void main(string[] args) {
             }
         }
     }, serverConfig);
+
+    writeln("Ready! Serving data.");
     s.start();
 }
 

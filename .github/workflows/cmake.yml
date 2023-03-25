@@ -10,62 +10,24 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build-all:
-    runs-on: ubuntu-20.04
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: D Compiler Installation
-      uses: dlang-community/setup-dlang@v1.1.1
-      with:
-        compiler: ldc-latest
-
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build libgtk-3-dev libimobiledevice-dev
-
-    - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dbuild_javabindings=ON -Dlink_libplist_dynamic=ON
-
-    - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: provision-full-kit
-        path: |
-          ${{github.workspace}}/build/libprovision.a
-          ${{github.workspace}}/build/libprovision-java.so
-          ${{github.workspace}}/build/retrieve_headers
-          ${{github.workspace}}/build/sideload_ipa
-  build-anisette-server:
-    runs-on: ubuntu-20.04
+  build-anisette-server-x86:
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: D Compiler Installation
-        uses: dlang-community/setup-dlang@v1.1.1
-        with:
-          compiler: ldc-latest
-
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build
-
-      - name: Configure CMake
-        run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_D_COMPILER=ldc2 -Dlink_libplist_dynamic=ON
+        run: sudo apt-get update && sudo apt-get install -y dub ldc clang libz-dev
 
       - name: Build
-        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-      
+        run: dub build :anisette-server -b release
+
       - uses: actions/upload-artifact@v3
         with:
           name: anisette-server
-          path: ${{github.workspace}}/build/anisette_server
+          path: ${{github.workspace}}/bin/provision_anisette-server
 
   build-debug-rh:
     runs-on: ubuntu-20.04
@@ -75,22 +37,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: D Compiler Installation
-        uses: dlang-community/setup-dlang@v1.1.1
-        with:
-          compiler: ldc-latest
-
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build
-
-      - name: Configure CMake
-        run: cmake -G Ninja -Dbuild_anisetteserver=OFF -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_D_COMPILER=ldc2 -Dlink_libplist_dynamic=ON
+        run: sudo apt-get update && sudo apt-get install -y dub ldc clang libz-dev
 
       - name: Build
-        run: cmake --build ${{github.workspace}}/build --config Debug
+        run: dub build :retrieve-headers
 
       - uses: actions/upload-artifact@v3
         with:
           name: retrieve-headers-debug
-          path: ${{github.workspace}}/build/retrieve_headers
-          
+          path: ${{github.workspace}}/bin/provision_retrieve-headers

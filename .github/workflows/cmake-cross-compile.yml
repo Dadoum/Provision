@@ -20,19 +20,16 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake gdc ninja-build gdc-12-aarch64-linux-gnu dub
-
-    - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-4.cmake
+      run: sudo apt-get update && sudo apt-get install -y gdc-12-aarch64-linux-gnu dub
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: dub build :anisette-server -b release --compiler=aarch64-linux-gnu-gdc-12
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-aarch64
         path: |
-          ${{github.workspace}}/build/anisette_server
+          ${{github.workspace}}/bin/provision_anisette-server
           
   build-anisette-server-armv7:
     runs-on: ubuntu-22.04
@@ -43,16 +40,13 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake gdc ninja-build gdc-12-arm-linux-gnueabihf dub
-
-    - name: Configure CMake
-      run: cmake -G Ninja -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -Dlink_libplist_dynamic=ON -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchains/rpi-2.cmake
+      run: sudo apt-get update && sudo apt-get install -y gdc-12-arm-linux-gnueabihf dub
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: dub build :anisette-server -b release --compiler=arm-linux-gnueabihf-gdc-12
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-armv7
         path: |
-          ${{github.workspace}}/build/anisette_server
+          ${{github.workspace}}/bin/provision_anisette-server

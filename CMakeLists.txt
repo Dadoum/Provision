@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D)
-option(build_javabindings "Java bindings" OFF)
 option(build_anisetteserver "Build Anisette server" ON)
 option(link_libplist_dynamic "Load libplist at runtime" OFF)
 
@@ -48,11 +47,6 @@ else()
     endif()
 endif()
 
-# Generate C++ header
-# file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include-provision)
-# set_source_files_properties(lib/provision/c.d PROPERTIES COMPILE_FLAGS "-HC -HCf=${CMAKE_BINARY_DIR}/include-provision/provision.h")
-# target_include_directories(provision PUBLIC ${CMAKE_BINARY_DIR}/include-provision)
-
 target_link_libraries(provision PUBLIC plist)
 
 set(RETRIEVE_HEADERS_SOURCE_DIR "retrieve_headers/")
@@ -61,16 +55,6 @@ file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d"
 add_executable(retrieve_headers ${RETRIEVE_HEADERS_D_SOURCES})
 target_include_directories(retrieve_headers PUBLIC ${RETRIEVE_HEADERS_SOURCE_DIR})
 target_link_libraries(retrieve_headers provision)
-
-if (build_javabindings)
-    set(JAVA_B_SOURCE_DIR "bindings/java/d/")
-    file(GLOB_RECURSE JAVA_B_D_SOURCES "${JAVA_B_SOURCE_DIR}*.d")
-
-    add_library(provision-java SHARED ${JAVA_B_D_SOURCES})
-    target_include_directories(provision-java PUBLIC ${JAVA_B_SOURCE_DIR})
-
-    target_link_libraries(provision-java provision)
-endif()
 
 if(build_anisetteserver)
     set(ANISETTE_SERVER_SOURCE_DIR "anisette_server/")
