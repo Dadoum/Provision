@@ -24,10 +24,14 @@ jobs:
       - name: Build
         run: dub build :anisette-server -b release --compiler=gdc-12 -c "static"
 
+      - name: Rename
+        run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-x86_64"
+
       - uses: actions/upload-artifact@v3
         with:
           name: anisette-server-x86_64
-          path: ${{github.workspace}}/bin/provision_anisette-server
+          path: |
+            ${{github.workspace}}/bin/anisette-server-x86_64
 
   build-anisette-server-i686:
     runs-on: ubuntu-22.04
@@ -43,10 +47,14 @@ jobs:
       - name: Build
         run: dub build :anisette-server -b release --compiler=i686-linux-gnu-gdc-12 -c "static"
 
+      - name: Rename
+        run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-i686"
+
       - uses: actions/upload-artifact@v3
         with:
           name: anisette-server-i686
-          path: ${{github.workspace}}/bin/provision_anisette-server
+          path: |
+            ${{github.workspace}}/bin/anisette-server-i686
 
   build-debug-rh:
     runs-on: ubuntu-22.04
@@ -62,7 +70,10 @@ jobs:
       - name: Build
         run: dub build :retrieve-headers
 
+      - name: Rename
+        run: mv "${{github.workspace}}/bin/provision_retrieve-headers" "${{github.workspace}}/bin/retrieve-headers-debug"
+
       - uses: actions/upload-artifact@v3
         with:
           name: retrieve-headers-debug
-          path: ${{github.workspace}}/bin/provision_retrieve-headers
+          path: ${{github.workspace}}/bin/retrieve-headers-debug
