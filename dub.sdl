@@ -47,7 +47,6 @@ subPackage {
 
     configuration "static" {
     	targetType "executable"
-    	lflags "-lz"
         dflags "--link-defaultlib-shared=false" platform="ldc"
         dflags "-defaultlib=:libgphobos.a" platform="gdc"
     }
