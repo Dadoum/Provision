@@ -26,13 +26,15 @@ void main(string[] args) {
     bool rememberMachine = false;
     string path = "~/.adi";
     bool onlyInit = false;
+    bool apkDownloadAllowed = true;
     auto helpInformation = getopt(
 		    args,
-		    "n|host", "The hostname to bind to", &serverConfig.hostname,
-		    "p|port", "The port to bind to", &serverConfig.port,
-		    "r|remember-machine", "Whether this machine should be remembered", &rememberMachine,
-		    "a|adi-path", "Where the provisioning information should be stored on the computer", &path,
-		    "init-only", "Download libraries and exit", &onlyInit,
+		    "n|host", format!"The hostname to bind to (default: %s)"(serverConfig.hostname), &serverConfig.hostname,
+		    "p|port", format!"The port to bind to (default: %s)"(serverConfig.hostname), &serverConfig.port,
+		    "r|remember-machine", format!"Whether this machine should be remembered (default: %s)"(rememberMachine), &rememberMachine,
+		    "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
+		    "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
+		    "can-download", format!"If turned on, may download the dependencies automatically (default: %s)"(apkDownloadAllowed), &apkDownloadAllowed,
     );
 
     if (helpInformation.helpWanted) {
@@ -43,7 +45,7 @@ void main(string[] args) {
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
     auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
 
-    if (!(file.exists(coreADIPath) && file.exists(SSCPath))) {
+    if (!(file.exists(coreADIPath) && file.exists(SSCPath)) && apkDownloadAllowed) {
         auto http = HTTP();
         http.onProgress = (size_t dlTotal, size_t dlNow, size_t ulTotal, size_t ulNow) {
             write("Downloading libraries from Apple servers... ");
