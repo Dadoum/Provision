@@ -29,7 +29,7 @@ jobs:
           name: anisette-server-x86_64
           path: ${{github.workspace}}/bin/provision_anisette-server
 
-  build-anisette-server-i386:
+  build-anisette-server-i686:
     runs-on: ubuntu-22.04
 
     steps:
@@ -38,14 +38,14 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y dub ldc clang libz-dev
+        run: sudo apt-get update && sudo apt-get install -y gdc-12-i686-linux-gnu dub
 
       - name: Build
-        run: dub build :anisette-server -b release -c "static" --arch=x86
+        run: dub build :anisette-server -b release --compiler=i686-linux-gnu-gdc-12 -c "static"
 
       - uses: actions/upload-artifact@v3
         with:
-          name: anisette-server-x86
+          name: anisette-server-i686
           path: ${{github.workspace}}/bin/provision_anisette-server
 
   build-debug-rh:
