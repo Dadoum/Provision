@@ -28,18 +28,18 @@ void main(string[] args) {
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
     auto helpInformation = getopt(
-		    args,
-		    "n|host", format!"The hostname to bind to (default: %s)"(serverConfig.hostname), &serverConfig.hostname,
-		    "p|port", format!"The port to bind to (default: %s)"(serverConfig.hostname), &serverConfig.port,
-		    "r|remember-machine", format!"Whether this machine should be remembered (default: %s)"(rememberMachine), &rememberMachine,
-		    "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
-		    "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
-		    "can-download", format!"If turned on, may download the dependencies automatically (default: %s)"(apkDownloadAllowed), &apkDownloadAllowed,
+        args,
+        "n|host", format!"The hostname to bind to (default: %s)"(serverConfig.hostname), &serverConfig.hostname,
+        "p|port", format!"The port to bind to (default: %s)"(serverConfig.hostname), &serverConfig.port,
+        "r|remember-machine", format!"Whether this machine should be remembered (default: %s)"(rememberMachine), &rememberMachine,
+        "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
+        "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
+        "can-download", format!"If turned on, may download the dependencies automatically (default: %s)"(apkDownloadAllowed), &apkDownloadAllowed,
     );
 
     if (helpInformation.helpWanted) {
         defaultGetoptPrinter("This program allows you to host anisette through libprovision!", helpInformation.options);
-	    return;
+        return;
     }
 
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
@@ -103,12 +103,8 @@ void main(string[] args) {
     auto s = new HttpServer((ref ctx) {
         auto req = ctx.request;
         auto res = ctx.response;
-        if (req.url == "/version") {
-            writeln("[<<] GET /version");
-            res.writeBodyString(anisetteServerVersion);
-            writeln("[>>] 200 OK");
-            res.setStatus(200);
-        } else if (req.url == "/reprovision") {
+        res.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ anisetteServerVersion);
+        if (req.url == "/reprovision") {
             writeln("[<<] GET /reprovision");
             adi.provisionDevice(rinfo);
             writeln("[>>] 200 OK");
@@ -136,16 +132,16 @@ void main(string[] args) {
                 import std.json;
 
                 JSONValue response = [
-                "X-Apple-I-Client-Time": time.toISOExtString.split('.')[0] ~ "Z",
-                "X-Apple-I-MD":  Base64.encode(otp),
-                "X-Apple-I-MD-M": Base64.encode(mid),
-                "X-Apple-I-MD-RINFO": to!string(rinfo),
-                "X-Apple-I-MD-LU": adi.localUserUUID,
-                "X-Apple-I-SRL-NO": adi.serialNo,
-                "X-MMe-Client-Info": adi.clientInfo,
-                "X-Apple-I-TimeZone": time.timezone.dstName,
-                "X-Apple-Locale": "en_US",
-                "X-Mme-Device-Id": adi.deviceId,
+                    "X-Apple-I-Client-Time": time.toISOExtString.split('.')[0] ~ "Z",
+                    "X-Apple-I-MD":  Base64.encode(otp),
+                    "X-Apple-I-MD-M": Base64.encode(mid),
+                    "X-Apple-I-MD-RINFO": to!string(rinfo),
+                    "X-Apple-I-MD-LU": adi.localUserUUID,
+                    "X-Apple-I-SRL-NO": adi.serialNo,
+                    "X-MMe-Client-Info": adi.clientInfo,
+                    "X-Apple-I-TimeZone": time.timezone.dstName,
+                    "X-Apple-Locale": "en_US",
+                    "X-Mme-Device-Id": adi.deviceId,
                 ];
 
                 writefln!"[>>] 200 OK %s"(response);
@@ -163,4 +159,3 @@ void main(string[] args) {
     writeln("Ready! Serving data.");
     s.start();
 }
-
