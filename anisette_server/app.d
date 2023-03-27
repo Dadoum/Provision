@@ -71,8 +71,12 @@ void main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        file.mkdir("lib/");
-        file.mkdir(libraryPath);
+	if (!file.exists("lib/")) {
+        	file.mkdir("lib/");
+	}
+	if (!file.exists(libraryPath)) {
+            file.mkdir(libraryPath);
+	}
         file.write(coreADIPath, apk.expand(dir[coreADIPath]));
         file.write(SSCPath, apk.expand(dir[SSCPath]));
     }
