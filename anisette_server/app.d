@@ -151,8 +151,7 @@ void main(string[] args) {
                 writefln!"[>>] 200 OK %s"(response);
 
                 res.setStatus(200);
-                res.addHeader("Content-Type", "application/json");
-                res.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes));
+                res.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes), "application/json");
             } catch(Throwable t) {
                 res.setStatus(500);
                 res.writeBodyString(t.toString());
