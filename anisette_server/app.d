@@ -71,12 +71,20 @@ void main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-	if (!file.exists("lib/")) {
-        	file.mkdir("lib/");
-	}
-	if (!file.exists(libraryPath)) {
-            file.mkdir(libraryPath);
-	}
+        if (!file.exists("lib/")) {
+            try {
+                file.mkdir("lib/");
+            } catch (Throwable) {
+                 writeln("Cannot create lib/ folder. Hopefully everything still works. (Docker?)");
+            }
+        }
+        if (!file.exists(libraryPath)) {
+            try {
+                file.mkdir(libraryPath);
+            } catch (Throwable) {
+                writeln("Cannot create libraries folder folder. Hopefully everything still works. (Docker?)");
+            }
+        }
         file.write(coreADIPath, apk.expand(dir[coreADIPath]));
         file.write(SSCPath, apk.expand(dir[SSCPath]));
     }
