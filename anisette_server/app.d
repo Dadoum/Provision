@@ -72,18 +72,10 @@ void main(string[] args) {
         auto dir = apk.directory();
 
         if (!file.exists("lib/")) {
-            try {
-                file.mkdir("lib/");
-            } catch (Throwable) {
-                 writeln("Cannot create lib/ folder. Hopefully everything still works. (Docker?)");
-            }
+            file.mkdir("lib/");
         }
         if (!file.exists(libraryPath)) {
-            try {
-                file.mkdir(libraryPath);
-            } catch (Throwable) {
-                writeln("Cannot create libraries folder folder. Hopefully everything still works. (Docker?)");
-            }
+            file.mkdir(libraryPath);
         }
         file.write(coreADIPath, apk.expand(dir[coreADIPath]));
         file.write(SSCPath, apk.expand(dir[SSCPath]));
@@ -113,6 +105,8 @@ void main(string[] args) {
     }
 
     auto s = new HttpServer((ref ctx) {
+        ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ anisetteServerVersion);
+
         auto req = ctx.request;
         auto res = ctx.response;
         if (req.url == "/version") {
