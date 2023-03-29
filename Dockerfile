@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y ldc clang dub l
 WORKDIR /opt/
 COPY lib/ lib/
 COPY anisette_server/ anisette_server/
-COPY dub.sdl dub.selections.json .
+COPY dub.sdl dub.selections.json ./
 RUN dub build -c "static" --build-mode allAtOnce -b release --compiler=ldc2 :anisette-server
 
 # Base for run
