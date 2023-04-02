@@ -126,12 +126,13 @@ int main(string[] args) {
     auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
     targetTime = taskPool.workerLocalStorage(origTimeVal);
     doTimeTravel = true;
+    ubyte[] nothing;
     foreach (idx, ref otp; parallel(otps)) {
         scope localAdi = adi.get();
         scope time = targetTime.get();
         time.tv_sec = origTime + idx * 30;
         targetTime.get() = time;
-        localAdi.getOneTimePassword!false(mid, otp);
+        localAdi.getOneTimePassword!false(nothing, otp);
 
         assert(targetTime.get().tv_sec == origTime + idx * 30);
     }
