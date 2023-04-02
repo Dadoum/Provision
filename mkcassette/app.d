@@ -22,12 +22,14 @@ import constants;
 
 struct AnisetteCassetteHeader {
   align(1):
-    ubyte[6] magicHeader = ['C', 'S', 'S', 'T', 'E', 0x69];
+    ubyte[7] magicHeader = [0x69, 'C', 'A', 'S', 'S', 'T', 'E'];
     ubyte formatVersion = 0;
     ulong baseTime;
 
     ubyte[64] machineId;
 }
+
+static assert(AnisetteCassetteHeader.sizeof % 16 == 0);
 
 __gshared ulong origTime;
 int main(string[] args) {
@@ -35,7 +37,7 @@ int main(string[] args) {
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
     string path = "~/.adi";
-    string outputFile = "./otp-file.csste";
+    string outputFile = "./otp-file.acs";
     ulong days = 90;
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
