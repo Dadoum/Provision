@@ -35,6 +35,7 @@ int main(string[] args) {
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
     string path = "~/.adi";
+    string outputFile = "./otp-file.csste";
     ulong days = 90;
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
@@ -44,6 +45,7 @@ int main(string[] args) {
         "i|identifier", format!"The identifier used for the cassette (default: %s)"(identifier), &identifier,
         "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
         "d|days", format!"Number of days in the cassette (default: %s)"(days), &days,
+        "o|output", format!"Output location (default: %s)"(outputFile), &outputFile,
         "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
         "can-download", format!"If turned on, may download the dependencies automatically (default: %s)"(apkDownloadAllowed), &apkDownloadAllowed,
     );
@@ -118,7 +120,7 @@ int main(string[] args) {
     origTime = origTimeVal.tv_sec;
 
     StopWatch sw;
-    writeln("Starting generation of ", numberOfOTP, " otps with ", totalCPUs, " threads.");
+    writeln("Starting generation of ", numberOfOTP, " otps (", days, " days) with ", totalCPUs, " threads.");
     sw.start();
 
     auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
@@ -137,8 +139,6 @@ int main(string[] args) {
     auto otpBlob = otps
         .map!((otp) => otp[8..24])
         .join();
-    sw.stop();
-    writeln("Success. Duration: ", sw.peek());
 
     auto anisetteCassetteHeader = AnisetteCassetteHeader();
     anisetteCassetteHeader.baseTime = origTime;
@@ -146,8 +146,11 @@ int main(string[] args) {
 
     auto anisetteCassetteHeaderBytes = (cast(ubyte*) &anisetteCassetteHeader)[0..AnisetteCassetteHeader.sizeof];
 
-    file.write("./otp-blob.bin", anisetteCassetteHeaderBytes);
-    file.append("./otp-blob.bin", otpBlob);
+    file.write(outputFile, anisetteCassetteHeaderBytes);
+    file.append(outputFile, otpBlob);
+    sw.stop();
+
+    writeln("Success. File written at ", outputFile, ", duration: ", sw.peek());
 
     return 0;
 }
