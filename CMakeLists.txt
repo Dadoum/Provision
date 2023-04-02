@@ -3,6 +3,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D)
 option(build_anisetteserver "Build Anisette server" ON)
+option(build_mkcassette "Build mkcassette" OFF)
 option(link_libplist_dynamic "Load libplist at runtime" OFF)
 
 include(cmake/dependencies.cmake)
@@ -64,4 +65,14 @@ if(build_anisetteserver)
     target_include_directories(anisette_server PUBLIC ${ANISETTE_SERVER_SOURCE_DIR})
 
     target_link_libraries(anisette_server provision handy-httpd)
+endif()
+
+if(build_mkcassette)
+    set(MKCASSETTE_SERVER_SOURCE_DIR "mkcassette/")
+    file(GLOB_RECURSE MKCASSETTE_D_SOURCES "${MKCASSETTE_SOURCE_DIR}*.d")
+
+    add_executable(mkcassette ${MKCASSETTE_D_SOURCES})
+    target_include_directories(mkcassette PUBLIC ${MKCASSETTE_SOURCE_DIR})
+
+    target_link_libraries(mkcassette provision)
 endif()

@@ -112,7 +112,9 @@ enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
             throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
         }
 
-        this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
+        this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so", (string symbol) {
+            return symbol == "gettimeofday" ? cast(void*) &gettimeofday_timeTravel : getSymbolImplementation(symbol);
+        });
 
         debug {
             stderr.writeln("Loading Android-specific symbols...");
@@ -490,4 +492,19 @@ string translateADIErrorCode(int errorCode) {
     }
 
     return format!"%d"(errorCode);
+}
+
+import core.sys.posix.sys.time;
+import std.parallelism;
+
+public __gshared bool doTimeTravel = false;
+public __gshared TaskPool.WorkerLocalStorage!timeval targetTime;
+
+private extern (C) int gettimeofday_timeTravel(timeval* timeval, void* ptr) {
+    auto ret = gettimeofday(timeval, ptr);
+    if (doTimeTravel) {
+        *timeval = targetTime.get();
+    }
+
+    return ret;
 }

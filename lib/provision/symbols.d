@@ -1,5 +1,6 @@
 module provision.symbols;
 
+import core.memory;
 import core.stdc.errno;
 import core.stdc.stdlib;
 import core.stdc.string;
@@ -39,33 +40,30 @@ private extern (C) noreturn undefinedSymbol() {
 }
 
 private extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
-    stderr.writeln("Attempting to load ", name.fromStringz());
+    debug {
+        stderr.writeln("Attempting to load ", name.fromStringz());
+    }
     try {
-        return Mallocator.instance.make!AndroidLibrary(cast(string) name.fromStringz());
+        auto lib = new AndroidLibrary(cast(string) name.fromStringz(), rootLibrary().hookCallback);
+        GC.addRoot(lib);
+        return lib;
     } catch (Throwable) {
         return null;
     }
 }
 
 private extern (C) void* dlsymWrapper(AndroidLibrary* library, const char* symbolName) {
-    stderr.writeln("Attempting to load ", symbolName.fromStringz());
+    debug {
+        stderr.writeln("Attempting to load symbol ", symbolName.fromStringz());
+    }
     return library.load(cast(string) symbolName.fromStringz());
 }
 
 private extern (C) void dlcloseWrapper(AndroidLibrary* library) {
-    return Mallocator.instance.dispose(library);
-}
-
-public bool doTimeTravel = false;
-public timeval targetTime;
-
-private extern (C) ReturnType!gettimeofday gettimeofday_timeTravel(timeval* timeval, void* ptr) {
-    auto ret = gettimeofday(timeval, ptr);
-    if (doTimeTravel) {
-        *timeval = targetTime;
+    if (library) {
+        GC.removeRoot(library);
+        destroy(library);
     }
-
-    return ret;
 }
 
 // gperf generated code:
@@ -146,7 +144,7 @@ package void* lookupSymbol(string str) {
             {"pthread_mutex_unlock", &emptyStub},
             {"pthread_rwlock_rdlock", &emptyStub}, {
                 "gettimeofday",
-                &gettimeofday_timeTravel
+                &gettimeofday
             }, {""}, {"read", &read},
             {"mkdir", &mkdir}, {"malloc", &malloc}, {""}, {""}, {""}, {""},
             {"__system_property_get", &__system_property_get_impl}, {""}, {""},

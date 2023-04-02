@@ -13,6 +13,7 @@ import std.conv;
 import std.experimental.allocator;
 import std.experimental.allocator.mallocator;
 import std.experimental.allocator.mmap_allocator;
+import std.functional;
 import std.mmfile;
 import std.path;
 import std.random;
@@ -30,8 +31,12 @@ public struct AndroidLibrary {
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
 
-    public this(string libraryName) {
+    alias HookCallback = void* delegate(string symbolName);
+    package HookCallback hookCallback;
+
+    public this(string libraryName, HookCallback hookCallback = (&getSymbolImplementation).toDelegate()) {
         elfFile = new MmFile(libraryName);
+        this.hookCallback = hookCallback;
 
         auto elfHeader = elfFile.identify!(ElfW!"Ehdr")(0);
         auto programHeaders = elfFile.identifyArray!(ElfW!"Phdr")(elfHeader.e_phoff, elfHeader.e_phnum);
@@ -70,6 +75,10 @@ public struct AndroidLibrary {
             MAP_PRIVATE | MAP_ANON, -1, 0);
         if (mmapped_alloc == MAP_FAILED) {
             throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
+        }
+        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = &this;
+        debug {
+            stderr.writefln("Allocating %x - %x for %s", cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
         }
         allocation = mmapped_alloc[0..allocSize];
 
@@ -153,7 +162,7 @@ public struct AndroidLibrary {
                     addend = *cast(size_t*) (cast(size_t) allocation.ptr + offset);
                 }
             }
-            auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
+            auto symbol = hookCallback(getSymbolName(dynamicSymbolTable[symbolIndex]));
 
             auto location = cast(size_t*) (cast(size_t) allocation.ptr + offset);
 
@@ -198,6 +207,30 @@ public struct AndroidLibrary {
         }
         return cast(void*) (cast(size_t) allocation.ptr + sym.st_value);
     }
+}
+
+private struct MemoryBlock {
+    size_t start;
+    size_t end;
+}
+
+private __gshared AndroidLibrary*[MemoryBlock] memoryTable;
+AndroidLibrary* memoryOwner(size_t address) {
+    foreach(memoryBlock; memoryTable.keys()) {
+        if (address > memoryBlock.start && address < memoryBlock.end) {
+            return memoryTable[memoryBlock];
+        }
+    }
+
+    return null;
+}
+
+import core.sys.linux.execinfo;
+pragma(inline, true) AndroidLibrary* rootLibrary() {
+    enum MAXFRAMES = 4;
+    void*[MAXFRAMES] callstack;
+    auto numframes = backtrace(callstack.ptr, MAXFRAMES);
+    return memoryOwner(cast(size_t) callstack[numframes - 1]);
 }
 
 interface SymbolHashTable {
@@ -378,7 +411,7 @@ RetType reinterpret(RetType, FromType)(FromType[] obj) {
     return (cast(RetType[]) obj)[0];
 }
 
-private static void* getSymbolImplementation(string symbolName) {
+static void* getSymbolImplementation(string symbolName) {
     import provision.symbols;
     return lookupSymbol(symbolName);
 }

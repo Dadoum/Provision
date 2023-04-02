@@ -19,6 +19,7 @@ static __gshared ADI* adi;
 static __gshared ulong rinfo;
 
 void main(string[] args) {
+    writeln(anisetteServerBranding, " v", anisetteServerVersion);
     auto serverConfig = ServerConfig.defaultValues;
     serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
