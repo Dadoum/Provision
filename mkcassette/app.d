@@ -33,7 +33,7 @@ __gshared ulong origTime;
 int main(string[] args) {
     writeln(mkcassetteBranding, " v", mkcassetteVersion);
 
-    string identifier = "ba10defe42ea69ff";
+    char[] identifier = cast(char[]) "ba10defe42ea69ff";
     string path = "~/.adi";
     ulong days = 90;
     bool onlyInit = false;
@@ -121,7 +121,7 @@ int main(string[] args) {
     writeln("Starting generation of ", numberOfOTP, " otps with ", totalCPUs, " threads.");
     sw.start();
 
-    auto adi = taskPool.workerLocalStorage(new ADI(expandTilde("~/.adi")));
+    auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
     targetTime = taskPool.workerLocalStorage(origTimeVal);
     doTimeTravel = true;
     foreach (idx, ref otp; parallel(otps)) {
