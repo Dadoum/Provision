@@ -102,7 +102,7 @@ int main(string[] args) {
     ubyte[][] otps = new ubyte[][](numberOfOTP);
 
     {
-        scope ADI* adi = new ADI(expandTilde("~/.adi"));
+        scope ADI* adi = new ADI(expandTilde(path), identifier);
 
         if (!adi.isMachineProvisioned()) {
             stderr.write("Machine requires provisioning... ");
