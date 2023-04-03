@@ -9,9 +9,11 @@ import file = std.file;
 import std.format;
 import std.getopt;
 import std.math;
+import std.mmfile;
 import std.net.curl;
 import std.parallelism;
 import std.path;
+import std.range;
 import std.stdio;
 import std.zip;
 
@@ -103,7 +105,13 @@ int main(string[] args) {
     auto numberOfOTP = days*24*60;
 
     ubyte[] mid;
-    ubyte[][] otps = new ubyte[][](numberOfOTP);
+    ubyte[] nothing;
+
+    __gshared timeval origTimeVal;
+    gettimeofday(&origTimeVal, null);
+    origTime = origTimeVal.tv_sec;
+    targetTime = taskPool.workerLocalStorage(origTimeVal);
+    doTimeTravel = true;
 
     {
         scope ADI* adi = new ADI(expandTilde(path), identifier);
@@ -114,34 +122,15 @@ int main(string[] args) {
             adi.provisionDevice(rinfo);
             stderr.writeln("done !");
         }
-        adi.getOneTimePassword(mid, otps[0]);
+        adi.getOneTimePassword(mid, nothing);
     }
 
-    __gshared timeval origTimeVal;
-    gettimeofday(&origTimeVal, null);
-    origTime = origTimeVal.tv_sec;
+    auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
 
     StopWatch sw;
     writeln("Starting generation of ", numberOfOTP, " otps (", days, " days) with ", totalCPUs, " threads.");
     sw.start();
 
-    auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
-    targetTime = taskPool.workerLocalStorage(origTimeVal);
-    doTimeTravel = true;
-    ubyte[] nothing;
-    foreach (idx, ref otp; parallel(otps)) {
-        scope localAdi = adi.get();
-        scope time = targetTime.get();
-        time.tv_sec = origTime + idx * 30;
-        targetTime.get() = time;
-        localAdi.getOneTimePassword!false(nothing, otp);
-
-        assert(targetTime.get().tv_sec == origTime + idx * 30);
-    }
-
-    auto otpBlob = otps
-        .map!((otp) => otp[8..24])
-        .join();
 
     auto anisetteCassetteHeader = AnisetteCassetteHeader();
     anisetteCassetteHeader.baseTime = origTime;
@@ -149,8 +138,36 @@ int main(string[] args) {
 
     auto anisetteCassetteHeaderBytes = (cast(ubyte*) &anisetteCassetteHeader)[0..AnisetteCassetteHeader.sizeof];
 
-    file.write(outputFile, anisetteCassetteHeaderBytes);
-    file.append(outputFile, otpBlob);
+    scope otpFile = new MmFile(outputFile, MmFile.Mode.readWriteNew, AnisetteCassetteHeader.sizeof + 16 * numberOfOTP * ubyte.sizeof, null);
+    scope acs = cast(ubyte[]) otpFile[0..$];
+    acs[0..AnisetteCassetteHeader.sizeof] = anisetteCassetteHeaderBytes;
+
+    void* dontcare;
+
+    foreach (idx, otp; parallel(std.range.chunks(cast(ubyte[]) acs[AnisetteCassetteHeader.sizeof..$], 16))) {
+        scope localAdi = adi.get();
+        scope time = targetTime.get();
+        scope ubyte* midPtr;
+        scope ubyte* otpPtr;
+        time.tv_sec = origTime + idx * 30;
+        targetTime.get() = time;
+        auto ret = localAdi.pADIOTPRequest(
+            -2,
+            cast(ubyte**) &midPtr,
+            cast(uint*) &dontcare,
+            &otpPtr,
+            cast(uint*) &dontcare
+        );
+        if (ret != 0) {
+            throw new AnisetteException(ret);
+        }
+        localAdi.pADIDispose(midPtr);
+        otp[] = otpPtr[8..24];
+        localAdi.pADIDispose(otpPtr);
+
+        assert(targetTime.get().tv_sec == origTime + idx * 30);
+    }
+
     sw.stop();
 
     writeln("Success. File written at ", outputFile, ", duration: ", sw.peek());
