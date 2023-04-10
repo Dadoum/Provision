@@ -44,7 +44,7 @@ private extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
         stderr.writeln("Attempting to load ", name.fromStringz());
     }
     try {
-        auto lib = new AndroidLibrary(cast(string) name.fromStringz(), rootLibrary().hookCallback);
+        auto lib = new AndroidLibrary(cast(string) name.fromStringz(), rootLibrary().hooks);
         GC.addRoot(lib);
         return lib;
     } catch (Throwable) {

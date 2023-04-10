@@ -24,8 +24,8 @@ void main(string[] args) {
     serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
 
-    bool rememberMachine = false;
-    string path = "~/.adi";
+    bool rememberMachine = true;
+    string configurationPath = expandTilde("~/.config/Provision");
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
     auto helpInformation = getopt(
@@ -33,7 +33,7 @@ void main(string[] args) {
 		    "n|host", format!"The hostname to bind to (default: %s)"(serverConfig.hostname), &serverConfig.hostname,
 		    "p|port", format!"The port to bind to (default: %s)"(serverConfig.hostname), &serverConfig.port,
 		    "r|remember-machine", format!"Whether this machine should be remembered (default: %s)"(rememberMachine), &rememberMachine,
-		    "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
+		    "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(configurationPath), &configurationPath,
 		    "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
 		    "can-download", format!"If turned on, may download the dependencies automatically (default: %s)"(apkDownloadAllowed), &apkDownloadAllowed,
     );
@@ -72,14 +72,14 @@ void main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        if (!file.exists("lib/")) {
-            file.mkdir("lib/");
+        if (!file.exists(path.buildPath("lib"))) {
+            file.mkdir(path.buildPath("lib"));
         }
         if (!file.exists(libraryPath)) {
             file.mkdir(libraryPath);
         }
-        file.write(coreADIPath, apk.expand(dir[coreADIPath]));
-        file.write(SSCPath, apk.expand(dir[SSCPath]));
+        file.write(coreADIPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libCoreADI.so"]));
+        file.write(SSCPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libstoreservicescore.so"]));
     }
 
     if (onlyInit) {

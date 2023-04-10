@@ -18,9 +18,22 @@ import std.stdio;
 import std.zip;
 
 import provision;
+import provision.androidlibrary;
 import provision.symbols;
 
 import constants;
+
+version (X86_64) {
+    enum string architectureIdentifier = "x86_64";
+} else version (X86) {
+    enum string architectureIdentifier = "x86";
+} else version (AArch64) {
+    enum string architectureIdentifier = "arm64-v8a";
+} else version (ARM) {
+    enum string architectureIdentifier = "armeabi-v7a";
+} else {
+    static assert(false, "Architecture not supported :(");
+}
 
 struct AnisetteCassetteHeader {
   align(1):
@@ -38,12 +51,13 @@ int main(string[] args) {
     writeln(mkcassetteBranding, " v", mkcassetteVersion);
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
-    string path = "~/.adi";
+    string configurationPath = expandTilde("~/.config/Provision");
     string outputFile = "./otp-file.acs";
     ulong days = 90;
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
 
+    // Parse command-line arguments
     auto helpInformation = getopt(
         args,
         "i|identifier", format!"The identifier used for the cassette (default: %s)"(identifier), &identifier,
@@ -59,9 +73,16 @@ int main(string[] args) {
         return 0;
     }
 
+    if (!file.exists(configurationPath)) {
+        file.mkdir(configurationPath);
+    }
+
+    string libraryPath = configurationPath.buildPath("lib/" ~ architectureIdentifier);
+
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
     auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
 
+    // Download APK if needed
     if (!(file.exists(coreADIPath) && file.exists(SSCPath)) && apkDownloadAllowed) {
         auto http = HTTP();
         http.onProgress = (size_t dlTotal, size_t dlNow, size_t ulTotal, size_t ulNow) {
@@ -88,49 +109,83 @@ int main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        if (!file.exists("lib/")) {
-            file.mkdir("lib/");
+        if (!file.exists(configurationPath.buildPath("lib"))) {
+            file.mkdir(configurationPath.buildPath("lib"));
         }
         if (!file.exists(libraryPath)) {
             file.mkdir(libraryPath);
         }
-        file.write(coreADIPath, apk.expand(dir[coreADIPath]));
-        file.write(SSCPath, apk.expand(dir[SSCPath]));
+        file.write(coreADIPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libCoreADI.so"]));
+        file.write(SSCPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libstoreservicescore.so"]));
     }
 
     if (onlyInit) {
         return 0;
     }
 
+    // 1 per minute
     auto numberOfOTP = days*24*60;
 
     ubyte[] mid;
     ubyte[] nothing;
 
+    // We store the real time in a shared variable, and create a thread-local time variable.
     __gshared timeval origTimeVal;
     gettimeofday(&origTimeVal, null);
     origTime = origTimeVal.tv_sec;
     targetTime = taskPool.workerLocalStorage(origTimeVal);
-    doTimeTravel = true;
 
+    // Initializing ADI and machine if it has not already been made.
+    Device device = new Device(configurationPath.buildPath("device.json"));
     {
-        scope ADI* adi = new ADI(expandTilde(path), identifier);
+        ADI adi = new ADI("lib/" ~ architectureIdentifier);
+        adi.provisioningPath = configurationPath;
 
-        if (!adi.isMachineProvisioned()) {
-            stderr.write("Machine requires provisioning... ");
-            ulong rinfo;
-            adi.provisionDevice(rinfo);
+        if (!device.initialized) {
+            stderr.write("Creating machine... ");
+
+            import std.digest;
+            import std.random;
+            import std.range;
+            import std.uni;
+            import std.uuid;
+            device.serverFriendlyDescription = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
+            device.uniqueDeviceIdentifier = randomUUID().toString().toUpper();
+            device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
+            device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
+
             stderr.writeln("done !");
         }
-        adi.getOneTimePassword(mid, nothing);
+
+        adi.identifier = device.localUserUUID[8..24];
+        if (!adi.isMachineProvisioned(-2)) {
+            stderr.write("Machine requires provisioning... ");
+
+            ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
+            provisioningSession.provision(-2);
+            stderr.writeln("done !");
+        }
+
+        mid = adi.requestOTP(-2).machineIdentifier;
     }
 
-    auto adi = taskPool.workerLocalStorage(new ADI(expandTilde(path), identifier));
+    auto adi = taskPool.workerLocalStorage!ADI({
+        // We hook the gettimeofday function in the library to change the date.
+        AndroidLibrary* storeServicesCore = new AndroidLibrary(SSCPath, [
+            "gettimeofday": cast(void*) &gettimeofday_timeTravel
+        ]);
+
+        ADI adi = new ADI(libraryPath, storeServicesCore);
+
+        adi.provisioningPath = path;
+        adi.identifier = device.localUserUUID[8..24];
+
+        return adi;
+    }());
 
     StopWatch sw;
     writeln("Starting generation of ", numberOfOTP, " otps (", days, " days) with ", totalCPUs, " threads.");
     sw.start();
-
 
     auto anisetteCassetteHeader = AnisetteCassetteHeader();
     anisetteCassetteHeader.baseTime = origTime;
@@ -138,32 +193,20 @@ int main(string[] args) {
 
     auto anisetteCassetteHeaderBytes = (cast(ubyte*) &anisetteCassetteHeader)[0..AnisetteCassetteHeader.sizeof];
 
+    // The file consists of 1 header and then all the 16-bytes long OTPs, so we make a memory-mapped file of the correct size.
     scope otpFile = new MmFile(outputFile, MmFile.Mode.readWriteNew, AnisetteCassetteHeader.sizeof + 16 * numberOfOTP * ubyte.sizeof, null);
     scope acs = cast(ubyte[]) otpFile[0..$];
     acs[0..AnisetteCassetteHeader.sizeof] = anisetteCassetteHeaderBytes;
 
-    void* dontcare;
-
+    // we take every 16 bytes chunk of the OTP part of the file, and iterate concurrently through it.
     foreach (idx, otp; parallel(std.range.chunks(cast(ubyte[]) acs[AnisetteCassetteHeader.sizeof..$], 16))) {
         scope localAdi = adi.get();
         scope time = targetTime.get();
-        scope ubyte* midPtr;
-        scope ubyte* otpPtr;
+
         time.tv_sec = origTime + idx * 30;
         targetTime.get() = time;
-        auto ret = localAdi.pADIOTPRequest(
-            -2,
-            cast(ubyte**) &midPtr,
-            cast(uint*) &dontcare,
-            &otpPtr,
-            cast(uint*) &dontcare
-        );
-        if (ret != 0) {
-            throw new AnisetteException(ret);
-        }
-        localAdi.pADIDispose(midPtr);
-        otp[] = otpPtr[8..24];
-        localAdi.pADIDispose(otpPtr);
+
+        otp[] = localAdi.requestOTP(-2).oneTimePassword[8..24];
 
         assert(targetTime.get().tv_sec == origTime + idx * 30);
     }
@@ -172,5 +215,15 @@ int main(string[] args) {
 
     writeln("Success. File written at ", outputFile, ", duration: ", sw.peek());
 
+    return 0;
+}
+
+import core.sys.posix.sys.time;
+import std.parallelism;
+
+public __gshared TaskPool.WorkerLocalStorage!timeval targetTime;
+
+private extern (C) int gettimeofday_timeTravel(timeval* timeval, void* ptr) {
+    *timeval = targetTime.get();
     return 0;
 }

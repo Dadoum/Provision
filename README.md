@@ -71,6 +71,55 @@ cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release
 ninja
 ```
 
+## libprovision usage
+
+The Provision API tries to be stay close to the AuthKit API, but written in D.
+
+```d
+import std.digest: toHexString;
+import file = std.file;
+import std.path: expandTilde, buildPath;
+import std.random: rndGen;
+import std.range: take, array;
+import std.stdio: stderr, write, writeln;
+import std.uni: toUpper;
+import std.uuid: randomUUID;
+
+import provision.adi;
+
+void main() {
+    string configuration_folder = expandTilde("~/.config/Provision/");
+    if (!file.exists(configuration_folder)) {
+        file.mkdir(configuration_folder);
+    }
+
+    ADI adi = new ADI("lib/" ~ architectureIdentifier);
+    adi.provisioningPath = configuration_folder;
+    Device device = new Device(configuration_folder.buildPath("device.json"));
+
+    if (!device.initialized) {
+        stderr.write("Creating machine... ");
+        device.serverFriendlyDescription = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
+        device.uniqueDeviceIdentifier = randomUUID().toString().toUpper();
+        device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
+        device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
+
+        stderr.writeln("done !");
+    }
+
+    adi.identifier = device.localUserUUID[8..24];
+    if (!adi.isMachineProvisioned(-2)) {
+        stderr.write("Machine requires provisioning... ");
+
+        ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
+        provisioningSession.provision(-2);
+        stderr.writeln("done !");
+    }
+  
+    // Do stuff with adi.
+}
+```
+
 ## Support
 
 Donations are welcome with GitHub Sponsor.

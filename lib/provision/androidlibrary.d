@@ -31,12 +31,13 @@ public struct AndroidLibrary {
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
 
-    alias HookCallback = void* delegate(string symbolName);
-    package HookCallback hookCallback;
+    public void*[string] hooks;
 
-    public this(string libraryName, HookCallback hookCallback = (&getSymbolImplementation).toDelegate()) {
+    private ElfW!"Shdr"[] relocationSections;
+
+    public this(string libraryName, void*[string] hooks = null) {
         elfFile = new MmFile(libraryName);
-        this.hookCallback = hookCallback;
+        if (hooks) this.hooks = hooks;
 
         auto elfHeader = elfFile.identify!(ElfW!"Ehdr")(0);
         auto programHeaders = elfFile.identifyArray!(ElfW!"Phdr")(elfHeader.e_phoff, elfHeader.e_phnum);
@@ -125,9 +126,11 @@ public struct AndroidLibrary {
                     break;
                 case SHT_REL:
                     this.relocate!(ElfW!"Rel")(sectionHeader);
+                    relocationSections ~= sectionHeader;
                     break;
                 case SHT_RELA:
                     this.relocate!(ElfW!"Rela")(sectionHeader);
+                    relocationSections ~= sectionHeader;
                     break;
                 default:
                     break;
@@ -142,6 +145,21 @@ public struct AndroidLibrary {
     }
 
     @disable this(this);
+
+    public void relocate() {
+        foreach (relocationSection; relocationSections) {
+            switch (relocationSection.sh_type) {
+                case SHT_REL:
+                    this.relocate!(ElfW!"Rel")(relocationSection);
+                    break;
+                case SHT_RELA:
+                    this.relocate!(ElfW!"Rela")(relocationSection);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 
     private void relocate(RelocationType)(ref ElfW!"Shdr" shdr) {
         auto relocations = this.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
@@ -162,7 +180,7 @@ public struct AndroidLibrary {
                     addend = *cast(size_t*) (cast(size_t) allocation.ptr + offset);
                 }
             }
-            auto symbol = hookCallback(getSymbolName(dynamicSymbolTable[symbolIndex]));
+            auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
 
             auto location = cast(size_t*) (cast(size_t) allocation.ptr + offset);
 
@@ -191,6 +209,16 @@ public struct AndroidLibrary {
 
     private string getSectionName(ElfW!"Shdr" section) {
         return cast(string) fromStringz(&sectionNamesTable[section.sh_name]);
+    }
+
+    void* getSymbolImplementation(string symbolName) {
+        void** hook = symbolName in hooks;
+        if (hook) {
+            return *hook;
+        }
+
+        import provision.symbols;
+        return lookupSymbol(symbolName);
     }
 
     void* load(string symbolName) {
@@ -409,11 +437,6 @@ RetType identify(RetType, FromType)(FromType obj, size_t offset) {
 
 RetType reinterpret(RetType, FromType)(FromType[] obj) {
     return (cast(RetType[]) obj)[0];
-}
-
-static void* getSymbolImplementation(string symbolName) {
-    import provision.symbols;
-    return lookupSymbol(symbolName);
 }
 
 class LoaderException: Exception {
