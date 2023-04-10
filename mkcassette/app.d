@@ -136,7 +136,7 @@ int main(string[] args) {
     targetTime = taskPool.workerLocalStorage(origTimeVal);
 
     // Initializing ADI and machine if it has not already been made.
-    Device device = new Device(configurationPath.buildPath("device.json"));
+    Device device = new Device(configurationPath.buildPath("/dev/null"));
     {
         ADI adi = new ADI("lib/" ~ architectureIdentifier);
         adi.provisioningPath = configurationPath;
@@ -145,26 +145,23 @@ int main(string[] args) {
             stderr.write("Creating machine... ");
 
             import std.digest;
+            import std.digest.sha;
             import std.random;
             import std.range;
             import std.uni;
             import std.uuid;
             device.serverFriendlyDescription = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
             device.uniqueDeviceIdentifier = randomUUID().toString().toUpper();
-            device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
-            device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
+            device.adiIdentifier = sha1Of(device.uniqueDeviceIdentifier).toHexString()[0..16].toLower();
+            device.localUserUUID = sha256Of(device.uniqueDeviceIdentifier).toHexString().toUpper();
 
             stderr.writeln("done !");
         }
 
-        adi.identifier = device.localUserUUID[8..24];
-        if (!adi.isMachineProvisioned(-2)) {
-            stderr.write("Machine requires provisioning... ");
+        adi.identifier = device.adiIdentifier;
 
-            ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
-            provisioningSession.provision(-2);
-            stderr.writeln("done !");
-        }
+        ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
+        provisioningSession.provision(-2);
 
         mid = adi.requestOTP(-2).machineIdentifier;
     }
@@ -178,7 +175,7 @@ int main(string[] args) {
         ADI adi = new ADI(libraryPath, storeServicesCore);
 
         adi.provisioningPath = configurationPath;
-        adi.identifier = device.localUserUUID[8..24];
+        adi.identifier = device.adiIdentifier;
 
         return adi;
     }());

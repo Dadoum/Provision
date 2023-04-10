@@ -131,7 +131,7 @@ void main(string[] args) {
 
     enum dsId = -2;
 
-    adi.identifier = device.localUserUUID[8..24];
+    adi.identifier = device.adiIdentifier;
     if (!adi.isMachineProvisioned(dsId)) {
         stderr.write("Machine requires provisioning... ");
 

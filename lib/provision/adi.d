@@ -296,12 +296,14 @@ public class Device {
     this(string filePath) {
         path = filePath;
         if (file.exists(path)) {
-            JSONValue deviceFile = parseJSON(cast(char[]) file.read(filePath));
-            uniqueDeviceIdentifier = deviceFile[uniqueDeviceIdentifierJson].str();
-            serverFriendlyDescription = deviceFile[serverFriendlyDescriptionJson].str();
-            adiIdentifier = deviceFile[adiIdentifierJson].str();
-            localUserUUID = deviceFile[localUserUUIDJson].str();
-            initialized = true;
+            try {
+                JSONValue deviceFile = parseJSON(cast(char[]) file.read(filePath));
+                uniqueDeviceIdentifier = deviceFile[uniqueDeviceIdentifierJson].str();
+                serverFriendlyDescription = deviceFile[serverFriendlyDescriptionJson].str();
+                adiIdentifier = deviceFile[adiIdentifierJson].str();
+                localUserUUID = deviceFile[localUserUUIDJson].str();
+                initialized = true;
+            } catch (Throwable) { /+ do nothing +/ }
         }
     }
 

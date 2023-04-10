@@ -47,7 +47,7 @@ int main(string[] args) {
         stderr.writeln("done !");
     }
 
-    adi.identifier = device.localUserUUID[8..24];
+    adi.identifier = device.adiIdentifier;
     if (!adi.isMachineProvisioned(-2)) {
         stderr.write("Machine requires provisioning... ");
 
