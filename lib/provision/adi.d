@@ -464,47 +464,117 @@ void unwrapADIError(int error, string file = __FILE__, size_t line = __LINE__) {
     }
 }
 
-public class ADIException: Exception {
-    this(int error, string file = __FILE__, size_t line = __LINE__) {
-        super(format!"ADI error: %s."(translateADIErrorCode(error)), file, line);
-    }
+enum ADIError: int {
+    invalidParams = -45001,
+    invalidParams2 = -45002,
+    invalidTrustKey = -45003,
+    ptmTkNotMatchingState = -45006,
+    invalidInputDataParamHeader = -45018,
+    unknownAdiFunction = -45019,
+    invalidInputDataParamBody = -45020,
+    unknownSession = -45025,
+    emptySession = -45026,
+    invalidDataHeader = -45031,
+    dataTooShort = -45032,
+    invalidDataBody = -45033,
+    unknownADICallFlags = -45034,
+    timeError = -45036,
+    emptyHardwareIds = -45046,
+    filesystemError = -45054,
+    notProvisioned = -45061,
+    noProvisioningToErase = -45062,
+    pendingSession = -45063,
+    sessionAlreadyDone = -45066,
+    libraryLoadingFailed = -45075,
 }
 
-enum knownErrorCodes = [
-    -45001: "invalid parameters",
-    -45002: "invalid parameters (for decipher)",
-    -45003: "invalid Trust Key",
-    -45006: "ptm and tk are not matching the transmitted cpim",
-    // -45017: exists (observed: iOS), unknown meaning
-    -45018: "invalid input data header (first uint) (pointer is correct tho)",
-    -45019: "vdfut768ig doesn't know the asked function",
-    -45020: "invalid input data (not the first uint)",
-    -45025: "unknown session",
-    -45026: "empty session",
-    -45031: "invalid data (header)",
-    -45032: "data too short",
-    -45033: "invalid data (body)",
-    -45034: "unknown ADI call flags",
-    -45036: "time error",
-    // -45044: exists (observed: macOS iTunes, from Google), unknown meaning
-    // -45045: probably a typo of -45054
-    -45046: "identifier generation failure: empty hardware ids",
-    // -45048: exists (observed: windows iTunes, from Google), unknown meaning, resolved by adi file suppression
-    -45054: "generic libc/file manipulation error",
-    -45061: "not provisioned",
-    -45062: "cannot erase provisioning: not provisioned",
-    -45063: "provisioning first step is already pending",
-    -45066: "2nd step fail: session already consumed",
-    -45075: "library loading error",
-    // -45076: exists (observed: macOS iTunes, from Google), unknown meaning, seems related to backward compatibility between 12.6.x and 12.7
-];
+string toString(AnisetteError error) {
+    string formatString;
+    switch (cast(int) error) {
+        case -45001:
+            formatString = "invalid parameters (%d)";
+            break;
+        case -45002:
+            formatString = "invalid parameters (for decipher) (%d)";
+            break;
+        case -45003:
+            formatString = "invalid Trust Key (%d)";
+            break;
+        case -45006:
+            formatString = "ptm and tk are not matching the transmitted cpim (%d)";
+            break;
+        // -45017: exists (observed: iOS), unknown meaning
+        case -45018:
+            formatString = "invalid input data header (first uint) (pointer is correct tho) (%d)";
+            break;
+        case -45019:
+            formatString = "vdfut768ig doesn't know the asked function (%d)";
+            break;
+        case -45020:
+            formatString = "invalid input data (not the first uint) (%d)";
+            break;
+        case -45025:
+            formatString = "unknown session (%d)";
+            break;
+        case -45026:
+            formatString = "empty session (%d)";
+            break;
+        case -45031:
+            formatString = "invalid data (header) (%d)";
+            break;
+        case -45032:
+            formatString = "data too short (%d)";
+            break;
+        case -45033:
+            formatString = "invalid data (body) (%d)";
+            break;
+        case -45034:
+            formatString = "unknown ADI call flags (%d)";
+            break;
+        case -45036:
+            formatString = "time error (%d)";
+            break;
+        // -45044: exists (observed: macOS iTunes, from Google), unknown meaning
+        // -45045: probably a typo of -45054
+        case -45046:
+            formatString = "identifier generation failure: empty hardware ids (%d)";
+            break;
+        // -45048: exists (observed: windows iTunes, from Google), unknown meaning, resolved by adi file suppression
+        case -45054:
+            formatString = "generic libc/file manipulation error (%d)";
+            break;
+        case -45061:
+            formatString = "not provisioned (%d)";
+            break;
+        case -45062:
+            formatString = "cannot erase provisioning: not provisioned (%d)";
+            break;
+        case -45063:
+            formatString = "provisioning first step is already pending (%d)";
+            break;
+        case -45066:
+            formatString = "2nd step fail: session already consumed (%d)";
+            break;
+        case -45075:
+            formatString = "library loading error (%d)";
+            break;
+        // -45076: exists (observed: macOS iTunes, from Google), unknown meaning, seems related to backward compatibility between 12.6.x and 12.7
+        default:
+            formatString = "unknown ADI error (%d)";
+            break;
+    }
+    return format(formatString, error);
+}
 
-string translateADIErrorCode(int errorCode) {
-    foreach (knownErrorCode; knownErrorCodes.byKeyValue) {
-        if (errorCode == knownErrorCode.key) {
-            return format!"%s (%d)"(knownErrorCode.value, errorCode);
-        }
+public class ADIException: Exception {
+    private ADIError errorCode;
+
+    this(int error, string file = __FILE__, size_t line = __LINE__) {
+        this.errorCode = cast(AnisetteError) error;
+        super(errorCode.toString(), file, line);
     }
 
-    return format!"%d"(errorCode);
+    AnisetteError anisetteError() {
+        return errorCode;
+    }
 }
