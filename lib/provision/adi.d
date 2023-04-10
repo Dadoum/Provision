@@ -488,7 +488,7 @@ enum ADIError: int {
     libraryLoadingFailed = -45075,
 }
 
-string toString(AnisetteError error) {
+string toString(ADIError error) {
     string formatString;
     switch (cast(int) error) {
         case -45001:
@@ -570,11 +570,11 @@ public class ADIException: Exception {
     private ADIError errorCode;
 
     this(int error, string file = __FILE__, size_t line = __LINE__) {
-        this.errorCode = cast(AnisetteError) error;
+        this.errorCode = cast(ADIError) error;
         super(errorCode.toString(), file, line);
     }
 
-    AnisetteError anisetteError() {
+    ADIError adiError() {
         return errorCode;
     }
 }

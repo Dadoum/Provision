@@ -61,7 +61,7 @@ int main(string[] args) {
     auto helpInformation = getopt(
         args,
         "i|identifier", format!"The identifier used for the cassette (default: %s)"(identifier), &identifier,
-        "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(path), &path,
+        "a|adi-path", format!"Where the provisioning information should be stored on the computer (default: %s)"(configurationPath), &configurationPath,
         "d|days", format!"Number of days in the cassette (default: %s)"(days), &days,
         "o|output", format!"Output location (default: %s)"(outputFile), &outputFile,
         "init-only", format!"Download libraries and exit (default: %s)"(onlyInit), &onlyInit,
@@ -169,7 +169,7 @@ int main(string[] args) {
         mid = adi.requestOTP(-2).machineIdentifier;
     }
 
-    auto adi = taskPool.workerLocalStorage!ADI({
+    auto adi = taskPool().workerLocalStorage!ADI({
         // We hook the gettimeofday function in the library to change the date.
         AndroidLibrary* storeServicesCore = new AndroidLibrary(SSCPath, [
             "gettimeofday": cast(void*) &gettimeofday_timeTravel
@@ -177,7 +177,7 @@ int main(string[] args) {
 
         ADI adi = new ADI(libraryPath, storeServicesCore);
 
-        adi.provisioningPath = path;
+        adi.provisioningPath = configurationPath;
         adi.identifier = device.localUserUUID[8..24];
 
         return adi;

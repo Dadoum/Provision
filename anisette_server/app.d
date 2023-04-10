@@ -8,6 +8,7 @@ import std.format;
 import std.getopt;
 import std.math;
 import std.net.curl;
+import std.parallelism;
 import std.path;
 import std.stdio;
 import std.zip;
@@ -16,9 +17,21 @@ import provision;
 
 import constants;
 
-static __gshared ADI* adi;
-static __gshared ulong rinfo;
-static __gshared bool allowRemoteProvisioning = false;
+version (X86_64) {
+    enum string architectureIdentifier = "x86_64";
+} else version (X86) {
+    enum string architectureIdentifier = "x86";
+} else version (AArch64) {
+    enum string architectureIdentifier = "arm64-v8a";
+} else version (ARM) {
+    enum string architectureIdentifier = "armeabi-v7a";
+} else {
+    static assert(false, "Architecture not supported :(");
+}
+
+__gshared bool allowRemoteProvisioning = false;
+__gshared ADI adi;
+__gshared Device device;
 
 void main(string[] args) {
     writeln(anisetteServerBranding, " v", anisetteServerVersion);
@@ -45,6 +58,12 @@ void main(string[] args) {
         defaultGetoptPrinter("This program allows you to host anisette through libprovision!", helpInformation.options);
         return;
     }
+
+    if (!file.exists(configurationPath)) {
+        file.mkdir(configurationPath);
+    }
+
+    string libraryPath = configurationPath.buildPath("lib/" ~ architectureIdentifier);
 
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
     auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
@@ -75,8 +94,8 @@ void main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        if (!file.exists(path.buildPath("lib"))) {
-            file.mkdir(path.buildPath("lib"));
+        if (!file.exists(configurationPath.buildPath("lib"))) {
+            file.mkdir(configurationPath.buildPath("lib"));
         }
         if (!file.exists(libraryPath)) {
             file.mkdir(libraryPath);
@@ -89,53 +108,65 @@ void main(string[] args) {
         return;
     }
 
-    if (rememberMachine) {
-        adi = new ADI(expandTilde(path));
-    } else {
-        import std.digest: toHexString;
+    // Initializing ADI and machine if it has not already been made.
+    device = new Device(rememberMachine ? configurationPath.buildPath("device.json") : "/dev/null");
+    adi = new ADI("lib/" ~ architectureIdentifier);
+    adi.provisioningPath = configurationPath;
+
+    if (!device.initialized) {
+        stderr.write("Creating machine... ");
+
+        import std.digest;
         import std.random;
         import std.range;
         import std.uni;
-        ubyte[] id = cast(ubyte[]) rndGen.take(2).array;
-        adi = new ADI(expandTilde(path), cast(char[]) id.toHexString().toLower());
+        import std.uuid;
+        device.serverFriendlyDescription = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
+        device.uniqueDeviceIdentifier = randomUUID().toString().toUpper();
+        device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
+        device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
+
+        stderr.writeln("done !");
     }
 
-    if (!adi.isMachineProvisioned()) {
-        write("Machine requires provisioning... ");
-        adi.provisionDevice(rinfo);
-        writeln("done !");
-    } else {
-        adi.getRoutingInformation(rinfo);
+    enum dsId = -2;
+
+    adi.identifier = device.localUserUUID[8..24];
+    if (!adi.isMachineProvisioned(dsId)) {
+        stderr.write("Machine requires provisioning... ");
+
+        ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
+        provisioningSession.provision(dsId);
+        stderr.writeln("done !");
     }
 
     auto s = new HttpServer((ref ctx) {
-        ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ anisetteServerVersion);
-
         auto req = ctx.request;
         ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ anisetteServerVersion);
 
         writeln("[<<] ", req.method, " ", req.url);
         if (req.method != "GET") {
             writefln("[>>] 405 Method Not Allowed");
-            ctx.response.setStatus(405).setStatusText("Method Not Allowed").flushHeaders();
+            ctx.response.setStatus(405).setStatusText("Method Not Allowed");
             return;
         }
 
         if (req.url == "/reprovision") {
             if (allowRemoteProvisioning) {
-                adi.provisionDevice(rinfo);
+                ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
+                provisioningSession.provision(dsId);
                 writeln("[>>] 200 OK");
                 ctx.response.setStatus(200);
             } else {
                 writeln("[>>] 403 Forbidden");
-                ctx.response.setStatus(403).setStatusText("Forbidden").flushHeaders();
+                ctx.response.setStatus(403).setStatusText("Forbidden");
             }
             return;
         }
 
         if (req.url != "") {
             writeln("[>>] 404 Not Found");
-            ctx.response.setStatus(404).setStatusText("Not Found").flushHeaders();
+            ctx.response.setStatus(404).setStatusText("Not Found");
             return;
         }
 
@@ -145,46 +176,31 @@ void main(string[] args) {
             import core.time;
             auto time = Clock.currTime();
 
-            ubyte[] mid;
-            ubyte[] otp;
-            try {
-                adi.getOneTimePassword(mid, otp);
-            } catch (AnisetteException exception) {
-                if (exception.anisetteError() != AnisetteError.notProvisioned) {
-                    throw exception;
-                }
-
-                writeln("Machine wasn't provisioned??");
-                adi.provisionDevice(rinfo);
-                adi.getOneTimePassword(mid, otp); // if it rethrows an error, we can't do much anyway.
-            }
+            auto otp = adi.requestOTP(dsId);
 
             import std.conv;
             import std.json;
 
             JSONValue response = [
                 "X-Apple-I-Client-Time": time.toISOExtString.split('.')[0] ~ "Z",
-                "X-Apple-I-MD":  Base64.encode(otp),
-                "X-Apple-I-MD-M": Base64.encode(mid),
-                "X-Apple-I-MD-RINFO": to!string(rinfo),
-                "X-Apple-I-MD-LU": adi.localUserUUID,
-                "X-Apple-I-SRL-NO": adi.serialNo,
-                "X-MMe-Client-Info": adi.clientInfo,
+                "X-Apple-I-MD":  Base64.encode(otp.oneTimePassword),
+                "X-Apple-I-MD-M": Base64.encode(otp.machineIdentifier),
+                "X-Apple-I-MD-RINFO": to!string(17106176),
+                "X-Apple-I-MD-LU": device.localUserUUID,
+                "X-Apple-I-SRL-NO": "0",
+                "X-MMe-Client-Info": device.serverFriendlyDescription,
                 "X-Apple-I-TimeZone": time.timezone.dstName,
                 "X-Apple-Locale": "en_US",
-                "X-Mme-Device-Id": adi.deviceId,
+                "X-Mme-Device-Id": device.uniqueDeviceIdentifier,
             ];
-            ctx.response.addHeader("Content-Type", "application/json");
-            ctx.response.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes));
-
+            ctx.response.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes), "application/json");
             writefln!"[>>] 200 OK %s"(response);
-            ctx.response.okResponse();
         } catch(Throwable t) {
             string exception = t.toString();
             writeln("Encountered an error: ", exception);
             writeln("[>>] 500 Internal Server Error");
             ctx.response.writeBodyString(exception);
-            ctx.response.setStatus(500).setStatusText("Internal Server Error").flushHeaders();
+            ctx.response.setStatus(500).setStatusText("Internal Server Error");
         }
     }, serverConfig);
 
