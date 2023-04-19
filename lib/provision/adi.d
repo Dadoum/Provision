@@ -1,6 +1,7 @@
 module provision.adi;
 
 import provision.androidlibrary;
+import provision.compat.general;
 import std.base64;
 import std.conv;
 import std.digest.sha;
@@ -32,20 +33,20 @@ alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 
 public class ADI {
-    private ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
-    private ADISetAndroidID_t pADISetAndroidID;
-    private ADISetProvisioningPath_t pADISetProvisioningPath;
+    package ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
+    package ADISetAndroidID_t pADISetAndroidID;
+    package ADISetProvisioningPath_t pADISetProvisioningPath;
 
-    private ADIProvisioningErase_t pADIProvisioningErase;
-    private ADISynchronize_t pADISynchronize;
-    private ADIProvisioningDestroy_t pADIProvisioningDestroy;
-    private ADIProvisioningEnd_t pADIProvisioningEnd;
-    private ADIProvisioningStart_t pADIProvisioningStart;
-    private ADIGetLoginCode_t pADIGetLoginCode;
-    private ADIDispose_t pADIDispose;
-    private ADIOTPRequest_t pADIOTPRequest;
+    package ADIProvisioningErase_t pADIProvisioningErase;
+    package ADISynchronize_t pADISynchronize;
+    package ADIProvisioningDestroy_t pADIProvisioningDestroy;
+    package ADIProvisioningEnd_t pADIProvisioningEnd;
+    package ADIProvisioningStart_t pADIProvisioningStart;
+    package ADIGetLoginCode_t pADIGetLoginCode;
+    package ADIDispose_t pADIDispose;
+    package ADIOTPRequest_t pADIOTPRequest;
 
-    private AndroidLibrary* storeServicesCore;
+    private AndroidLibrary storeServicesCore;
 
     private string __provisioningPath;
     public string provisioningPath() {
@@ -67,6 +68,12 @@ public class ADI {
         pADISetAndroidID(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
     }
 
+    ~this() {
+        if (storeServicesCore) {
+            destroy(storeServicesCore);
+        }
+    }
+
     public this(string libraryPath) {
         string storeServicesCorePath = libraryPath.buildPath("libstoreservicescore.so");
         if (!file.exists(storeServicesCorePath)) {
@@ -76,7 +83,7 @@ public class ADI {
         this(libraryPath, new AndroidLibrary(storeServicesCorePath));
     }
 
-    public this(string libraryPath, AndroidLibrary* storeServicesCore) {
+    public this(string libraryPath, AndroidLibrary storeServicesCore) {
         this.storeServicesCore = storeServicesCore;
 
         // We are loading the symbols from the ELF library from their name.
@@ -109,13 +116,17 @@ public class ADI {
 
         loadLibrary(libraryPath);
 
+        debug {
+            stderr.writeln("Second calls...");
+        }
+
         // We are setting those to be sure to have the same value in the class (used in getter) and the real one in ADI.
         provisioningPath = "/";
         identifier = "0000000000000000";
     }
 
     public void loadLibrary(string libraryPath) {
-        pADILoadLibraryWithPath(libraryPath.toStringz).unwrapADIError();
+        sysvCall!pADILoadLibraryWithPath(libraryPath.toStringz).unwrapADIError();
     }
 
     public void eraseProvisioning(ulong dsId) {

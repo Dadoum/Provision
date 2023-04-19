@@ -13,6 +13,7 @@ import std.mmfile;
 import std.net.curl;
 import std.parallelism;
 import std.path;
+import process = std.process;
 import std.range;
 import std.stdio;
 import std.zip;
@@ -51,7 +52,17 @@ int main(string[] args) {
     writeln(mkcassetteBranding, " v", mkcassetteVersion);
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
-    string configurationPath = expandTilde("~/.config/Provision");
+    version (Windows) {
+        string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
+    } else {
+        string configurationPath;
+        string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
+        if (xdgConfigPath) {
+            configurationPath = xdgConfigPath.buildPath("Provision");
+        } else {
+            configurationPath = expandTilde("~/.config/Provision/");
+        }
+    }
     string outputFile = "./otp-file.acs";
     ulong days = 90;
     bool onlyInit = false;

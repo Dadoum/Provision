@@ -1,0 +1,10 @@
+the files in this folder has been taken from LDC2 import folder and have been modified to be small and cross-platform.
+
+compiler information :
+
+LDC - the LLVM D compiler (1.30.0):
+  based on DMD v2.100.1 and LLVM 14.0.5
+  built with LDC - the LLVM D compiler (1.30.0)
+  Default target: x86_64-redhat-linux-gnu
+  Host CPU: skylake
+  http://dlang.org - http://wiki.dlang.org/LDC

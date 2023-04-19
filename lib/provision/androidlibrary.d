@@ -5,8 +5,6 @@ import core.memory;
 import core.stdc.errno;
 import core.stdc.stdint;
 import core.stdc.stdlib;
-import core.sys.linux.elf;
-import core.sys.linux.link;
 import core.sys.posix.sys.mman;
 import std.algorithm;
 import std.conv;
@@ -22,7 +20,11 @@ import std.stdio;
 import std.string;
 import std.traits;
 
-public struct AndroidLibrary {
+import standard.elf;
+import standard.link;
+import provision.compat.windows;
+
+public class AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
 
@@ -30,6 +32,7 @@ public struct AndroidLibrary {
     package char[] dynamicStringTable;
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
+    package AndroidLibrary[] loadedLibraries;
 
     public void*[string] hooks;
 
@@ -72,16 +75,9 @@ public struct AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        auto mmapped_alloc = mmap(null, allocSize, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANON, -1, 0);
-        if (mmapped_alloc == MAP_FAILED) {
-            throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
-        }
-        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = &this;
-        debug {
-            stderr.writefln("Allocating %x - %x for %s", cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
-        }
-        allocation = mmapped_alloc[0..allocSize];
+        allocation = MmapAllocator.instance.allocate(allocSize);
+        memoryTable[MemoryBlock(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize)] = this;
+        debug stderr.writefln("Allocating %x - %x for %s", cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize, libraryName);
 
         size_t fileStart;
         size_t fileEnd;
@@ -139,12 +135,14 @@ public struct AndroidLibrary {
     }
 
     ~this() {
+        foreach (library; loadedLibraries) {
+            destroy(library);
+        }
+
         if (allocation) {
-            munmap(allocation.ptr, allocation.length);
+            MmapAllocator.instance.deallocate(allocation);
         }
     }
-
-    @disable this(this);
 
     public void relocate() {
         foreach (relocationSection; relocationSections) {
@@ -224,7 +222,7 @@ public struct AndroidLibrary {
     void* load(string symbolName) {
         ElfW!"Sym" sym;
         if (hashTable) {
-            sym = hashTable.lookup(symbolName, &this);
+            sym = hashTable.lookup(symbolName, this);
         } else {
             foreach (symbol; dynamicSymbolTable) {
                 if (getSymbolName(symbol) == symbolName) {
@@ -242,8 +240,8 @@ private struct MemoryBlock {
     size_t end;
 }
 
-private __gshared AndroidLibrary*[MemoryBlock] memoryTable;
-AndroidLibrary* memoryOwner(size_t address) {
+private __gshared AndroidLibrary[MemoryBlock] memoryTable;
+AndroidLibrary memoryOwner(size_t address) {
     foreach(memoryBlock; memoryTable.keys()) {
         if (address > memoryBlock.start && address < memoryBlock.end) {
             return memoryTable[memoryBlock];
@@ -253,16 +251,37 @@ AndroidLibrary* memoryOwner(size_t address) {
     return null;
 }
 
-import core.sys.linux.execinfo;
-pragma(inline, true) AndroidLibrary* rootLibrary() {
-    enum MAXFRAMES = 4;
-    void*[MAXFRAMES] callstack;
-    auto numframes = backtrace(callstack.ptr, MAXFRAMES);
-    return memoryOwner(cast(size_t) callstack[numframes - 1]);
+version (linux) {
+    import core.sys.linux.execinfo;
+    pragma(inline, true) AndroidLibrary rootLibrary() {
+        enum MAXFRAMES = 4;
+        void*[MAXFRAMES] callstack;
+        auto numframes = backtrace(callstack.ptr, MAXFRAMES);
+        return memoryOwner(cast(size_t) callstack[numframes - 1]);
+    }
+} else version (Windows) {
+    version (LDC) { // Seems to work consistently, but LLVM only.
+        pragma(LDC_intrinsic, "llvm.returnaddress")
+        ubyte* return_address(int);
+
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary(ubyte* address = return_address(0)) {
+            assert(address != null);
+            return memoryOwner(cast(size_t) address);
+        }
+    } else { // Works on a real Windows machine, but not Wine
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary() {
+            auto callstack = StackTrace.trace();
+            auto address = cast(size_t) callstack[$ - 1];
+            assert(address != 0);
+            return memoryOwner(address);
+        }
+    }
 }
 
 interface SymbolHashTable {
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library);
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library);
 }
 
 package class ElfHashTable: SymbolHashTable {
@@ -295,7 +314,7 @@ package class ElfHashTable: SymbolHashTable {
         return h & 0xfffffff;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
 
         scope ElfW!"Sym" symbol;
@@ -343,7 +362,7 @@ package class GnuHashTable: SymbolHashTable {
         return h;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
         auto bucket = buckets[targetHash % table.nbuckets];
 

@@ -6,6 +6,7 @@ import std.conv: to;
 import std.format;
 import std.path;
 import file = std.file;
+import process = std.process;
 import std.stdio;
 import provision;
 
@@ -22,7 +23,18 @@ version (X86_64) {
 }
 
 int main(string[] args) {
-    string configurationPath = expandTilde("~/.config/Provision/");
+    version (Windows) {
+        string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
+    } else {
+        string configurationPath;
+        string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
+        if (xdgConfigPath) {
+            configurationPath = xdgConfigPath.buildPath("Provision");
+        } else {
+            configurationPath = expandTilde("~/.config/Provision/");
+        }
+    }
+
     if (!file.exists(configurationPath)) {
         file.mkdir(configurationPath);
     }
