@@ -1,10 +1,6 @@
 name: ARM builds
 
-on:
-  push:
-    branches: [ "main", "develop" ]
-  pull_request:
-    branches: [ "main", "develop" ]
+on: push
 
 env:
   BUILD_TYPE: Release

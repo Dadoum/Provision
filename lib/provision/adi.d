@@ -1,13 +1,14 @@
 module provision.adi;
 
-import provision.android.id;
 import provision.androidlibrary;
 import std.base64;
 import std.conv;
 import std.digest.sha;
-import std.file;
+import file = std.file;
 import std.format;
+import std.json;
 import std.net.curl;
+import std.path;
 import std.stdio;
 import std.string;
 
@@ -21,9 +22,8 @@ version (LibPlist) {
 alias ADILoadLibraryWithPath_t = extern(C) int function(const char*);
 alias ADISetAndroidID_t = extern(C) int function(const char*, uint);
 alias ADISetProvisioningPath_t = extern(C) int function(const char*);
-
 alias ADIProvisioningErase_t = extern(C) int function(ulong);
-alias ADISynchronize_t = extern(C) int function(uint, ubyte*, uint, ubyte**, uint*, ubyte**, uint*);
+alias ADISynchronize_t = extern(C) int function(ulong, ubyte*, uint, ubyte**, uint*, ubyte**, uint*);
 alias ADIProvisioningDestroy_t = extern(C) int function(uint);
 alias ADIProvisioningEnd_t = extern(C) int function(uint, ubyte*, uint, ubyte*, uint);
 alias ADIProvisioningStart_t = extern(C) int function(ulong, ubyte*, uint, ubyte**, uint*, uint*);
@@ -31,163 +31,347 @@ alias ADIGetLoginCode_t = extern(C) int function(ulong);
 alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 
-version (X86_64) {
-    enum string architectureIdentifier = "x86_64";
-} else version (X86) {
-    enum string architectureIdentifier = "x86";
-} else version (AArch64) {
-    enum string architectureIdentifier = "arm64-v8a";
-} else version (ARM) {
-    enum string architectureIdentifier = "armeabi-v7a";
-} else {
-    static assert(false, "Architecture not supported :(");
-}
-enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
+public class ADI {
+    private ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
+    private ADISetAndroidID_t pADISetAndroidID;
+    private ADISetProvisioningPath_t pADISetProvisioningPath;
 
-@nogc public struct ADI {
-    private string path;
-    private ulong dsId;
+    private ADIProvisioningErase_t pADIProvisioningErase;
+    private ADISynchronize_t pADISynchronize;
+    private ADIProvisioningDestroy_t pADIProvisioningDestroy;
+    private ADIProvisioningEnd_t pADIProvisioningEnd;
+    private ADIProvisioningStart_t pADIProvisioningStart;
+    private ADIGetLoginCode_t pADIGetLoginCode;
+    private ADIDispose_t pADIDispose;
+    private ADIOTPRequest_t pADIOTPRequest;
+
+    private AndroidLibrary storeServicesCore;
+
+    private string __provisioningPath;
+    public string provisioningPath() {
+        return __provisioningPath;
+    }
+
+    public void provisioningPath(string path) {
+        __provisioningPath = path;
+        pADISetProvisioningPath(path.toStringz).unwrapADIError();
+    }
 
     private string __identifier;
-    private string[string] urlBag;
-
-    AndroidLibrary* libstoreservicescore;
-
-    ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
-    ADISetAndroidID_t pADISetAndroidID;
-    ADISetProvisioningPath_t pADISetProvisioningPath;
-
-    ADIProvisioningErase_t pADIProvisioningErase;
-    ADISynchronize_t pADISynchronize;
-    ADIProvisioningDestroy_t pADIProvisioningDestroy;
-    ADIProvisioningEnd_t pADIProvisioningEnd;
-    ADIProvisioningStart_t pADIProvisioningStart;
-    ADIGetLoginCode_t pADIGetLoginCode;
-    ADIDispose_t pADIDispose;
-    ADIOTPRequest_t pADIOTPRequest;
-
-    string __clientInfo = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
-    public @property string clientInfo() {
-        return __clientInfo;
-    }
-
-    public @property void clientInfo(string value) {
-        __clientInfo = value;
-    }
-
-    string __serialNo = "0";
-    public @property string serialNo() {
-        return __serialNo;
-    }
-
-    public @property void serialNo(string value) {
-        __serialNo = value;
-    }
-
-    public @property string provisionPath() {
-        return this.path;
-    }
-
-    public void identifier(string value) {
-        pADISetAndroidID(/+identifierStr+/ value.toStringz, /+length+/ cast(uint) value.length);
-        __identifier = value;
-    }
-
     public string identifier() {
         return __identifier;
     }
 
-    public @property string deviceId() {
-        return sha1Of(this.identifier).toHexString().toUpper().dup();
+    public void identifier(string identifier) {
+        __identifier = identifier;
+        pADISetAndroidID(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
     }
 
-    public @property string localUserUUID() {
-        return sha256Of(this.identifier).toHexString().toUpper().dup();
-    }
-
-    @disable this();
-
-    public this(string provisioningPath, char[] identifier = null) {
-        if (!exists(libraryPath ~ "libstoreservicescore.so")) {
-            throw new FileException(libraryPath ~ "libstoreservicescore.so", "Apple libraries are not installed correctly. Refer to README for instructions. ");
+    public this(string libraryPath) {
+        string storeServicesCorePath = libraryPath.buildPath("libstoreservicescore.so");
+        if (!file.exists(storeServicesCorePath)) {
+            throw new file.FileException(storeServicesCorePath);
         }
 
-        this.libstoreservicescore = new AndroidLibrary(libraryPath ~ "libstoreservicescore.so");
+        this(libraryPath, new AndroidLibrary(storeServicesCorePath));
+    }
+
+    public this(string libraryPath, AndroidLibrary storeServicesCore) {
+        this.storeServicesCore = storeServicesCore;
+
+        // We are loading the symbols from the ELF library from their name.
+        // Those has been obfuscated but they keep a consistent obfuscated name, like a hash function would.
 
         debug {
             stderr.writeln("Loading Android-specific symbols...");
         }
 
-        this.pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) libstoreservicescore.load("kq56gsgHG6");
-        this.pADISetAndroidID = cast(ADISetAndroidID_t) libstoreservicescore.load("Sph98paBcz");
-        this.pADISetProvisioningPath = cast(ADISetProvisioningPath_t) libstoreservicescore.load("nf92ngaK92");
+        pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) storeServicesCore.load("kq56gsgHG6");
+        pADISetAndroidID = cast(ADISetAndroidID_t) storeServicesCore.load("Sph98paBcz");
+        pADISetProvisioningPath = cast(ADISetProvisioningPath_t) storeServicesCore.load("nf92ngaK92");
 
         debug {
             stderr.writeln("Loading ADI symbols...");
         }
 
-        this.pADIProvisioningErase = cast(ADIProvisioningErase_t) libstoreservicescore.load("p435tmhbla");
-        this.pADISynchronize = cast(ADISynchronize_t) libstoreservicescore.load("tn46gtiuhw");
-        this.pADIProvisioningDestroy = cast(ADIProvisioningDestroy_t) libstoreservicescore.load("fy34trz2st");
-        this.pADIProvisioningEnd = cast(ADIProvisioningEnd_t) libstoreservicescore.load("uv5t6nhkui");
-        this.pADIProvisioningStart = cast(ADIProvisioningStart_t) libstoreservicescore.load("rsegvyrt87");
-        this.pADIGetLoginCode = cast(ADIGetLoginCode_t) libstoreservicescore.load("aslgmuibau");
-        this.pADIDispose = cast(ADIDispose_t) libstoreservicescore.load("jk24uiwqrg");
-        this.pADIOTPRequest = cast(ADIOTPRequest_t) libstoreservicescore.load("qi864985u0");
+        pADIProvisioningErase = cast(ADIProvisioningErase_t) storeServicesCore.load("p435tmhbla");
+        pADISynchronize = cast(ADISynchronize_t) storeServicesCore.load("tn46gtiuhw");
+        pADIProvisioningDestroy = cast(ADIProvisioningDestroy_t) storeServicesCore.load("fy34trz2st");
+        pADIProvisioningEnd = cast(ADIProvisioningEnd_t) storeServicesCore.load("uv5t6nhkui");
+        pADIProvisioningStart = cast(ADIProvisioningStart_t) storeServicesCore.load("rsegvyrt87");
+        pADIGetLoginCode = cast(ADIGetLoginCode_t) storeServicesCore.load("aslgmuibau");
+        pADIDispose = cast(ADIDispose_t) storeServicesCore.load("jk24uiwqrg");
+        pADIOTPRequest = cast(ADIOTPRequest_t) storeServicesCore.load("qi864985u0");
 
         debug {
             stderr.writeln("First calls...");
         }
 
-        pADILoadLibraryWithPath(/+path+/ libraryPath.toStringz);
+        loadLibrary(libraryPath);
 
-        this.path = provisioningPath;
-        pADISetProvisioningPath(/+path+/ path.toStringz);
+        // We are setting those to be sure to have the same value in the class (used in getter) and the real one in ADI.
+        provisioningPath = "/";
+        identifier = "0000000000000000";
+    }
 
-        if (identifier == null)
-            this.identifier = cast(string) genAndroidId();
-        else
-            this.identifier = cast(string) identifier;
-
-        debug {
-            stderr.writeln("Setting fields...");
-        }
-
-        dsId = -2;
-
-        debug {
-            stderr.writeln("Ctor done !");
+    ~this() {
+        if (storeServicesCore) {
+            destroy(storeServicesCore);
         }
     }
 
-    private HTTP makeHttpClient() {
-        auto client = HTTP();
-
-        client.setUserAgent("iCloud.exe (unknown version) CFNetwork/520.44.6");
-        client.handle.set(CurlOption.ssl_verifypeer, 0);
-
-        // debug {
-        //     client.handle.set(CurlOption.verbose, 1);
-        // }
-        client.addRequestHeader("Accept", "*/*");
-        client.addRequestHeader("Content-Type", "text/x-xml-plist");
-        client.addRequestHeader("Accept-Language", "en");
-        client.addRequestHeader("Accept-Encoding", "gzip, deflate");
-        client.addRequestHeader("Connection", "keep-alive");
-        client.addRequestHeader("Proxy-Connection", "keep-alive");
-
-        return client;
+    public void loadLibrary(string libraryPath) {
+        pADILoadLibraryWithPath(libraryPath.toStringz).unwrapADIError();
     }
 
-    private void populateUrlBag(HTTP client) {
-        auto content = cast(string) std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", client);
+    public void eraseProvisioning(ulong dsId) {
+        pADIProvisioningErase(dsId).unwrapADIError();
+    }
+
+    struct SynchronizationResumeMetadata {
+        public ubyte[] synchronizationResumeMetadata;
+        public ubyte[] machineIdentifier;
+        private ADI adi;
+
+        @disable this();
+        @disable this(this);
+
+        this(ADI adiInstance, ubyte* srm, uint srmLength, ubyte* mid, uint midLength) {
+            adi = adiInstance;
+            synchronizationResumeMetadata = srm[0..srmLength];
+            machineIdentifier = mid[0..midLength];
+        }
+
+        ~this() {
+            adi.dispose(synchronizationResumeMetadata.ptr);
+            adi.dispose(machineIdentifier.ptr);
+        }
+    }
+
+    public SynchronizationResumeMetadata synchronize(ulong dsId, ubyte[] serverIntermediateMetadata) {
+        ubyte* srm;
+        uint srmLength;
+        ubyte* mid;
+        uint midLength;
+
+        pADISynchronize(
+            dsId,
+            serverIntermediateMetadata.ptr,
+ cast(uint) serverIntermediateMetadata.length,
+            &mid,
+            &midLength,
+            &srm,
+            &srmLength
+        ).unwrapADIError();
+
+        return SynchronizationResumeMetadata(this, srm, srmLength, mid, midLength);
+    }
+
+    public void destroyProvisioning(uint session) {
+        pADIProvisioningDestroy(session).unwrapADIError();
+    }
+
+    public void endProvisioning(uint session, ubyte[] persistentTokenMetadata, ubyte[] trustKey) {
+        pADIProvisioningEnd(
+            session,
+            persistentTokenMetadata.ptr,
+ cast(uint) persistentTokenMetadata.length,
+            trustKey.ptr,
+ cast(uint) trustKey.length
+        ).unwrapADIError();
+    }
+
+    struct ClientProvisioningIntermediateMetadata {
+        public ubyte[] clientProvisioningIntermediateMetadata;
+        public uint session;
+        private ADI adi;
+
+        @disable this();
+        @disable this(this);
+
+        this(ADI adiInstance, ubyte* cpim, uint cpimLength, uint session) {
+            adi = adiInstance;
+            clientProvisioningIntermediateMetadata = cpim[0..cpimLength];
+            this.session = session;
+        }
+
+        ~this() {
+            adi.dispose(clientProvisioningIntermediateMetadata.ptr);
+        }
+    }
+
+    public ClientProvisioningIntermediateMetadata startProvisioning(ulong dsId, ubyte[] serverProvisioningIntermediateMetadata) {
+        ubyte* cpim;
+        uint cpimLength;
+        uint session;
+
+        pADIProvisioningStart(
+            dsId,
+            serverProvisioningIntermediateMetadata.ptr,
+ cast(uint) serverProvisioningIntermediateMetadata.length,
+            &cpim,
+            &cpimLength,
+            &session
+        ).unwrapADIError();
+
+        return ClientProvisioningIntermediateMetadata(this, cpim, cpimLength, session);
+    }
+
+    public bool isMachineProvisioned(ulong dsId) {
+        int errorCode = pADIGetLoginCode(dsId);
+
+        if (errorCode == 0) {
+            return true;
+        } else if (errorCode == -45061) {
+            return false;
+        }
+
+        throw new ADIException(errorCode);
+    }
+
+    public void dispose(void* ptr) {
+        pADIDispose(ptr).unwrapADIError();
+    }
+
+    struct OneTimePassword {
+        public ubyte[] oneTimePassword;
+        public ubyte[] machineIdentifier;
+        private ADI adi;
+
+        @disable this();
+        @disable this(this);
+
+        this(ADI adiInstance, ubyte* otp, uint otpLength, ubyte* mid, uint midLength) {
+            adi = adiInstance;
+            oneTimePassword = otp[0..otpLength];
+            machineIdentifier = mid[0..midLength];
+        }
+
+        ~this() {
+            adi.dispose(oneTimePassword.ptr);
+            adi.dispose(machineIdentifier.ptr);
+        }
+    }
+
+    public OneTimePassword requestOTP(ulong dsId) {
+        ubyte* otp;
+        uint otpLength;
+        ubyte* mid;
+        uint midLength;
+
+        pADIOTPRequest(
+            dsId,
+            &mid,
+            &midLength,
+            &otp,
+            &otpLength
+        ).unwrapADIError();
+
+        return OneTimePassword(this, otp, otpLength, mid, midLength);
+    }
+}
+
+public class Device {
+    JSONValue deviceData;
+
+    enum uniqueDeviceIdentifierJson = "UUID";
+    enum serverFriendlyDescriptionJson = "clientInfo";
+    enum adiIdentifierJson = "identifier";
+    enum localUserUUIDJson = "localUUID";
+
+    string uniqueDeviceIdentifier() { return deviceData[uniqueDeviceIdentifierJson].str(); }
+    string serverFriendlyDescription() { return deviceData[serverFriendlyDescriptionJson].str(); }
+    string adiIdentifier() { return deviceData[adiIdentifierJson].str(); }
+    // It is a value computed by AuthKit. On Windows, it takes the path to the home folder and hash every component in.
+    // We could do the same thing but anyway we can also just hash the ADI identifier, that's good too.
+    string localUserUUID() { return deviceData[localUserUUIDJson].str(); }
+
+    void uniqueDeviceIdentifier(string value) { deviceData[uniqueDeviceIdentifierJson] = value; write(); }
+    void serverFriendlyDescription(string value) { deviceData[serverFriendlyDescriptionJson] = value; write(); }
+    void adiIdentifier(string value) { deviceData[adiIdentifierJson] = value; write(); }
+    void localUserUUID(string value) { deviceData[localUserUUIDJson] = value; write(); }
+
+    // We could generate that, but we servers don't care so anyway
+    // string logicBoardSerialNumber;
+    // string romAddress;
+    // string machineSerialNumber;
+
+    bool initialized = false;
+    string path;
+
+    this(string filePath) {
+        path = filePath;
+        if (file.exists(path)) {
+            try {
+                JSONValue deviceFile = parseJSON(cast(char[]) file.read(filePath));
+                uniqueDeviceIdentifier = deviceFile[uniqueDeviceIdentifierJson].str();
+                serverFriendlyDescription = deviceFile[serverFriendlyDescriptionJson].str();
+                adiIdentifier = deviceFile[adiIdentifierJson].str();
+                localUserUUID = deviceFile[localUserUUIDJson].str();
+                initialized = true;
+            } catch (Throwable) { /+ do nothing +/ }
+        }
+    }
+
+    public void write(string path) {
+        this.path = path;
+        write();
+    }
+
+    public void write() {
+        if (path) {
+            file.write(path, deviceData.toString());
+            initialized = true;
+        }
+    }
+}
+
+public class ProvisioningSession {
+    private HTTP httpClient;
+    private string[string] urlBag;
+
+    private ADI adi;
+    private Device device;
+
+    public this(ADI adi, Device device) {
+        this.adi = adi;
+        this.device = device;
+
+        httpClient = HTTP();
+
+        httpClient.setUserAgent("akd/1.0 CFNetwork/1404.0.5 Darwin/22.3.0");
+        httpClient.handle.set(CurlOption.ssl_verifypeer, 0);
+
+        // they are somehow not using the plist content-type in AuthKit
+        httpClient.addRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        httpClient.addRequestHeader("Connection", "keep-alive");
+
+        httpClient.addRequestHeader("X-Mme-Device-Id", device.uniqueDeviceIdentifier);
+        // on macOS, MMe for the Client-Info header is written with 2 caps, while on Windows it is Mme...
+        // and HTTP headers are supposed to be case-insensitive in the HTTP spec...
+        httpClient.addRequestHeader("X-MMe-Client-Info", device.serverFriendlyDescription);
+        httpClient.addRequestHeader("X-Apple-I-MD-LU", device.localUserUUID);
+
+        // httpClient.addRequestHeader("X-Apple-I-MLB", device.logicBoardSerialNumber); // 17 letters, uppercase in Apple's base 34
+        // httpClient.addRequestHeader("X-Apple-I-ROM", device.romAddress); // 6 bytes, lowercase hexadecimal
+        // httpClient.addRequestHeader("X-Apple-I-SRL-NO", device.machineSerialNumber); // 12 letters, uppercase
+
+        // different apps can be used, I already saw fmfd and Setup here
+        // and Reprovision uses Xcode in some requests, so maybe it is possible here too.
+        httpClient.addRequestHeader("X-Apple-Client-App-Name", "Setup");
+    }
+
+    public void loadURLBag() {
+        string content = cast(string) std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", httpClient);
 
         version (LibPlist) {
             PlistDict plist = cast(PlistDict) Plist.fromXml(content);
             auto response = cast(PlistDict) plist["urls"];
             auto responseIter = response.iter();
+
             Plist val;
             string key;
+
             while (responseIter.next(val, key)) {
                 urlBag[key] = cast(string) cast(PlistString) val;
             }
@@ -202,14 +386,15 @@ enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
         }
     }
 
-    private ubyte[] downloadSPIM(HTTP client) {
+    public void provision(ulong dsId) {
+        if (urlBag.length == 0) {
+            loadURLBag();
+        }
+
         import std.datetime.systime;
-        auto time = Clock.currTime();
 
-        client.addRequestHeader("X-Apple-I-Client-Time", time.toISOExtString());
-        client.addRequestHeader("X-Apple-I-TimeZone", time.timezone().dstName);
-
-        string content = cast(string) post(urlBag["midStartProvisioning"],
+        httpClient.addRequestHeader("X-Apple-I-Client-Time", Clock.currTime().toISOExtString());
+        string startProvisioningPlist = cast(string) post(urlBag["midStartProvisioning"],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
@@ -219,26 +404,29 @@ enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
 \t<key>Request</key>
 \t<dict/>
 </dict>
-</plist>
-", client);
+</plist>", httpClient);
 
-        string spimStr;
-        version (LibPlist) {
-            auto spimPlist = cast(PlistDict) Plist.fromXml(content);
-            auto spimResponse = cast(PlistDict) spimPlist["Response"];
-            spimStr = cast(string) cast(PlistString) spimResponse["spim"];
-        } else {
-            Plist spimPlist = new Plist();
-            spimPlist.read(content);
-            PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (spimPlist[0]))["Response"];
-            spimStr = (cast(PlistElementString) spimResponse["spim"]).value;
+        scope string spimStr;
+        {
+            version (LibPlist) {
+                scope auto spimPlist = cast(PlistDict) Plist.fromXml(startProvisioningPlist);
+                scope auto spimResponse = cast(PlistDict) spimPlist["Response"];
+                spimStr = cast(string) cast(PlistString) spimResponse["spim"];
+            } else {
+                Plist spimPlist = new Plist();
+                spimPlist.read(startProvisioningPlist);
+                PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (spimPlist[0]))["Response"];
+                spimStr = (cast(PlistElementString) spimResponse["spim"]).value;
+            }
         }
 
-        return Base64.decode(spimStr);
-    }
+        scope ubyte[] spim = Base64.decode(spimStr);
 
-    auto sendCPIM(HTTP client, ubyte[] cpim) {
-        string body_ = format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        scope auto cpim = adi.startProvisioning(dsId, spim);
+        scope (failure) adi.destroyProvisioning(cpim.session);
+
+        httpClient.addRequestHeader("X-Apple-I-Client-Time", Clock.currTime().toISOExtString());
+        string endProvisioningPlist = cast(string) post(urlBag["midFinishProvisioning"], format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
 <dict>
@@ -250,244 +438,151 @@ enum string libraryPath = "lib/" ~ architectureIdentifier ~ "/";
 \t\t<string>%s</string>
 \t</dict>
 </dict>
-</plist>
-"(Base64.encode(cpim));
+</plist>"(Base64.encode(cpim.clientProvisioningIntermediateMetadata)), httpClient);
 
-        import std.datetime.systime;
-        auto time = Clock.currTime();
+        scope ulong routingInformation;
+        scope ubyte[] persistentTokenMetadata;
+        scope ubyte[] trustKey;
 
-        client.addRequestHeader("X-Apple-I-Client-Time", time.toISOExtString());
-        client.addRequestHeader("X-Apple-I-TimeZone", time.timezone().dstName);
+        {
+            version (LibPlist) {
+                scope PlistDict plist = cast(PlistDict) Plist.fromXml(endProvisioningPlist);
+                scope PlistDict spimResponse = cast(PlistDict) plist["Response"];
+                routingInformation = to!ulong(cast(string) cast(PlistString) spimResponse["X-Apple-I-MD-RINFO"]);
+                persistentTokenMetadata = Base64.decode(cast(string) cast(PlistString) spimResponse["ptm"]);
+                trustKey = Base64.decode(cast(string) cast(PlistString) spimResponse["tk"]);
+            } else {
+                scope Plist plist = new Plist();
+                plist.read(endProvisioningPlist);
+                scope PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (plist[0]))["Response"];
 
-        string content = cast(string) post(urlBag["midFinishProvisioning"],
-        body_, client);
-
-        struct SecondStepAnswers {
-            string rinfo;
-            ubyte[] tk;
-            ubyte[] ptm;
+                routingInformation = to!ulong((cast(PlistElementString) spimResponse["X-Apple-I-MD-RINFO"]).value);
+                persistentTokenMetadata = Base64.decode((cast(PlistElementString) spimResponse["ptm"]).value);
+                trustKey = Base64.decode((cast(PlistElementString) spimResponse["tk"]).value);
+            }
         }
 
-        SecondStepAnswers secondStepAnswers = SecondStepAnswers();
-
-        version (LibPlist) {
-            PlistDict plist = cast(PlistDict) Plist.fromXml(content);
-            PlistDict spimResponse = cast(PlistDict) plist["Response"];
-            secondStepAnswers.rinfo = cast(string) cast(PlistString) spimResponse["X-Apple-I-MD-RINFO"];
-            secondStepAnswers.tk = Base64.decode(cast(string) cast(PlistString) spimResponse["tk"]);
-            secondStepAnswers.ptm = Base64.decode(cast(string) cast(PlistString) spimResponse["ptm"]);
-        } else {
-            Plist plist = new Plist();
-            plist.read(content);
-            PlistElementDict spimResponse = cast(PlistElementDict) (cast(PlistElementDict) (plist[0]))["Response"];
-
-            secondStepAnswers.rinfo = (cast(PlistElementString) spimResponse["X-Apple-I-MD-RINFO"]).value;
-            secondStepAnswers.tk = Base64.decode((cast(PlistElementString) spimResponse["tk"]).value);
-            secondStepAnswers.ptm = Base64.decode((cast(PlistElementString) spimResponse["ptm"]).value);
-        }
-
-        return secondStepAnswers;
-    }
-
-    public bool isMachineProvisioned() {
-        debug {
-            stderr.writeln("isMachineProvisioned called !");
-        }
-
-        int loginCode = pADIGetLoginCode(dsId);
-
-        debug {
-            stderr.writefln("isMachineProvisioned -> %d", loginCode);
-        }
-
-        if (loginCode == 0) {
-            return true;
-        } else if (loginCode == -45061) {
-            return false;
-        }
-        throw new AnisetteException(loginCode);
-    }
-
-    public void provisionDevice(out ulong routingInformation) {
-        debug {
-            stderr.writeln("provisionDevice called !");
-        }
-        auto client = makeHttpClient();
-
-        client.addRequestHeader("X-Mme-Client-Info", clientInfo);
-        client.addRequestHeader("X-Mme-Device-Id", deviceId);
-        client.addRequestHeader("X-Apple-I-MD-LU", localUserUUID);
-        client.addRequestHeader("X-Apple-I-SRL-NO", serialNo);
-
-        debug {
-            stderr.writeln("First request... (urlBag)");
-        }
-
-        populateUrlBag(client);
-
-        debug {
-            stderr.writeln("Erasing provisioning...");
-        }
-
-        pADIProvisioningErase(dsId);
-
-        debug {
-            stderr.writeln("Second request... (spim)");
-        }
-
-        ubyte[] spim = downloadSPIM(client);
-
-        ubyte* cpimPtr;
-        uint l;
-
-        uint session;
-
-        debug {
-            stderr.writeln("Start provisioning...");
-        }
-
-        int ret = pADIProvisioningStart(
-            /+dsId+/ dsId,
-            /+spim ptr+/ spim.ptr,
-            /+spim length+/ cast(uint) spim.length,
-            /+(out) cpim ptr+/ &cpimPtr,
-            /+(out) cpim length+/ &l,
-            /+(out) session+/ &session
-        );
-
-        if (ret)
-            throw new AnisetteException(ret);
-
-        ubyte[] cpim = cpimPtr[0..l];
-
-        debug {
-            stderr.writeln("Third request... (ptm & tk)");
-        }
-
-        auto secondStep = sendCPIM(client, cpim);
-        routingInformation = to!ulong(secondStep.rinfo);
-
-        debug {
-            stderr.writeln("End provisioning...");
-        }
-
-        ret = pADIProvisioningEnd(
-            session,
-            secondStep.ptm.ptr,
-            cast(uint) secondStep.ptm.length,
-            secondStep.tk.ptr,
-            cast(uint) secondStep.tk.length
-        );
-
-        if (ret)
-            throw new AnisetteException(ret);
-
-
-        debug {
-            stderr.writeln("Cleanup...");
-        }
-
-        ret = pADIDispose(cpimPtr);
-
-        if (ret)
-            throw new AnisetteException(ret);
-    }
-
-    public void getOneTimePassword(bool writeMachineId = true)(out ubyte[] machineId, out ubyte[] oneTimePassword) {
-        debug {
-            stderr.writeln("getOneTimePassword called !");
-        }
-
-        ubyte* midPtr;
-        uint midLen;
-        ubyte* otpPtr;
-        uint otpLen;
-
-        auto ret = pADIOTPRequest(
-            /+accountID+/ dsId,
-            /+(out) machineID+/ &midPtr, // X-Apple-I-MD-M
-            /+(out) machineID length+/ &midLen,
-            /+(out) oneTimePW+/ &otpPtr, // X-Apple-I-MD
-            /+(out) oneTimePW length+/ &otpLen,
-        );
-
-        debug {
-            stderr.writefln("getOneTimePassword -> %d", ret);
-        }
-
-        if (ret)
-            throw new AnisetteException(ret);
-
-        static if (writeMachineId) {
-            machineId = midPtr[0..midLen].dup;
-        }
-        oneTimePassword = otpPtr[0..otpLen].dup;
-
-        debug {
-            stderr.writeln("Cleaning up...");
-        }
-
-        ret = pADIDispose(midPtr);
-
-        if (ret)
-            throw new AnisetteException(ret);
-
-        ret = pADIDispose(otpPtr);
-
-        if (ret)
-            throw new AnisetteException(ret);
-    }
-
-    public void getRoutingInformation(out ulong routingInfo) {
-        debug {
-            stderr.writeln("getRoutingInformation ignored");
-        }
-
-        routingInfo = 17106176;
+        adi.endProvisioning(cpim.session, persistentTokenMetadata, trustKey);
     }
 }
 
-public class AnisetteException: Exception {
+void unwrapADIError(int error, string file = __FILE__, size_t line = __LINE__) {
+    if (error) {
+        throw new ADIException(error, file, line);
+    }
+}
+
+enum ADIError: int {
+    invalidParams = -45001,
+    invalidParams2 = -45002,
+    invalidTrustKey = -45003,
+    ptmTkNotMatchingState = -45006,
+    invalidInputDataParamHeader = -45018,
+    unknownAdiFunction = -45019,
+    invalidInputDataParamBody = -45020,
+    unknownSession = -45025,
+    emptySession = -45026,
+    invalidDataHeader = -45031,
+    dataTooShort = -45032,
+    invalidDataBody = -45033,
+    unknownADICallFlags = -45034,
+    timeError = -45036,
+    emptyHardwareIds = -45046,
+    filesystemError = -45054,
+    notProvisioned = -45061,
+    noProvisioningToErase = -45062,
+    pendingSession = -45063,
+    sessionAlreadyDone = -45066,
+    libraryLoadingFailed = -45075,
+}
+
+string toString(ADIError error) {
+    string formatString;
+    switch (cast(int) error) {
+        case -45001:
+            formatString = "invalid parameters (%d)";
+            break;
+        case -45002:
+            formatString = "invalid parameters (for decipher) (%d)";
+            break;
+        case -45003:
+            formatString = "invalid Trust Key (%d)";
+            break;
+        case -45006:
+            formatString = "ptm and tk are not matching the transmitted cpim (%d)";
+            break;
+        // -45017: exists (observed: iOS), unknown meaning
+        case -45018:
+            formatString = "invalid input data header (first uint) (pointer is correct tho) (%d)";
+            break;
+        case -45019:
+            formatString = "vdfut768ig doesn't know the asked function (%d)";
+            break;
+        case -45020:
+            formatString = "invalid input data (not the first uint) (%d)";
+            break;
+        case -45025:
+            formatString = "unknown session (%d)";
+            break;
+        case -45026:
+            formatString = "empty session (%d)";
+            break;
+        case -45031:
+            formatString = "invalid data (header) (%d)";
+            break;
+        case -45032:
+            formatString = "data too short (%d)";
+            break;
+        case -45033:
+            formatString = "invalid data (body) (%d)";
+            break;
+        case -45034:
+            formatString = "unknown ADI call flags (%d)";
+            break;
+        case -45036:
+            formatString = "time error (%d)";
+            break;
+        // -45044: exists (observed: macOS iTunes, from Google), unknown meaning
+        // -45045: probably a typo of -45054
+        case -45046:
+            formatString = "identifier generation failure: empty hardware ids (%d)";
+            break;
+        // -45048: exists (observed: windows iTunes, from Google), unknown meaning, resolved by adi file suppression
+        case -45054:
+            formatString = "generic libc/file manipulation error (%d)";
+            break;
+        case -45061:
+            formatString = "not provisioned (%d)";
+            break;
+        case -45062:
+            formatString = "cannot erase provisioning: not provisioned (%d)";
+            break;
+        case -45063:
+            formatString = "provisioning first step is already pending (%d)";
+            break;
+        case -45066:
+            formatString = "2nd step fail: session already consumed (%d)";
+            break;
+        case -45075:
+            formatString = "library loading error (%d)";
+            break;
+        // -45076: exists (observed: macOS iTunes, from Google), unknown meaning, seems related to backward compatibility between 12.6.x and 12.7
+        default:
+            formatString = "unknown ADI error (%d)";
+            break;
+    }
+    return format(formatString, error);
+}
+
+public class ADIException: Exception {
+    private ADIError errorCode;
+
     this(int error, string file = __FILE__, size_t line = __LINE__) {
-        super(format!"ADI error: %s."(translateADIErrorCode(error)), file, line);
-    }
-}
-
-enum knownErrorCodes = [
-    -45001: "invalid parameters",
-    -45002: "invalid parameters (for decipher)",
-    -45003: "invalid Trust Key",
-    -45006: "ptm and tk are not matching the transmitted cpim",
-    // -45017: exists (observed: iOS), unknown meaning
-    -45018: "invalid input data header (first uint) (pointer is correct tho)",
-    -45019: "vdfut768ig doesn't know the asked function",
-    -45020: "invalid input data (not the first uint)",
-    -45025: "unknown session",
-    -45026: "empty session",
-    -45031: "invalid data (header)",
-    -45032: "data too short",
-    -45033: "invalid data (body)",
-    -45034: "unknown ADI call flags",
-    -45036: "time error",
-    // -45044: exists (observed: macOS iTunes, from Google), unknown meaning
-    // -45045: probably a typo of -45054
-    -45046: "identifier generation failure: empty hardware ids",
-    // -45048: exists (observed: windows iTunes, from Google), unknown meaning, resolved by adi file suppression
-    -45054: "generic libc/file manipulation error",
-    -45061: "not provisioned",
-    -45062: "cannot erase provisioning: not provisioned",
-    -45063: "provisioning first step is already pending",
-    -45066: "2nd step fail: session already consumed",
-    -45075: "library loading error",
-    // -45076: exists (observed: macOS iTunes, from Google), unknown meaning, seems related to backward compatibility between 12.6.x and 12.7
-];
-
-string translateADIErrorCode(int errorCode) {
-    foreach (knownErrorCode; knownErrorCodes.byKeyValue) {
-        if (errorCode == knownErrorCode.key) {
-            return format!"%s (%d)"(knownErrorCode.value, errorCode);
-        }
+        this.errorCode = cast(ADIError) error;
+        super(errorCode.toString(), file, line);
     }
 
-    return format!"%d"(errorCode);
+    ADIError adiError() {
+        return errorCode;
+    }
 }

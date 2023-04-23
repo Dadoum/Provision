@@ -13,6 +13,7 @@ import std.conv;
 import std.experimental.allocator;
 import std.experimental.allocator.mallocator;
 import std.experimental.allocator.mmap_allocator;
+import std.functional;
 import std.mmfile;
 import std.path;
 import std.random;
@@ -21,7 +22,7 @@ import std.stdio;
 import std.string;
 import std.traits;
 
-public struct AndroidLibrary {
+public class AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
 
@@ -29,9 +30,15 @@ public struct AndroidLibrary {
     package char[] dynamicStringTable;
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
+    package AndroidLibrary[] loadedLibraries;
 
-    public this(string libraryName) {
+    public void*[string] hooks;
+
+    private ElfW!"Shdr"[] relocationSections;
+
+    public this(string libraryName, void*[string] hooks = null) {
         elfFile = new MmFile(libraryName);
+        if (hooks) this.hooks = hooks;
 
         auto elfHeader = elfFile.identify!(ElfW!"Ehdr")(0);
         auto programHeaders = elfFile.identifyArray!(ElfW!"Phdr")(elfHeader.e_phoff, elfHeader.e_phnum);
@@ -70,6 +77,10 @@ public struct AndroidLibrary {
             MAP_PRIVATE | MAP_ANON, -1, 0);
         if (mmapped_alloc == MAP_FAILED) {
             throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
+        }
+        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = this;
+        debug {
+            stderr.writefln("Allocating %x - %x for %s", cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
         }
         allocation = mmapped_alloc[0..allocSize];
 
@@ -116,9 +127,11 @@ public struct AndroidLibrary {
                     break;
                 case SHT_REL:
                     this.relocate!(ElfW!"Rel")(sectionHeader);
+                    relocationSections ~= sectionHeader;
                     break;
                 case SHT_RELA:
                     this.relocate!(ElfW!"Rela")(sectionHeader);
+                    relocationSections ~= sectionHeader;
                     break;
                 default:
                     break;
@@ -127,12 +140,29 @@ public struct AndroidLibrary {
     }
 
     ~this() {
+        foreach (library; loadedLibraries) {
+            destroy(library);
+        }
+
         if (allocation) {
             munmap(allocation.ptr, allocation.length);
         }
     }
 
-    @disable this(this);
+    public void relocate() {
+        foreach (relocationSection; relocationSections) {
+            switch (relocationSection.sh_type) {
+                case SHT_REL:
+                    this.relocate!(ElfW!"Rel")(relocationSection);
+                    break;
+                case SHT_RELA:
+                    this.relocate!(ElfW!"Rela")(relocationSection);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 
     private void relocate(RelocationType)(ref ElfW!"Shdr" shdr) {
         auto relocations = this.elfFile.identifyArray!(RelocationType)(shdr.sh_offset, shdr.sh_size / RelocationType.sizeof);
@@ -184,10 +214,20 @@ public struct AndroidLibrary {
         return cast(string) fromStringz(&sectionNamesTable[section.sh_name]);
     }
 
+    void* getSymbolImplementation(string symbolName) {
+        void** hook = symbolName in hooks;
+        if (hook) {
+            return *hook;
+        }
+
+        import provision.symbols;
+        return lookupSymbol(symbolName);
+    }
+
     void* load(string symbolName) {
         ElfW!"Sym" sym;
         if (hashTable) {
-            sym = hashTable.lookup(symbolName, &this);
+            sym = hashTable.lookup(symbolName, this);
         } else {
             foreach (symbol; dynamicSymbolTable) {
                 if (getSymbolName(symbol) == symbolName) {
@@ -200,8 +240,32 @@ public struct AndroidLibrary {
     }
 }
 
+private struct MemoryBlock {
+    size_t start;
+    size_t end;
+}
+
+private __gshared AndroidLibrary[MemoryBlock] memoryTable;
+AndroidLibrary memoryOwner(size_t address) {
+    foreach(memoryBlock; memoryTable.keys()) {
+        if (address > memoryBlock.start && address < memoryBlock.end) {
+            return memoryTable[memoryBlock];
+        }
+    }
+
+    return null;
+}
+
+import core.sys.linux.execinfo;
+pragma(inline, true) AndroidLibrary rootLibrary() {
+    enum MAXFRAMES = 4;
+    void*[MAXFRAMES] callstack;
+    auto numframes = backtrace(callstack.ptr, MAXFRAMES);
+    return memoryOwner(cast(size_t) callstack[numframes - 1]);
+}
+
 interface SymbolHashTable {
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library);
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library);
 }
 
 package class ElfHashTable: SymbolHashTable {
@@ -227,17 +291,14 @@ package class ElfHashTable: SymbolHashTable {
         uint h = 0, g;
 
         foreach (c; name) {
-            h = (h << 4) + c;
-            if ((g = h & 0xf0000000) != 0) {
-                h ^= g >> 24;
-            }
-            h &= ~g;
+            h = 16 * h + c;
+            h ^= h >> 24 & 0xf0;
         }
 
-        return h;
+        return h & 0xfffffff;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
 
         scope ElfW!"Sym" symbol;
@@ -285,7 +346,7 @@ package class GnuHashTable: SymbolHashTable {
         return h;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
         auto bucket = buckets[targetHash % table.nbuckets];
 
@@ -376,11 +437,6 @@ RetType identify(RetType, FromType)(FromType obj, size_t offset) {
 
 RetType reinterpret(RetType, FromType)(FromType[] obj) {
     return (cast(RetType[]) obj)[0];
-}
-
-private static void* getSymbolImplementation(string symbolName) {
-    import provision.symbols;
-    return lookupSymbol(symbolName);
 }
 
 class LoaderException: Exception {

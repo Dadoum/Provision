@@ -3,6 +3,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake-d/cmake-d)
 
 project(Provision D)
 option(build_anisetteserver "Build Anisette server" ON)
+option(build_mkcassette "Build mkcassette" OFF)
+option(use_native_plist "Want dlang plist" OFF)
 option(link_libplist_dynamic "Load libplist at runtime" OFF)
 
 include(cmake/dependencies.cmake)
@@ -28,16 +30,14 @@ else()
         endif()
     endif()
 
-    if (plist_FOUND)
+    if (plist_FOUND AND NOT use_native_plist)
         message("Using libplist. ")
         add_library(plist ALIAS PkgConfig::plist)
         target_compile_versions(provision PUBLIC LibPlist)
     else()
-        if (build_sideloadipa)
-            message(FATAL_ERROR "Sideload IPA requires libplist development package. ")
-        endif()
         message(WARNING "Using fallback Property list parser. ")
 
+        include(UseDub)
         FetchContent_Declare(
         plist_proj
         GIT_REPOSITORY https://github.com/hatf0/plist
@@ -64,4 +64,14 @@ if(build_anisetteserver)
     target_include_directories(anisette_server PUBLIC ${ANISETTE_SERVER_SOURCE_DIR})
 
     target_link_libraries(anisette_server provision handy-httpd)
+endif()
+
+if(build_mkcassette)
+    set(MKCASSETTE_SOURCE_DIR "mkcassette/")
+    file(GLOB_RECURSE MKCASSETTE_D_SOURCES "${MKCASSETTE_SOURCE_DIR}*.d")
+
+    add_executable(mkcassette ${MKCASSETTE_D_SOURCES})
+    target_include_directories(mkcassette PUBLIC ${MKCASSETTE_SOURCE_DIR})
+
+    target_link_libraries(mkcassette provision)
 endif()

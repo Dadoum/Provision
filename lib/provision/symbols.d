@@ -1,5 +1,6 @@
 module provision.symbols;
 
+import core.memory;
 import core.stdc.errno;
 import core.stdc.stdlib;
 import core.stdc.string;
@@ -8,6 +9,7 @@ import core.sys.posix.sys.stat;
 import core.sys.posix.sys.time;
 import core.sys.posix.unistd;
 import provision.androidlibrary;
+import std.algorithm.mutation;
 import std.experimental.allocator;
 import std.experimental.allocator.mallocator;
 import std.random;
@@ -38,34 +40,40 @@ private extern (C) noreturn undefinedSymbol() {
     throw new UndefinedSymbolException();
 }
 
-private extern (C) AndroidLibrary* dlopenWrapper(const char* name) {
-    stderr.writeln("Attempting to load ", name.fromStringz());
+private extern (C) AndroidLibrary dlopenWrapper(const char* name) {
+    debug {
+        stderr.writeln("Attempting to load ", name.fromStringz());
+    }
     try {
-        return Mallocator.instance.make!AndroidLibrary(cast(string) name.fromStringz());
+        auto caller = rootLibrary();
+        auto lib = new AndroidLibrary(cast(string) name.fromStringz(), caller.hooks);
+        caller.loadedLibraries ~= lib;
+        return lib;
     } catch (Throwable) {
         return null;
     }
 }
 
-private extern (C) void* dlsymWrapper(AndroidLibrary* library, const char* symbolName) {
-    stderr.writeln("Attempting to load ", symbolName.fromStringz());
+private extern (C) void* dlsymWrapper(AndroidLibrary library, const char* symbolName) {
+    debug {
+        stderr.writeln("Attempting to load symbol ", symbolName.fromStringz());
+    }
     return library.load(cast(string) symbolName.fromStringz());
 }
 
-private extern (C) void dlcloseWrapper(AndroidLibrary* library) {
-    return Mallocator.instance.dispose(library);
+private extern (C) void dlcloseWrapper(AndroidLibrary library) {
+    if (library) {
+        rootLibrary().loadedLibraries.remove!((lib) => lib == library);
+        destroy(library);
+    }
 }
 
-public bool doTimeTravel = false;
-public timeval targetTime;
+private extern (C) void* malloc_GC_replacement(size_t sz) {
+    return GC.malloc(sz);
+}
 
-private extern (C) ReturnType!gettimeofday gettimeofday_timeTravel(timeval* timeval, void* ptr) {
-    auto ret = gettimeofday(timeval, ptr);
-    if (doTimeTravel) {
-        *timeval = targetTime;
-    }
-
-    return ret;
+private extern (C) void free_GC_replacement(void* ptr) {
+    return GC.free(ptr);
 }
 
 // gperf generated code:
@@ -140,15 +148,15 @@ package void* lookupSymbol(string str) {
             {"strncpy", &strncpy}, {"pthread_mutex_lock", &emptyStub},
             {"ftruncate", &ftruncate}, {"write", &write},
             {"pthread_rwlock_unlock", &emptyStub},
-            {"pthread_rwlock_destroy", &emptyStub}, {""}, {"free", &free},
+            {"pthread_rwlock_destroy", &emptyStub}, {""}, {"free", &free_GC_replacement},
             {"fstat", &fstat}, {"pthread_rwlock_wrlock", &emptyStub},
             {"__errno", &errno}, {""}, {"pthread_rwlock_init", &emptyStub},
             {"pthread_mutex_unlock", &emptyStub},
             {"pthread_rwlock_rdlock", &emptyStub}, {
                 "gettimeofday",
-                &gettimeofday_timeTravel
+                &gettimeofday
             }, {""}, {"read", &read},
-            {"mkdir", &mkdir}, {"malloc", &malloc}, {""}, {""}, {""}, {""},
+            {"mkdir", &mkdir}, {"malloc", &malloc_GC_replacement}, {""}, {""}, {""}, {""},
             {"__system_property_get", &__system_property_get_impl}, {""}, {""},
             {""}, {"arc4random", &arc4random_impl},
         ];

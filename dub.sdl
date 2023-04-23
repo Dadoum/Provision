@@ -30,6 +30,18 @@ subPackage {
 }
 
 subPackage {
+    name "mkcassette"
+    targetType "executable"
+    targetPath "bin"
+
+    workingDirectory "bin"
+
+    sourcePaths "mkcassette"
+
+    dependency "provision" version="*"
+}
+
+subPackage {
     name "anisette-server"
     targetType "executable"
     targetPath "bin"
