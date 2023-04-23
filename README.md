@@ -30,15 +30,20 @@ with few more features.
 
 You can download the executables in the [Actions](https://github.com/Dadoum/Provision/actions) tab of the project.
 
-## Docker
+## Docker container
 
-If you wish to run Anisette within docker to host a server public or privately. Make sure to install docker/podman and run the following command:
+If you wish to run Anisette within docker to host a server public or privately. Make sure to install docker/podman 
+and run the following command:
 
 ```bash
-docker run -d -v lib_cache:/opt/lib/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
+docker run -d -v provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
 ```
 
-The above command will pull the image and also run it in the background. The volume (lib_cache:/opt/lib/) will cache the libraries needed that are fetched at runtime. This is done as to not redistribute Applemusic lib's.
+The above command will pull the image and also run it in the background. The volume 
+(`provision_config:/home/Chester/.config/Provision/`) will cache Provision's configuration folder.
+
+It contains Apple Music libraries (from Apple, which are not redistributed for legal reasons), ADI file (identifying the 
+device as a Mac computer for Apple) and Provision's device file (storing the corresponding device information for Provision).
 
 ## Dependencies
 
@@ -122,4 +127,4 @@ void main() {
 
 ## Support
 
-Donations are welcome with GitHub Sponsor.
+Donations are welcome with GitHub Sponsors.

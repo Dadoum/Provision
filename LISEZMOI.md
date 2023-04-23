@@ -29,6 +29,22 @@ où il était disponible avec des fonctions en plus.
 
 Vous pouvez télécharger les exécutables depuis la page [Actions](https://github.com/Dadoum/Provision/actions) du projet.
 
+## Conteneur Docker
+
+Si vous souhaitez créer un serveur Anisette pour votre usage personnel ou créer un serveur public, vous pouver utiliser
+Docker ou Podman. Dans ce cas, il vous suffira de lancer la commande suivante pour configurer un serveur directement :
+
+```bash
+docker run -d -v provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
+```
+
+Cette commande récupèrera l'image Docker et l'exécutera immédiatemnt. Le volume
+(`provision_config:/home/Chester/.config/Provision/`) mettra en cache la configuration de Provision.
+
+Cette configuration inclut les bibliothèques d'Apple Music (qui ne sont pas redistribuées pour des raisons légales), le
+fichier ADI (identifiant un faux Mac auprès d'Apple) et le fichier d'appareil de Provision (indiquant à Provision les 
+informations du Mac).
+
 ## Dépendances
 
 Pour lancer les programmes vous devrez extraire les bibliothèques de l'application Android Apple
@@ -112,4 +128,4 @@ void main() {
 
 ## Soutien
 
-Vous pouvez me soutenir en faisant un don avec GitHub Sponsor.
+Vous pouvez me soutenir en faisant un don avec GitHub Sponsors.
