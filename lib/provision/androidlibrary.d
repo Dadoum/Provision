@@ -291,14 +291,11 @@ package class ElfHashTable: SymbolHashTable {
         uint h = 0, g;
 
         foreach (c; name) {
-            h = (h << 4) + c;
-            if ((g = h & 0xf0000000) != 0) {
-                h ^= g >> 24;
-            }
-            h &= ~g;
+            h = 16 * h + c;
+            h ^= h >> 24 & 0xf0;
         }
 
-        return h;
+        return h & 0xfffffff;
     }
 
     ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
