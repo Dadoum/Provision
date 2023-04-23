@@ -22,7 +22,7 @@ import std.stdio;
 import std.string;
 import std.traits;
 
-public struct AndroidLibrary {
+public class AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
 
@@ -30,6 +30,7 @@ public struct AndroidLibrary {
     package char[] dynamicStringTable;
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
+    package AndroidLibrary[] loadedLibraries;
 
     public void*[string] hooks;
 
@@ -77,7 +78,7 @@ public struct AndroidLibrary {
         if (mmapped_alloc == MAP_FAILED) {
             throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
         }
-        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = &this;
+        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = this;
         debug {
             stderr.writefln("Allocating %x - %x for %s", cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
         }
@@ -139,12 +140,14 @@ public struct AndroidLibrary {
     }
 
     ~this() {
+        foreach (library; loadedLibraries) {
+            destroy(library);
+        }
+
         if (allocation) {
             munmap(allocation.ptr, allocation.length);
         }
     }
-
-    @disable this(this);
 
     public void relocate() {
         foreach (relocationSection; relocationSections) {
@@ -224,7 +227,7 @@ public struct AndroidLibrary {
     void* load(string symbolName) {
         ElfW!"Sym" sym;
         if (hashTable) {
-            sym = hashTable.lookup(symbolName, &this);
+            sym = hashTable.lookup(symbolName, this);
         } else {
             foreach (symbol; dynamicSymbolTable) {
                 if (getSymbolName(symbol) == symbolName) {
@@ -242,8 +245,8 @@ private struct MemoryBlock {
     size_t end;
 }
 
-private __gshared AndroidLibrary*[MemoryBlock] memoryTable;
-AndroidLibrary* memoryOwner(size_t address) {
+private __gshared AndroidLibrary[MemoryBlock] memoryTable;
+AndroidLibrary memoryOwner(size_t address) {
     foreach(memoryBlock; memoryTable.keys()) {
         if (address > memoryBlock.start && address < memoryBlock.end) {
             return memoryTable[memoryBlock];
@@ -254,7 +257,7 @@ AndroidLibrary* memoryOwner(size_t address) {
 }
 
 import core.sys.linux.execinfo;
-pragma(inline, true) AndroidLibrary* rootLibrary() {
+pragma(inline, true) AndroidLibrary rootLibrary() {
     enum MAXFRAMES = 4;
     void*[MAXFRAMES] callstack;
     auto numframes = backtrace(callstack.ptr, MAXFRAMES);
@@ -262,7 +265,7 @@ pragma(inline, true) AndroidLibrary* rootLibrary() {
 }
 
 interface SymbolHashTable {
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library);
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library);
 }
 
 package class ElfHashTable: SymbolHashTable {
@@ -298,7 +301,7 @@ package class ElfHashTable: SymbolHashTable {
         return h;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
 
         scope ElfW!"Sym" symbol;
@@ -346,7 +349,7 @@ package class GnuHashTable: SymbolHashTable {
         return h;
     }
 
-    ElfW!"Sym" lookup(string symbolName, AndroidLibrary* library) {
+    ElfW!"Sym" lookup(string symbolName, AndroidLibrary library) {
         auto targetHash = hash(symbolName);
         auto bucket = buckets[targetHash % table.nbuckets];
 

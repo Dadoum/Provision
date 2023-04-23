@@ -45,7 +45,7 @@ public class ADI {
     private ADIDispose_t pADIDispose;
     private ADIOTPRequest_t pADIOTPRequest;
 
-    private AndroidLibrary* storeServicesCore;
+    private AndroidLibrary storeServicesCore;
 
     private string __provisioningPath;
     public string provisioningPath() {
@@ -76,7 +76,7 @@ public class ADI {
         this(libraryPath, new AndroidLibrary(storeServicesCorePath));
     }
 
-    public this(string libraryPath, AndroidLibrary* storeServicesCore) {
+    public this(string libraryPath, AndroidLibrary storeServicesCore) {
         this.storeServicesCore = storeServicesCore;
 
         // We are loading the symbols from the ELF library from their name.
@@ -112,6 +112,12 @@ public class ADI {
         // We are setting those to be sure to have the same value in the class (used in getter) and the real one in ADI.
         provisioningPath = "/";
         identifier = "0000000000000000";
+    }
+
+    ~this() {
+        if (storeServicesCore) {
+            destroy(storeServicesCore);
+        }
     }
 
     public void loadLibrary(string libraryPath) {

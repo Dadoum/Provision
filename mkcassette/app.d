@@ -168,7 +168,7 @@ int main(string[] args) {
 
     auto adi = taskPool().workerLocalStorage!ADI({
         // We hook the gettimeofday function in the library to change the date.
-        AndroidLibrary* storeServicesCore = new AndroidLibrary(SSCPath, [
+        AndroidLibrary storeServicesCore = new AndroidLibrary(SSCPath, [
             "gettimeofday": cast(void*) &gettimeofday_timeTravel
         ]);
 
