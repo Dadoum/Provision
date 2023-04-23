@@ -48,7 +48,7 @@ static assert(AnisetteCassetteHeader.sizeof % 16 == 0);
 
 __gshared ulong origTime;
 int main(string[] args) {
-    writeln(mkcassetteBranding, " v", mkcassetteVersion);
+    writeln(mkcassetteBranding, " v", provisionVersion);
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
     string configurationPath = expandTilde("~/.config/Provision");
@@ -74,7 +74,7 @@ int main(string[] args) {
     }
 
     if (!file.exists(configurationPath)) {
-        file.mkdir(configurationPath);
+        file.mkdirRecurse(configurationPath);
     }
 
     string libraryPath = configurationPath.buildPath("lib/" ~ architectureIdentifier);
@@ -109,11 +109,8 @@ int main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        if (!file.exists(configurationPath.buildPath("lib"))) {
-            file.mkdir(configurationPath.buildPath("lib"));
-        }
         if (!file.exists(libraryPath)) {
-            file.mkdir(libraryPath);
+            file.mkdirRecurse(libraryPath);
         }
         file.write(coreADIPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libCoreADI.so"]));
         file.write(SSCPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libstoreservicescore.so"]));

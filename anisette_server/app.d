@@ -34,7 +34,7 @@ __gshared ADI adi;
 __gshared Device device;
 
 void main(string[] args) {
-    writeln(anisetteServerBranding, " v", anisetteServerVersion);
+    writeln(anisetteServerBranding, " v", provisionVersion);
     auto serverConfig = ServerConfig.defaultValues;
     serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
@@ -60,7 +60,7 @@ void main(string[] args) {
     }
 
     if (!file.exists(configurationPath)) {
-        file.mkdir(configurationPath);
+        file.mkdirRecurse(configurationPath);
     }
 
     string libraryPath = configurationPath.buildPath("lib/" ~ architectureIdentifier);
@@ -94,11 +94,8 @@ void main(string[] args) {
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
-        if (!file.exists(configurationPath.buildPath("lib"))) {
-            file.mkdir(configurationPath.buildPath("lib"));
-        }
         if (!file.exists(libraryPath)) {
-            file.mkdir(libraryPath);
+            file.mkdirRecurse(libraryPath);
         }
         file.write(coreADIPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libCoreADI.so"]));
         file.write(SSCPath, apk.expand(dir["lib/" ~ architectureIdentifier ~ "/libstoreservicescore.so"]));
@@ -110,7 +107,7 @@ void main(string[] args) {
 
     // Initializing ADI and machine if it has not already been made.
     device = new Device(rememberMachine ? configurationPath.buildPath("device.json") : "/dev/null");
-    adi = new ADI("lib/" ~ architectureIdentifier);
+    adi = new ADI(libraryPath);
     adi.provisioningPath = configurationPath;
 
     if (!device.initialized) {
@@ -142,7 +139,7 @@ void main(string[] args) {
 
     auto s = new HttpServer((ref ctx) {
         auto req = ctx.request;
-        ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ anisetteServerVersion);
+        ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ provisionVersion);
 
         writeln("[<<] ", req.method, " ", req.url);
         if (req.method != "GET") {

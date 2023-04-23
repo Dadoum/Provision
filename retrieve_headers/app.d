@@ -24,7 +24,7 @@ version (X86_64) {
 int main(string[] args) {
     string configurationPath = expandTilde("~/.config/Provision/");
     if (!file.exists(configurationPath)) {
-        file.mkdir(configurationPath);
+        file.mkdirRecurse(configurationPath);
     }
 
     ADI adi = new ADI("lib/" ~ architectureIdentifier);
