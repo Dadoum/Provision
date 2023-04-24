@@ -10,8 +10,10 @@ import std.math;
 import std.net.curl;
 import std.parallelism;
 import std.path;
-import std.stdio;
 import std.zip;
+
+import slf4d;
+import slf4d.default_provider;
 
 import provision;
 
@@ -34,7 +36,14 @@ __gshared ADI adi;
 __gshared Device device;
 
 void main(string[] args) {
-    writeln(anisetteServerBranding, " v", provisionVersion);
+    debug {
+        configureLoggingProvider(new shared DefaultProvider(true, Levels.DEBUG));
+    } else {
+        configureLoggingProvider(new shared DefaultProvider(true, Levels.INFO));
+    }
+
+    Logger log = getLogger();
+    log.infoF!"%s v%s"(anisetteServerBranding, provisionVersion);
     auto serverConfig = ServerConfig.defaultValues;
     serverConfig.hostname = "0.0.0.0";
     serverConfig.port = 6969;
@@ -70,27 +79,9 @@ void main(string[] args) {
 
     if (!(file.exists(coreADIPath) && file.exists(SSCPath)) && apkDownloadAllowed) {
         auto http = HTTP();
-        http.onProgress = (size_t dlTotal, size_t dlNow, size_t ulTotal, size_t ulNow) {
-            write("Downloading libraries from Apple servers... ");
-            if (dlTotal != 0) {
-                write((dlNow * 100)/dlTotal, "%     \r");
-            } else {
-                // Convert dlNow (in bytes) to a human readable string
-                float downloadedSize = dlNow;
-
-                enum units = ["B", "kB", "MB", "GB", "TB"];
-                int i = 0;
-                while (downloadedSize > 1000 && i < units.length - 1) {
-                    downloadedSize = floor(downloadedSize) / 1000;
-                    ++i;
-                }
-
-                write(downloadedSize, units[i], "     \r");
-            }
-            return 0;
-        };
+        log.info("Downloading libraries from Apple servers...");
         auto apkData = get!(HTTP, ubyte)(nativesUrl, http);
-        writeln("Downloading libraries from Apple servers... done!     \r");
+        log.info("Done !");
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
@@ -111,7 +102,7 @@ void main(string[] args) {
     adi.provisioningPath = configurationPath;
 
     if (!device.initialized) {
-        stderr.write("Creating machine... ");
+        log.info("Creating machine... ");
 
         import std.digest;
         import std.random;
@@ -123,27 +114,29 @@ void main(string[] args) {
         device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
         device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
 
-        stderr.writeln("done !");
+        log.info("Machine creation done!");
     }
 
     enum dsId = -2;
 
     adi.identifier = device.adiIdentifier;
     if (!adi.isMachineProvisioned(dsId)) {
-        stderr.write("Machine requires provisioning... ");
+        log.info("Machine requires provisioning... ");
 
         ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
         provisioningSession.provision(dsId);
-        stderr.writeln("done !");
+        log.info("Provisioning done!");
     }
 
     auto s = new HttpServer((ref ctx) {
+        Logger log = getLogger();
+
         auto req = ctx.request;
         ctx.response.addHeader("Implementation-Version", anisetteServerBranding ~ " " ~ provisionVersion);
 
-        writeln("[<<] ", req.method, " ", req.url);
+        log.infoF!"[<<] %s %s"(req.method, req.url);
         if (req.method != "GET") {
-            writefln("[>>] 405 Method Not Allowed");
+            log.info("[>>] 405 Method Not Allowed");
             ctx.response.setStatus(405).setStatusText("Method Not Allowed");
             return;
         }
@@ -152,17 +145,17 @@ void main(string[] args) {
             if (allowRemoteProvisioning) {
                 ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
                 provisioningSession.provision(dsId);
-                writeln("[>>] 200 OK");
+                log.info("[>>] 200 OK");
                 ctx.response.setStatus(200);
             } else {
-                writeln("[>>] 403 Forbidden");
+                log.info("[>>] 403 Forbidden");
                 ctx.response.setStatus(403).setStatusText("Forbidden");
             }
             return;
         }
 
         if (req.url != "") {
-            writeln("[>>] 404 Not Found");
+            log.info("[>>] 404 Not Found");
             ctx.response.setStatus(404).setStatusText("Not Found");
             return;
         }
@@ -191,16 +184,16 @@ void main(string[] args) {
                 "X-Mme-Device-Id": device.uniqueDeviceIdentifier,
             ];
             ctx.response.writeBodyString(response.toString(JSONOptions.doNotEscapeSlashes), "application/json");
-            writefln!"[>>] 200 OK %s"(response);
+            log.infoF!"[>>] 200 OK %s"(response);
         } catch(Throwable t) {
             string exception = t.toString();
-            writeln("Encountered an error: ", exception);
-            writeln("[>>] 500 Internal Server Error");
+            log.errorF!"Encountered an error: %s"(exception);
+            log.info("[>>] 500 Internal Server Error");
             ctx.response.writeBodyString(exception);
             ctx.response.setStatus(500).setStatusText("Internal Server Error");
         }
     }, serverConfig);
 
-    writeln("Ready! Serving data.");
+    log.info("Ready! Serving data.");
     s.start();
 }

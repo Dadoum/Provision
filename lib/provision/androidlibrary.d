@@ -18,9 +18,10 @@ import std.mmfile;
 import std.path;
 import std.random;
 import std.range;
-import std.stdio;
 import std.string;
 import std.traits;
+
+import slf4d;
 
 public class AndroidLibrary {
     package MmFile elfFile;
@@ -79,9 +80,7 @@ public class AndroidLibrary {
             throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
         }
         memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = this;
-        debug {
-            stderr.writefln("Allocating %x - %x for %s", cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
-        }
+        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
         allocation = mmapped_alloc[0..allocSize];
 
         size_t fileStart;

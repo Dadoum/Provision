@@ -43,14 +43,14 @@ version (LibPlistDynamic) {
     private __gshared void* libplistHandle;
 
     shared static this() {
-        import std.stdio;
+        import slf4d;
         static foreach (libplistName; ["libplist.so.3", "libplist-2.0.so.3"]) {
             libplistHandle = dlopen(libplistName, RTLD_LAZY);
             if (libplistHandle) {
                 return;
             }
         }
-        stderr.writeln("libplist is not available on this machine. ");
+        getLogger().error("libplist is not available on this machine. ");
         abort();
     }
 

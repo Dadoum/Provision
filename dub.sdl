@@ -9,6 +9,8 @@ targetPath "bin"
 sourcePaths "lib"
 importPaths "lib"
 
+dependency "slf4d" version="~>2.1.1"
+
 configuration "plist-d" {
     dependency "plist" version="~master"
 }

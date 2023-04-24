@@ -14,8 +14,9 @@ import std.net.curl;
 import std.parallelism;
 import std.path;
 import std.range;
-import std.stdio;
 import std.zip;
+
+import slf4d;
 
 import provision;
 import provision.androidlibrary;
@@ -48,7 +49,8 @@ static assert(AnisetteCassetteHeader.sizeof % 16 == 0);
 
 __gshared ulong origTime;
 int main(string[] args) {
-    writeln(mkcassetteBranding, " v", provisionVersion);
+    Logger log = getLogger();
+    log.infoF!"%s v%s"(mkcassetteBranding, provisionVersion);
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
     string configurationPath = expandTilde("~/.config/Provision");
@@ -85,27 +87,9 @@ int main(string[] args) {
     // Download APK if needed
     if (!(file.exists(coreADIPath) && file.exists(SSCPath)) && apkDownloadAllowed) {
         auto http = HTTP();
-        http.onProgress = (size_t dlTotal, size_t dlNow, size_t ulTotal, size_t ulNow) {
-            write("Downloading libraries from Apple servers... ");
-            if (dlTotal != 0) {
-                write((dlNow * 100)/dlTotal, "%     \r");
-            } else {
-                // Convert dlNow (in bytes) to a human readable string
-                float downloadedSize = dlNow;
-
-                enum units = ["B", "kB", "MB", "GB", "TB"];
-                int i = 0;
-                while (downloadedSize > 1000 && i < units.length - 1) {
-                    downloadedSize = floor(downloadedSize) / 1000;
-                    ++i;
-                }
-
-                write(downloadedSize, units[i], "     \r");
-            }
-            return 0;
-        };
+        log.info("Downloading libraries from Apple servers...");
         auto apkData = get!(HTTP, ubyte)(nativesUrl, http);
-        writeln("Downloading libraries from Apple servers... done!     \r");
+        log.info("Done !");
         auto apk = new ZipArchive(apkData);
         auto dir = apk.directory();
 
@@ -139,20 +123,19 @@ int main(string[] args) {
         adi.provisioningPath = configurationPath;
 
         if (!device.initialized) {
-            stderr.write("Creating machine... ");
+            log.info("Creating machine... ");
 
             import std.digest;
-            import std.digest.sha;
             import std.random;
             import std.range;
             import std.uni;
             import std.uuid;
             device.serverFriendlyDescription = "<MacBookPro13,2> <macOS;13.1;22C65> <com.apple.AuthKit/1 (com.apple.dt.Xcode/3594.4.19)>";
             device.uniqueDeviceIdentifier = randomUUID().toString().toUpper();
-            device.adiIdentifier = sha1Of(device.uniqueDeviceIdentifier).toHexString()[0..16].toLower();
-            device.localUserUUID = sha256Of(device.uniqueDeviceIdentifier).toHexString().toUpper();
+            device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
+            device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
 
-            stderr.writeln("done !");
+            log.info("Machine creation done!");
         }
 
         adi.identifier = device.adiIdentifier;
@@ -178,7 +161,7 @@ int main(string[] args) {
     }());
 
     StopWatch sw;
-    writeln("Starting generation of ", numberOfOTP, " otps (", days, " days) with ", totalCPUs, " threads.");
+    log.infoF!"Starting generation of %d otps (%d days) with %d threads."(numberOfOTP, days, totalCPUs);
     sw.start();
 
     auto anisetteCassetteHeader = AnisetteCassetteHeader();
@@ -207,7 +190,7 @@ int main(string[] args) {
 
     sw.stop();
 
-    writeln("Success. File written at ", outputFile, ", duration: ", sw.peek());
+    log.infoF!"Success. File written at %s, duration %s"(outputFile, sw.peek());
 
     return 0;
 }

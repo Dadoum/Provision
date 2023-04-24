@@ -9,8 +9,9 @@ import std.format;
 import std.json;
 import std.net.curl;
 import std.path;
-import std.stdio;
 import std.string;
+
+import slf4d;
 
 version (LibPlist) {
     import provision.plist;
@@ -46,6 +47,7 @@ public class ADI {
     private ADIOTPRequest_t pADIOTPRequest;
 
     private AndroidLibrary storeServicesCore;
+    private Logger logger;
 
     private string __provisioningPath;
     public string provisioningPath() {
@@ -78,21 +80,17 @@ public class ADI {
 
     public this(string libraryPath, AndroidLibrary storeServicesCore) {
         this.storeServicesCore = storeServicesCore;
+        this.logger = getLogger();
 
         // We are loading the symbols from the ELF library from their name.
         // Those has been obfuscated but they keep a consistent obfuscated name, like a hash function would.
-
-        debug {
-            stderr.writeln("Loading Android-specific symbols...");
-        }
+        logger.debug_("Loading Android-specific symbols...");
 
         pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) storeServicesCore.load("kq56gsgHG6");
         pADISetAndroidID = cast(ADISetAndroidID_t) storeServicesCore.load("Sph98paBcz");
         pADISetProvisioningPath = cast(ADISetProvisioningPath_t) storeServicesCore.load("nf92ngaK92");
 
-        debug {
-            stderr.writeln("Loading ADI symbols...");
-        }
+        logger.debug_("Loading ADI symbols...");
 
         pADIProvisioningErase = cast(ADIProvisioningErase_t) storeServicesCore.load("p435tmhbla");
         pADISynchronize = cast(ADISynchronize_t) storeServicesCore.load("tn46gtiuhw");
@@ -103,15 +101,15 @@ public class ADI {
         pADIDispose = cast(ADIDispose_t) storeServicesCore.load("jk24uiwqrg");
         pADIOTPRequest = cast(ADIOTPRequest_t) storeServicesCore.load("qi864985u0");
 
-        debug {
-            stderr.writeln("First calls...");
-        }
-
+        logger.debug_("Loading libraries…");
         loadLibrary(libraryPath);
+
+        logger.debug_("Initialization…");
 
         // We are setting those to be sure to have the same value in the class (used in getter) and the real one in ADI.
         provisioningPath = "/";
         identifier = "0000000000000000";
+        logger.debug_("Initialization complete !");
     }
 
     ~this() {

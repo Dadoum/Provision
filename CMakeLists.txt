@@ -47,7 +47,7 @@ else()
     endif()
 endif()
 
-target_link_libraries(provision PUBLIC plist)
+target_link_libraries(provision PUBLIC plist slf4d)
 
 set(RETRIEVE_HEADERS_SOURCE_DIR "retrieve_headers/")
 file(GLOB_RECURSE RETRIEVE_HEADERS_D_SOURCES "${RETRIEVE_HEADERS_SOURCE_DIR}*.d")

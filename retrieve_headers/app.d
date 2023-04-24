@@ -6,8 +6,10 @@ import std.conv: to;
 import std.format;
 import std.path;
 import file = std.file;
-import std.stdio;
 import provision;
+import slf4d;
+
+static import std.stdio;
 
 version (X86_64) {
     enum string architectureIdentifier = "x86_64";
@@ -22,6 +24,12 @@ version (X86_64) {
 }
 
 int main(string[] args) {
+    if (args.length == 2 && args[1] == "debug") {
+        import slf4d.default_provider;
+        auto provider = new shared DefaultProvider(true, Levels.DEBUG);
+        configureLoggingProvider(provider);
+    }
+
     string configurationPath = expandTilde("~/.config/Provision/");
     if (!file.exists(configurationPath)) {
         file.mkdirRecurse(configurationPath);
@@ -31,8 +39,10 @@ int main(string[] args) {
     adi.provisioningPath = configurationPath;
     Device device = new Device(configurationPath.buildPath("device.json"));
 
+    Logger log = getLogger();
+
     if (!device.initialized) {
-        stderr.write("Creating machine... ");
+        log.info("Creating machine... ");
 
         import std.digest;
         import std.random;
@@ -44,16 +54,16 @@ int main(string[] args) {
         device.adiIdentifier = (cast(ubyte[]) rndGen.take(2).array()).toHexString().toLower();
         device.localUserUUID = (cast(ubyte[]) rndGen.take(8).array()).toHexString().toUpper();
 
-        stderr.writeln("done !");
+        log.info("Machine creation done!");
     }
 
     adi.identifier = device.adiIdentifier;
     if (!adi.isMachineProvisioned(-2)) {
-        stderr.write("Machine requires provisioning... ");
+        log.info("Machine requires provisioning... ");
 
         ProvisioningSession provisioningSession = new ProvisioningSession(adi, device);
         provisioningSession.provision(-2);
-        stderr.writeln("done !");
+        log.info("Provisioning done!");
     }
 
     auto otp = adi.requestOTP(-2);
@@ -61,7 +71,7 @@ int main(string[] args) {
     import std.datetime.systime;
     auto time = Clock.currTime();
 
-    writeln(
+    std.stdio.writeln(
         format!`{
     "X-Apple-I-MD": "%s",
     "X-Apple-I-MD-M": "%s",
