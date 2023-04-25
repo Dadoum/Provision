@@ -52,24 +52,3 @@ jobs:
           path: |
             ${{github.workspace}}/bin/anisette-server-i686
 
-  build-debug-rh:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y dub ldc clang libz-dev
-
-      - name: Build
-        run: dub build :retrieve-headers
-
-      - name: Rename
-        run: mv "${{github.workspace}}/bin/provision_retrieve-headers" "${{github.workspace}}/bin/retrieve-headers-debug"
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: retrieve-headers-debug
-          path: ${{github.workspace}}/bin/retrieve-headers-debug

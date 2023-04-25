@@ -498,7 +498,7 @@ string toString(ADIError error) {
     string formatString;
     switch (cast(int) error) {
         case -45001:
-            formatString = "invalid parameters (%d)";
+            formatString = "invalid parameters (%d), or missing initialization bits, you need to set an identifier and a valid provisioning path first!";
             break;
         case -45002:
             formatString = "invalid parameters (for decipher) (%d)";
