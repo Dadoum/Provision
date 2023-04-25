@@ -84,13 +84,13 @@ public class ADI {
 
         // We are loading the symbols from the ELF library from their name.
         // Those has been obfuscated but they keep a consistent obfuscated name, like a hash function would.
-        logger.debug_("Loading Android-specific symbols...");
+        logger.debug_("Loading Android-specific symbols…");
 
         pADILoadLibraryWithPath = cast(ADILoadLibraryWithPath_t) storeServicesCore.load("kq56gsgHG6");
         pADISetAndroidID = cast(ADISetAndroidID_t) storeServicesCore.load("Sph98paBcz");
         pADISetProvisioningPath = cast(ADISetProvisioningPath_t) storeServicesCore.load("nf92ngaK92");
 
-        logger.debug_("Loading ADI symbols...");
+        logger.debug_("Loading ADI symbols…");
 
         pADIProvisioningErase = cast(ADIProvisioningErase_t) storeServicesCore.load("p435tmhbla");
         pADISynchronize = cast(ADISynchronize_t) storeServicesCore.load("tn46gtiuhw");
@@ -421,7 +421,7 @@ public class ProvisioningSession {
         scope ubyte[] spim = Base64.decode(spimStr);
 
         scope auto cpim = adi.startProvisioning(dsId, spim);
-        scope (failure) adi.destroyProvisioning(cpim.session);
+        scope (failure) try { adi.destroyProvisioning(cpim.session); } catch(Throwable) {}
 
         httpClient.addRequestHeader("X-Apple-I-Client-Time", Clock.currTime().toISOExtString());
         string endProvisioningPlist = cast(string) post(urlBag["midFinishProvisioning"], format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
