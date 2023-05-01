@@ -24,7 +24,9 @@ COPY --from=builder /opt/bin/provision_anisette-server /opt/anisette_server
 
 # Setup rootless user which works with the volume mount
 RUN useradd -ms /bin/bash Chester \
- && mkdir /opt/lib/ \
+ && mkdir /home/Chester/.config/Provision/lib/ -p \
+ && chown -R Chester /home/Chester/ \
+ && chmod -R +wx /home/Chester/ \
  && chown -R Chester /opt/ \
  && chmod -R +wx /opt/
 
