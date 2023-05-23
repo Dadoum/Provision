@@ -1,7 +1,7 @@
 # Base for builder
 FROM debian:unstable-slim AS builder
 # Deps for builder
-RUN apt-get update && apt-get install --no-install-recommends -y ldc clang dub libz-dev \
+RUN apt-get update && apt-get install --no-install-recommends -y ldc git clang dub libz-dev \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
