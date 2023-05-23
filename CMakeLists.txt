@@ -18,9 +18,18 @@ add_library(provision STATIC ${PROVISION_D_SOURCES})
 target_include_directories(provision PUBLIC ${PROVISION_SOURCE_DIR})
 
 if (link_libplist_dynamic)
-    add_library(plist INTERFACE)
     target_compile_versions(provision PUBLIC LibPlist)
-    target_compile_versions(plist INTERFACE LibPlistDynamic)
+
+    include(UseDub)
+    FetchContent_Declare(
+        plist_proj
+        GIT_REPOSITORY https://github.com/Dadoum/libplist-d
+        GIT_TAG d494cf3fe79a2bb20583173c0c8cf85ef33b719e
+        PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -c dynamic -s plist-d
+    )
+    FetchContent_MakeAvailable(plist_proj)
+
+    add_library(plist ALIAS plist-d)
 else()
     if(NOT CMAKE_CROSSCOMPILING)
         pkg_check_modules(plist IMPORTED_TARGET libplist-2.0)
@@ -32,16 +41,27 @@ else()
 
     if (plist_FOUND AND NOT use_native_plist)
         message("Using libplist. ")
-        add_library(plist ALIAS PkgConfig::plist)
         target_compile_versions(provision PUBLIC LibPlist)
+
+        include(UseDub)
+        FetchContent_Declare(
+            plist_proj
+            GIT_REPOSITORY https://github.com/Dadoum/libplist-d
+            GIT_TAG d494cf3fe79a2bb20583173c0c8cf85ef33b719e
+            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -c static -s plist-d
+        )
+        FetchContent_MakeAvailable(plist_proj)
+
+        add_library(plist INTERFACE)
+        target_link_libraries(plist INTERFACE PkgConfig::plist plist-d)
     else()
         message(WARNING "Using fallback Property list parser. ")
 
         include(UseDub)
         FetchContent_Declare(
-        plist_proj
-        GIT_REPOSITORY https://github.com/hatf0/plist
-        PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
+            plist_proj
+            GIT_REPOSITORY https://github.com/hatf0/plist
+            PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -s plist
         )
         FetchContent_MakeAvailable(plist_proj)
     endif()

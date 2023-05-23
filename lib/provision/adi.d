@@ -14,7 +14,7 @@ import std.string;
 import slf4d;
 
 version (LibPlist) {
-    import provision.plist;
+    import plist;
 } else {
     import plist;
     import plist.types;
