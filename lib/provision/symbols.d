@@ -1,13 +1,6 @@
 module provision.symbols;
 
 import core.memory;
-import core.stdc.errno;
-import core.stdc.stdlib;
-import core.stdc.string;
-import core.sys.posix.fcntl;
-import core.sys.posix.sys.stat;
-import core.sys.posix.sys.time;
-import core.sys.posix.unistd;
 import provision.androidlibrary;
 import std.algorithm.mutation;
 import std.experimental.allocator;
@@ -18,9 +11,13 @@ import std.traits : Parameters, ReturnType;
 
 import slf4d;
 
+import provision.compat.general;
+import provision.compat.windows;
+import provision.compat.linux;
+
 __gshared:
 
-private extern (C) int __system_property_get_impl(const char* n, char* value) {
+private @sysv extern (C) int __system_property_get_impl(const char* n, char* value) {
     auto name = n.fromStringz;
 
     enum str = "no s/n number";
@@ -29,19 +26,19 @@ private extern (C) int __system_property_get_impl(const char* n, char* value) {
     return cast(int) str.length;
 }
 
-private extern (C) uint arc4random_impl() {
+private @sysv extern (C) uint arc4random_impl() {
     return Random(unpredictableSeed()).front;
 }
 
-private extern (C) int emptyStub() {
+private @sysv extern (C) int emptyStub() {
     return 0;
 }
 
-private extern (C) noreturn undefinedSymbol() {
+private @sysv extern (C) noreturn undefinedSymbol() {
     throw new UndefinedSymbolException();
 }
 
-private extern (C) AndroidLibrary dlopenWrapper(const char* name) {
+private @sysv extern (C) AndroidLibrary dlopenWrapper(const char* name) {
     debug {
         getLogger().traceF!"Attempting to load %s"(name.fromStringz());
     }
@@ -55,14 +52,14 @@ private extern (C) AndroidLibrary dlopenWrapper(const char* name) {
     }
 }
 
-private extern (C) void* dlsymWrapper(AndroidLibrary library, const char* symbolName) {
+private @sysv extern (C) void* dlsymWrapper(AndroidLibrary library, const char* symbolName) {
     debug {
         getLogger().traceF!"Attempting to load symbol %s"(symbolName.fromStringz());
     }
     return library.load(cast(string) symbolName.fromStringz());
 }
 
-private extern (C) void dlcloseWrapper(AndroidLibrary library) {
+private @sysv extern (C) void dlcloseWrapper(AndroidLibrary library) {
     if (library) {
         rootLibrary().loadedLibraries.remove!((lib) => lib == library);
         destroy(library);
@@ -143,7 +140,7 @@ package void* lookupSymbol(string str) {
             {"pthread_rwlock_unlock", &emptyStub},
             {"pthread_rwlock_destroy", &emptyStub}, {""}, {"free", &free},
             {"fstat", &fstat}, {"pthread_rwlock_wrlock", &emptyStub},
-            {"__errno", &errno}, {""}, {"pthread_rwlock_init", &emptyStub},
+            {"__errno", &__errno_location}, {""}, {"pthread_rwlock_init", &emptyStub},
             {"pthread_mutex_unlock", &emptyStub},
             {"pthread_rwlock_rdlock", &emptyStub}, {
                 "gettimeofday",

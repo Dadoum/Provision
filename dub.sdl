@@ -29,6 +29,7 @@ subPackage {
     sourcePaths "retrieve_headers"
 
     dependency "provision" version="*"
+    lflags "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libws2_32.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libmincore.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libwsock32.a" platform="gdc"
 }
 
 subPackage {

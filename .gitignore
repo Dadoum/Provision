@@ -1,2 +1,3 @@
 bin/
 .dub/
+dub.selections.json

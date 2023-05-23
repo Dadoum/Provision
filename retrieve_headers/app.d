@@ -3,9 +3,10 @@ module app;
 import std.array;
 import std.base64;
 import std.conv: to;
+import file = std.file;
 import std.format;
 import std.path;
-import file = std.file;
+import process = std.process;
 import provision;
 import slf4d;
 
@@ -24,13 +25,28 @@ version (X86_64) {
 }
 
 int main(string[] args) {
-    if (args.length == 2 && args[1] == "debug") {
-        import slf4d.default_provider;
-        auto provider = new shared DefaultProvider(true, Levels.DEBUG);
-        configureLoggingProvider(provider);
+    import slf4d.default_provider;
+    Levels logLevel;
+    debug {
+        logLevel = Levels.TRACE;
+    } else {
+        logLevel = args.length == 2 && args[1] == "debug" ? Levels.TRACE : Levels.INFO;
+    }
+    auto provider = new shared DefaultProvider(true, logLevel);
+    configureLoggingProvider(provider);
+
+    version (Windows) {
+        string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
+    } else {
+        string configurationPath;
+        string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
+        if (xdgConfigPath) {
+            configurationPath = xdgConfigPath.buildPath("Provision");
+        } else {
+            configurationPath = expandTilde("~/.config/Provision/");
+        }
     }
 
-    string configurationPath = expandTilde("~/.config/Provision/");
     if (!file.exists(configurationPath)) {
         file.mkdirRecurse(configurationPath);
     }

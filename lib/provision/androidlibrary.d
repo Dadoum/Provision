@@ -5,8 +5,6 @@ import core.memory;
 import core.stdc.errno;
 import core.stdc.stdint;
 import core.stdc.stdlib;
-import core.sys.linux.elf;
-import core.sys.linux.link;
 import core.sys.posix.sys.mman;
 import std.algorithm;
 import std.conv;
@@ -22,6 +20,10 @@ import std.string;
 import std.traits;
 
 import slf4d;
+
+import std_edit.elf;
+import std_edit.link;
+import provision.compat.windows;
 
 public class AndroidLibrary {
     package MmFile elfFile;
@@ -74,14 +76,9 @@ public class AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        auto mmapped_alloc = mmap(null, allocSize, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANON, -1, 0);
-        if (mmapped_alloc == MAP_FAILED) {
-            throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
-        }
-        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = this;
-        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
-        allocation = mmapped_alloc[0..allocSize];
+        allocation = MmapAllocator.instance.allocate(allocSize);
+        memoryTable[MemoryBlock(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize)] = this;
+        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize, libraryName);
 
         size_t fileStart;
         size_t fileEnd;
@@ -144,7 +141,7 @@ public class AndroidLibrary {
         }
 
         if (allocation) {
-            munmap(allocation.ptr, allocation.length);
+            MmapAllocator.instance.deallocate(allocation);
         }
     }
 
@@ -255,12 +252,35 @@ AndroidLibrary memoryOwner(size_t address) {
     return null;
 }
 
-import core.sys.linux.execinfo;
-pragma(inline, true) AndroidLibrary rootLibrary() {
-    enum MAXFRAMES = 4;
-    void*[MAXFRAMES] callstack;
-    auto numframes = backtrace(callstack.ptr, MAXFRAMES);
-    return memoryOwner(cast(size_t) callstack[numframes - 1]);
+version (linux) {
+    import core.sys.linux.execinfo;
+    pragma(inline, true) AndroidLibrary rootLibrary() {
+        enum MAXFRAMES = 4;
+        void*[MAXFRAMES] callstack;
+        auto numframes = backtrace(callstack.ptr, MAXFRAMES);
+        return memoryOwner(cast(size_t) callstack[numframes - 1]);
+    }
+} else version (Windows) {
+    version (LDC) { // Seems to work consistently, but LLVM only.
+        pragma(LDC_intrinsic, "llvm.returnaddress")
+        ubyte* return_address(int);
+
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary(ubyte* address = return_address(0)) {
+            assert(address != null);
+            return memoryOwner(cast(size_t) address);
+        }
+    } else { // Works on a real Windows machine, but not Wine
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary() {
+            auto callstack = StackTrace.trace();
+            auto address = cast(size_t) callstack[$ - 1];
+            assert(address != 0);
+            return memoryOwner(address);
+        }
+    }
+} else {
+    static assert("Unsupported platform.");
 }
 
 interface SymbolHashTable {

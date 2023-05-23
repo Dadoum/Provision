@@ -13,6 +13,8 @@ import std.string;
 
 import slf4d;
 
+import provision.compat.general;
+
 version (LibPlist) {
     import provision.plist;
 } else {
@@ -33,18 +35,18 @@ alias ADIDispose_t = extern(C) int function(void*);
 alias ADIOTPRequest_t = extern(C) int function(ulong, ubyte**, uint*, ubyte**, uint*);
 
 public class ADI {
-    private ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
-    private ADISetAndroidID_t pADISetAndroidID;
-    private ADISetProvisioningPath_t pADISetProvisioningPath;
+    package ADILoadLibraryWithPath_t pADILoadLibraryWithPath;
+    package ADISetAndroidID_t pADISetAndroidID;
+    package ADISetProvisioningPath_t pADISetProvisioningPath;
 
-    private ADIProvisioningErase_t pADIProvisioningErase;
-    private ADISynchronize_t pADISynchronize;
-    private ADIProvisioningDestroy_t pADIProvisioningDestroy;
-    private ADIProvisioningEnd_t pADIProvisioningEnd;
-    private ADIProvisioningStart_t pADIProvisioningStart;
-    private ADIGetLoginCode_t pADIGetLoginCode;
-    private ADIDispose_t pADIDispose;
-    private ADIOTPRequest_t pADIOTPRequest;
+    package ADIProvisioningErase_t pADIProvisioningErase;
+    package ADISynchronize_t pADISynchronize;
+    package ADIProvisioningDestroy_t pADIProvisioningDestroy;
+    package ADIProvisioningEnd_t pADIProvisioningEnd;
+    package ADIProvisioningStart_t pADIProvisioningStart;
+    package ADIGetLoginCode_t pADIGetLoginCode;
+    package ADIDispose_t pADIDispose;
+    package ADIOTPRequest_t pADIOTPRequest;
 
     private AndroidLibrary storeServicesCore;
     private Logger logger;
@@ -56,7 +58,7 @@ public class ADI {
 
     public void provisioningPath(string path) {
         __provisioningPath = path;
-        pADISetProvisioningPath(path.toStringz).unwrapADIError();
+        pADISetProvisioningPath.androidInvoke(path.toStringz).unwrapADIError();
     }
 
     private string __identifier;
@@ -66,7 +68,7 @@ public class ADI {
 
     public void identifier(string identifier) {
         __identifier = identifier;
-        pADISetAndroidID(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
+        pADISetAndroidID.androidInvoke(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
     }
 
     public this(string libraryPath) {
@@ -119,11 +121,11 @@ public class ADI {
     }
 
     public void loadLibrary(string libraryPath) {
-        pADILoadLibraryWithPath(libraryPath.toStringz).unwrapADIError();
+        pADILoadLibraryWithPath.androidInvoke(cast(const(char*)) libraryPath.toStringz).unwrapADIError();
     }
 
     public void eraseProvisioning(ulong dsId) {
-        pADIProvisioningErase(dsId).unwrapADIError();
+        pADIProvisioningErase.androidInvoke(dsId).unwrapADIError();
     }
 
     struct SynchronizationResumeMetadata {
@@ -152,7 +154,7 @@ public class ADI {
         ubyte* mid;
         uint midLength;
 
-        pADISynchronize(
+        pADISynchronize.androidInvoke(
             dsId,
             serverIntermediateMetadata.ptr,
  cast(uint) serverIntermediateMetadata.length,
@@ -166,11 +168,11 @@ public class ADI {
     }
 
     public void destroyProvisioning(uint session) {
-        pADIProvisioningDestroy(session).unwrapADIError();
+        pADIProvisioningDestroy.androidInvoke(session).unwrapADIError();
     }
 
     public void endProvisioning(uint session, ubyte[] persistentTokenMetadata, ubyte[] trustKey) {
-        pADIProvisioningEnd(
+        pADIProvisioningEnd.androidInvoke(
             session,
             persistentTokenMetadata.ptr,
  cast(uint) persistentTokenMetadata.length,
@@ -203,7 +205,7 @@ public class ADI {
         uint cpimLength;
         uint session;
 
-        pADIProvisioningStart(
+        pADIProvisioningStart.androidInvoke(
             dsId,
             serverProvisioningIntermediateMetadata.ptr,
  cast(uint) serverProvisioningIntermediateMetadata.length,
@@ -216,7 +218,7 @@ public class ADI {
     }
 
     public bool isMachineProvisioned(ulong dsId) {
-        int errorCode = pADIGetLoginCode(dsId);
+        int errorCode = pADIGetLoginCode.androidInvoke(dsId);
 
         if (errorCode == 0) {
             return true;
@@ -228,7 +230,7 @@ public class ADI {
     }
 
     public void dispose(void* ptr) {
-        pADIDispose(ptr).unwrapADIError();
+        pADIDispose.androidInvoke(ptr).unwrapADIError();
     }
 
     struct OneTimePassword {
@@ -257,7 +259,7 @@ public class ADI {
         ubyte* mid;
         uint midLength;
 
-        pADIOTPRequest(
+        pADIOTPRequest.androidInvoke(
             dsId,
             &mid,
             &midLength,
