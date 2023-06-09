@@ -9,6 +9,7 @@ targetPath "bin"
 sourcePaths "lib"
 importPaths "lib"
 
+dependency "requests" version="~>2.0.9"
 dependency "slf4d" version="~>2.1.1"
 
 configuration "plist-d" {

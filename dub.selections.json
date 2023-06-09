@@ -1,10 +1,16 @@
 {
 	"fileVersion": 1,
 	"versions": {
+		"automem": "0.6.9",
+		"cachetools": "0.4.1",
 		"dxml": "0.4.3",
 		"handy-httpd": "5.2.1",
 		"httparsed": "1.2.1",
 		"plist": "~master",
-		"slf4d": "2.1.1"
+		"plist-d": {"version":"d494cf3fe79a2bb20583173c0c8cf85ef33b719e","repository":"git+https://github.com/Dadoum/libplist-d.git"},
+		"requests": "2.0.9",
+		"slf4d": "2.1.1",
+		"test_allocator": "0.3.4",
+		"unit-threaded": "0.10.8"
 	}
 }
