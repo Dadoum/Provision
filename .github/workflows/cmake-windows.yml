@@ -1,0 +1,32 @@
+name: x86_64 builds
+
+on: push
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-anisette-server-windows-x86_64:
+    runs-on: windows-2019
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/checkout@v2
+      - uses: dlang-community/setup-dlang@v1
+        with:
+          compiler: ldc-latest
+
+      - name: Build
+        run: dub build :anisette-server -b release -c "static"
+
+      - name: Rename
+        run: mv "${{github.workspace}}/bin/provision_anisette-server.exe" "${{github.workspace}}/bin/anisette-server-x86_64.exe"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: anisette-server-x86_64
+          path: |
+            ${{github.workspace}}/bin/anisette-server-x86_64.exe

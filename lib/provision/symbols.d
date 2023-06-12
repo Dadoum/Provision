@@ -34,8 +34,8 @@ private @sysv extern (C) int emptyStub() {
     return 0;
 }
 
-private @sysv extern (C) noreturn undefinedSymbol() {
-    throw new UndefinedSymbolException();
+package @sysv noreturn undefinedSymbol(immutable char* symbol) {
+    throw new UndefinedSymbolException(symbol.fromStringz());
 }
 
 private @sysv extern (C) AndroidLibrary dlopenWrapper(const char* name) {
@@ -161,5 +161,5 @@ package void* lookupSymbol(string str) {
                 return wordlist[key].ptr;
         }
     }
-    return &undefinedSymbol;
+    return null;
 }

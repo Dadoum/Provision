@@ -160,11 +160,11 @@ int lstat(const(char)* path, linux_stat* out_) {
 
     uint mode = octal!555;
 
-    if (stat_windows.st_mode & octal!11) {
+    if (stat_windows.st_mode & 0b11) {
         mode |= octal!200;
     }
 
-    if (stat_windows.st_mode & octal!4000) {
+    if (stat_windows.st_mode & 0x4000) {
         mode |= octal!40000;
     }
 

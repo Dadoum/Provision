@@ -85,7 +85,12 @@ int main(string[] args) {
     auto otp = adi.requestOTP(-2);
 
     import std.datetime.systime;
-    auto time = Clock.currTime();
+    version (Windows) {
+        import std.datetime.timezone;
+        auto time = Clock.currTime(UTC());
+    } else {
+        auto time = Clock.currTime();
+    }
 
     std.stdio.writeln(
         format!`{

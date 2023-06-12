@@ -58,7 +58,7 @@ public class ADI {
 
     public void provisioningPath(string path) {
         __provisioningPath = path;
-        pADISetProvisioningPath.androidInvoke(path.toStringz).unwrapADIError();
+        androidInvoke!pADISetProvisioningPath(path.toStringz).unwrapADIError();
     }
 
     private string __identifier;
@@ -68,7 +68,7 @@ public class ADI {
 
     public void identifier(string identifier) {
         __identifier = identifier;
-        pADISetAndroidID.androidInvoke(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
+        androidInvoke!pADISetAndroidID(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
     }
 
     public this(string libraryPath) {
@@ -121,11 +121,11 @@ public class ADI {
     }
 
     public void loadLibrary(string libraryPath) {
-        pADILoadLibraryWithPath.androidInvoke(cast(const(char*)) libraryPath.toStringz).unwrapADIError();
+        androidInvoke!pADILoadLibraryWithPath(cast(const(char*)) libraryPath.toStringz).unwrapADIError();
     }
 
     public void eraseProvisioning(ulong dsId) {
-        pADIProvisioningErase.androidInvoke(dsId).unwrapADIError();
+        androidInvoke!pADIProvisioningErase(dsId).unwrapADIError();
     }
 
     struct SynchronizationResumeMetadata {
@@ -154,7 +154,7 @@ public class ADI {
         ubyte* mid;
         uint midLength;
 
-        pADISynchronize.androidInvoke(
+        androidInvoke!pADISynchronize(
             dsId,
             serverIntermediateMetadata.ptr,
  cast(uint) serverIntermediateMetadata.length,
@@ -168,11 +168,11 @@ public class ADI {
     }
 
     public void destroyProvisioning(uint session) {
-        pADIProvisioningDestroy.androidInvoke(session).unwrapADIError();
+        androidInvoke!pADIProvisioningDestroy(session).unwrapADIError();
     }
 
     public void endProvisioning(uint session, ubyte[] persistentTokenMetadata, ubyte[] trustKey) {
-        pADIProvisioningEnd.androidInvoke(
+        androidInvoke!pADIProvisioningEnd(
             session,
             persistentTokenMetadata.ptr,
  cast(uint) persistentTokenMetadata.length,
@@ -205,7 +205,7 @@ public class ADI {
         uint cpimLength;
         uint session;
 
-        pADIProvisioningStart.androidInvoke(
+        androidInvoke!pADIProvisioningStart(
             dsId,
             serverProvisioningIntermediateMetadata.ptr,
  cast(uint) serverProvisioningIntermediateMetadata.length,
@@ -218,7 +218,7 @@ public class ADI {
     }
 
     public bool isMachineProvisioned(ulong dsId) {
-        int errorCode = pADIGetLoginCode.androidInvoke(dsId);
+        int errorCode = androidInvoke!pADIGetLoginCode(dsId);
 
         if (errorCode == 0) {
             return true;
@@ -230,7 +230,7 @@ public class ADI {
     }
 
     public void dispose(void* ptr) {
-        pADIDispose.androidInvoke(ptr).unwrapADIError();
+        androidInvoke!pADIDispose(ptr).unwrapADIError();
     }
 
     struct OneTimePassword {
@@ -259,7 +259,7 @@ public class ADI {
         ubyte* mid;
         uint midLength;
 
-        pADIOTPRequest.androidInvoke(
+        androidInvoke!pADIOTPRequest(
             dsId,
             &mid,
             &midLength,

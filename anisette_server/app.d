@@ -176,7 +176,12 @@ void main(string[] args) {
             import std.datetime.systime;
             import std.datetime.timezone;
             import core.time;
-            auto time = Clock.currTime();
+            version (Windows) {
+                import std.datetime.timezone;
+                auto time = Clock.currTime(UTC());
+            } else {
+                auto time = Clock.currTime();
+            }
 
             auto otp = adi.requestOTP(dsId);
 
