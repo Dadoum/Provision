@@ -21,6 +21,7 @@ import slf4d;
 
 import provision;
 import provision.androidlibrary;
+import provision.compat.windows;
 import provision.symbols;
 
 import constants;
@@ -128,7 +129,13 @@ int main(string[] args) {
     targetTime = taskPool.workerLocalStorage(origTimeVal);
 
     // Initializing ADI and machine if it has not already been made.
-    Device device = new Device(configurationPath.buildPath("/dev/null"));
+    version (Windows) {
+        enum nullFilename = "NUL";
+    } else {
+        enum nullFilename = "/dev/null";
+    }
+
+    Device device = new Device(nullFilename);
     {
         ADI adi = new ADI("lib/" ~ architectureIdentifier);
         adi.provisioningPath = configurationPath;

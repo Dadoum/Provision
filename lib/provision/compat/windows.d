@@ -24,11 +24,6 @@ private extern (C) {
         long tv_nsec;
     }
 
-    struct timeval {
-        size_t tv_sec;
-        size_t tv_usec;
-    }
-
     struct linux_stat {
         ulong st_dev;
         ulong st_ino;
@@ -55,6 +50,11 @@ private extern (C) {
     pragma(mangle, "chmod") int _chmod(const scope char*, mode_t);
     int _read(int fd, void* buf, uint count);
     int _write(int fd, void* buf, uint count);
+}
+
+struct timeval {
+    size_t tv_sec;
+    size_t tv_usec;
 }
 
 public import core.stdc.errno;
