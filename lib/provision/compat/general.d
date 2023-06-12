@@ -44,7 +44,5 @@ version (WindowsHacks) {
     import std.meta;
     alias sysv = AliasSeq!();
 
-    pragma(inline, true) auto androidInvoke(T, G...)(T delegate_, G params) {
-        return delegate_(params);
-    }
+    alias androidInvoke(alias U) = U;
 }
