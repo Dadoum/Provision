@@ -10,10 +10,12 @@ import core.sys.posix.sys.stat;
 import core.sys.posix.sys.time;
 import core.sys.posix.unistd;
 
+import provision.compat.general;
+
 template traceCall(alias U) {
     import std.traits;
     import slf4d;
-    auto ref traceCall(Parameters!U params) {
+    extern(C) auto ref traceCall(Parameters!U params) @sysv {
         getLogger().traceF!"CALL // %s"(__traits(identifier, U));
         return U(params);
     }
