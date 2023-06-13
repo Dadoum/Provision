@@ -7,9 +7,10 @@ import std.digest.sha;
 import file = std.file;
 import std.format;
 import std.json;
-import std.net.curl;
 import std.path;
 import std.string;
+
+import requests;
 
 import slf4d;
 
@@ -327,7 +328,7 @@ public class Device {
 }
 
 public class ProvisioningSession {
-    private HTTP httpClient;
+    private Request request;
     private string[string] urlBag;
 
     private ADI adi;
@@ -337,32 +338,34 @@ public class ProvisioningSession {
         this.adi = adi;
         this.device = device;
 
-        httpClient = HTTP();
+        request = Request();
 
-        httpClient.setUserAgent("akd/1.0 CFNetwork/1404.0.5 Darwin/22.3.0");
-        httpClient.handle.set(CurlOption.ssl_verifypeer, 0);
+        request.sslSetVerifyPeer(false);
+        request.addHeaders([
+            "User-Agent": "akd/1.0 CFNetwork/1404.0.5 Darwin/22.3.0",
 
-        // they are somehow not using the plist content-type in AuthKit
-        httpClient.addRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        httpClient.addRequestHeader("Connection", "keep-alive");
+            // they are somehow not using the plist content-type in AuthKit
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Connection": "keep-alive",
 
-        httpClient.addRequestHeader("X-Mme-Device-Id", device.uniqueDeviceIdentifier);
-        // on macOS, MMe for the Client-Info header is written with 2 caps, while on Windows it is Mme...
-        // and HTTP headers are supposed to be case-insensitive in the HTTP spec...
-        httpClient.addRequestHeader("X-MMe-Client-Info", device.serverFriendlyDescription);
-        httpClient.addRequestHeader("X-Apple-I-MD-LU", device.localUserUUID);
+            "X-Mme-Device-Id": device.uniqueDeviceIdentifier,
+            // on macOS, MMe for the Client-Info header is written with 2 caps, while on Windows it is Mme...
+            // and HTTP headers are supposed to be case-insensitive in the HTTP spec...
+            "X-MMe-Client-Info": device.serverFriendlyDescription,
+            "X-Apple-I-MD-LU": device.localUserUUID,
 
-        // httpClient.addRequestHeader("X-Apple-I-MLB", device.logicBoardSerialNumber); // 17 letters, uppercase in Apple's base 34
-        // httpClient.addRequestHeader("X-Apple-I-ROM", device.romAddress); // 6 bytes, lowercase hexadecimal
-        // httpClient.addRequestHeader("X-Apple-I-SRL-NO", device.machineSerialNumber); // 12 letters, uppercase
+            // "X-Apple-I-MLB": device.logicBoardSerialNumber, // 17 letters, uppercase in Apple's base 34
+            // "X-Apple-I-ROM": device.romAddress, // 6 bytes, lowercase hexadecimal
+            // "X-Apple-I-SRL-NO": device.machineSerialNumber, // 12 letters, uppercase
 
-        // different apps can be used, I already saw fmfd and Setup here
-        // and Reprovision uses Xcode in some requests, so maybe it is possible here too.
-        httpClient.addRequestHeader("X-Apple-Client-App-Name", "Setup");
+            // different apps can be used, I already saw fmfd and Setup here
+            // and Reprovision uses Xcode in some requests, so maybe it is possible here too.
+            "X-Apple-Client-App-Name": "Setup",
+        ]);
     }
 
     public void loadURLBag() {
-        string content = cast(string) std.net.curl.get("https://gsa.apple.com/grandslam/GsService2/lookup", httpClient);
+        string content = request.get("https://gsa.apple.com/grandslam/GsService2/lookup").responseBody.data!string();
 
         version (LibPlist) {
             PlistDict plist = cast(PlistDict) Plist.fromXml(content);
@@ -393,8 +396,8 @@ public class ProvisioningSession {
 
         import std.datetime.systime;
 
-        httpClient.addRequestHeader("X-Apple-I-Client-Time", Clock.currTime().toISOExtString());
-        string startProvisioningPlist = cast(string) post(urlBag["midStartProvisioning"],
+        request.headers["X-Apple-I-Client-Time"] = Clock.currTime().stripMilliseconds().toISOExtString();
+        string startProvisioningPlist = request.post(urlBag["midStartProvisioning"],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
@@ -404,7 +407,7 @@ public class ProvisioningSession {
 \t<key>Request</key>
 \t<dict/>
 </dict>
-</plist>", httpClient);
+</plist>").responseBody.data!string();
 
         scope string spimStr;
         {
@@ -425,8 +428,8 @@ public class ProvisioningSession {
         scope auto cpim = adi.startProvisioning(dsId, spim);
         scope (failure) try { adi.destroyProvisioning(cpim.session); } catch(Throwable) {}
 
-        httpClient.addRequestHeader("X-Apple-I-Client-Time", Clock.currTime().toISOExtString());
-        string endProvisioningPlist = cast(string) post(urlBag["midFinishProvisioning"], format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+        request.headers["X-Apple-I-Client-Time"] = Clock.currTime().stripMilliseconds().toISOExtString();
+        string endProvisioningPlist = request.post(urlBag["midFinishProvisioning"], format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
 <dict>
@@ -438,7 +441,7 @@ public class ProvisioningSession {
 \t\t<string>%s</string>
 \t</dict>
 </dict>
-</plist>"(Base64.encode(cpim.clientProvisioningIntermediateMetadata)), httpClient);
+</plist>"(Base64.encode(cpim.clientProvisioningIntermediateMetadata))).responseBody.data!string();
 
         scope ulong routingInformation;
         scope ubyte[] persistentTokenMetadata;
@@ -585,4 +588,10 @@ public class ADIException: Exception {
     ADIError adiError() {
         return errorCode;
     }
+}
+
+import std.datetime: dur, SysTime;
+private SysTime stripMilliseconds(return SysTime time) {
+    time.fracSecs = dur!"msecs"(0);
+    return time;
 }
