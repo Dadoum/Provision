@@ -17,6 +17,7 @@ configuration "plist-d" {
 
 configuration "libplist" {
     versions "LibPlist"
+    dependency "plist-d" repository="git+https://github.com/Dadoum/libplist-d.git" version="d494cf3fe79a2bb20583173c0c8cf85ef33b719e"
 }
 
 subPackage {

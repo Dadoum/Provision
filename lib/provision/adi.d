@@ -16,7 +16,7 @@ import slf4d;
 import provision.compat.general;
 
 version (LibPlist) {
-    import provision.plist;
+    import plist;
 } else {
     import plist;
     import plist.types;
