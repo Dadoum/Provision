@@ -49,7 +49,7 @@ public class ADI {
     private AndroidLibrary storeServicesCore;
     private Logger logger;
 
-    private string __provisioningPath;
+    private string __provisioningPath = null;
     public string provisioningPath() {
         return __provisioningPath;
     }
@@ -59,7 +59,7 @@ public class ADI {
         pADISetProvisioningPath(path.toStringz).unwrapADIError();
     }
 
-    private string __identifier;
+    private string __identifier = null;
     public string identifier() {
         return __identifier;
     }
@@ -107,8 +107,6 @@ public class ADI {
         logger.debug_("Initialization…");
 
         // We are setting those to be sure to have the same value in the class (used in getter) and the real one in ADI.
-        provisioningPath = "/";
-        identifier = "0000000000000000";
         logger.debug_("Initialization complete !");
     }
 
