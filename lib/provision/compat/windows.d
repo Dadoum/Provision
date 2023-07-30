@@ -98,7 +98,7 @@ void free(void* ptr) {
 }
 
 ref int __errno_location2() {
-    getLogger().debugF!"CALL // errno: %d"(errno());
+    getLogger().traceF!"CALL // errno: %d"(errno());
     errno = 0;
     return errno();
 }
@@ -106,36 +106,34 @@ ref int __errno_location2() {
 alias __errno_location = __errno_location2;
 
 char* strncpy(return scope char* s1, scope const char* s2, size_t n) {
-    getLogger().debugF!"CALL // strncpy 0x%x -(%d)-> 0x%x"(s1, /+ s1[0..n],+/ n, s2);
+    // getLogger().traceF!"CALL // strncpy 0x%x -(%d)-> 0x%x"(s1, /+ s1[0..n],+/ n, s2);
     return core.stdc.string.strncpy(s1, s2, n);
 }
 
 size_t umask(size_t s) {
-    getLogger().debug_("CALL // umask");
+    getLogger().trace("CALL // umask");
     return s;
 }
 
 size_t ftruncate(ulong handle, ulong length) {
-    getLogger().debug_("CALL // ftruncate");
+    getLogger().trace("CALL // ftruncate");
     return _chsize(handle, length);
 }
 
 int gettimeofday(timeval* tv, void* tz) {
-    getLogger().debug_("CALL // gettimeofday");
+    getLogger().trace("CALL // gettimeofday");
     auto time = Clock.currTime();
     *tv = timeval(time.toUnixTime(), time.fracSecs.total!"usecs");
-    getLogger().debugF!" -> gettimeofday %s"(*tv);
-
     return 0;
 }
 
 int chmod(const(char)* path, int mode) {
-    getLogger().debug_("CALL // chmod");
+    getLogger().trace("CALL // chmod");
     return _chmod(path.toWindowsPath(), mode);
 }
 
 int mkdir(const(char)* path, int mode) {
-    getLogger().debug_("CALL // mkdir");
+    getLogger().trace("CALL // mkdir");
     return _mkdir(path.toWindowsPath(), mode);
 }
 
@@ -192,13 +190,12 @@ int lstat(const(char)* path, linux_stat* out_) {
         0,
         [0, 0, 0]
     );
-    getLogger().traceF!"-> lstat %s"(*out_);
 
     return ret;
 }
 
 int open(const(char)* path, int oflag) {
-    getLogger().debug_("CALL // open");
+    getLogger().trace("CALL // open");
 
     int convertedOflag = 0x8000; // Binary mode
 
@@ -218,17 +215,17 @@ int open(const(char)* path, int oflag) {
 }
 
 int close(int fd) {
-    getLogger().debug_("CALL // close");
+    getLogger().trace("CALL // close");
     return _close(fd);
 }
 
 int read(int fd, void* buf, uint count) {
-    getLogger().debug_("CALL // read");
+    getLogger().trace("CALL // read");
     return _read(fd, buf, count);
 }
 
 int write(int fd, void* buf, uint count) {
-    getLogger().debug_("CALL // write");
+    getLogger().trace("CALL // write");
     return _write(fd, buf, count);
 }
 
@@ -271,7 +268,6 @@ int fstat(int fd, linux_stat* out_) {
         0,
             [0, 0, 0]
     );
-    getLogger().traceF!"-> fstat %s"(*out_);
 
     return ret;
 }
