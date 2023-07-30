@@ -44,8 +44,13 @@ private @sysv extern (C) AndroidLibrary dlopenWrapper(const char* name) {
     }
     try {
         auto caller = rootLibrary();
-        auto lib = new AndroidLibrary(cast(string) name.fromStringz(), caller.hooks);
-        caller.loadedLibraries ~= lib;
+        AndroidLibrary lib;
+        if (caller) {
+            lib = new AndroidLibrary(cast(string) name.fromStringz(), caller.hooks);
+            caller.loadedLibraries ~= lib;
+        } else {
+            lib = new AndroidLibrary(cast(string) name.fromStringz());
+        }
         return lib;
     } catch (Throwable) {
         return null;
@@ -61,7 +66,10 @@ private @sysv extern (C) void* dlsymWrapper(AndroidLibrary library, const char* 
 
 private @sysv extern (C) void dlcloseWrapper(AndroidLibrary library) {
     if (library) {
-        rootLibrary().loadedLibraries.remove!((lib) => lib == library);
+        auto caller = rootLibrary();
+        if (caller) {
+            rootLibrary().loadedLibraries.remove!((lib) => lib == library);
+        }
         destroy(library);
     }
 }

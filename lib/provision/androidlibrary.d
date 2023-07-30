@@ -286,6 +286,7 @@ AndroidLibrary memoryOwner(size_t address) {
         }
     }
 
+    getLogger().error("Cannot find the parent library! Expect bugs!");
     return null;
 }
 
