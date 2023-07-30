@@ -13,7 +13,9 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y gdc-13-aarch64-linux-gnu dub libz-dev
+      run: |
+        apt-get update
+        apt-get install -y git gdc-13-aarch64-linux-gnu dub libz-dev
 
     - uses: actions/checkout@v3
       with:
@@ -41,7 +43,9 @@ jobs:
 
     steps:
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y git gdc-13-arm-linux-gnueabihf dub libz-dev
+      run: |
+        apt-get update 
+        apt-get install -y git gdc-13-arm-linux-gnueabihf dub libz-dev
 
     - uses: actions/checkout@v3
       with:
