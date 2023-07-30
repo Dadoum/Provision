@@ -1,2 +1,4 @@
 bin/
 .dub/
+dub.selections.json
+cmake-build-*

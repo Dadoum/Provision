@@ -13,6 +13,7 @@ import std.mmfile;
 import std.net.curl;
 import std.parallelism;
 import std.path;
+import process = std.process;
 import std.range;
 import std.zip;
 
@@ -20,6 +21,7 @@ import slf4d;
 
 import provision;
 import provision.androidlibrary;
+import provision.compat.windows;
 import provision.symbols;
 
 import constants;
@@ -53,11 +55,21 @@ int main(string[] args) {
     log.infoF!"%s v%s"(mkcassetteBranding, provisionVersion);
 
     char[] identifier = cast(char[]) "ba10defe42ea69ff";
-    string configurationPath = expandTilde("~/.config/Provision");
     string outputFile = "./otp-file.acs";
     ulong days = 90;
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
+    version (Windows) {
+        string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
+    } else {
+        string configurationPath;
+        string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
+        if (xdgConfigPath) {
+            configurationPath = xdgConfigPath.buildPath("Provision");
+        } else {
+            configurationPath = expandTilde("~/.config/Provision/");
+        }
+    }
 
     // Parse command-line arguments
     auto helpInformation = getopt(
@@ -117,7 +129,13 @@ int main(string[] args) {
     targetTime = taskPool.workerLocalStorage(origTimeVal);
 
     // Initializing ADI and machine if it has not already been made.
-    Device device = new Device(configurationPath.buildPath("/dev/null"));
+    version (Windows) {
+        enum nullFilename = "NUL";
+    } else {
+        enum nullFilename = "/dev/null";
+    }
+
+    Device device = new Device(nullFilename);
     {
         ADI adi = new ADI("lib/" ~ architectureIdentifier);
         adi.provisioningPath = configurationPath;

@@ -5,8 +5,6 @@ import core.memory;
 import core.stdc.errno;
 import core.stdc.stdint;
 import core.stdc.stdlib;
-import core.sys.linux.elf;
-import core.sys.linux.link;
 import core.sys.posix.sys.mman;
 import std.algorithm;
 import std.conv;
@@ -23,6 +21,10 @@ import std.traits;
 
 import slf4d;
 
+import std_edit.elf;
+import std_edit.link;
+import provision.compat.windows;
+
 public class AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
@@ -32,6 +34,10 @@ public class AndroidLibrary {
     package ElfW!"Sym"[] dynamicSymbolTable;
     package SymbolHashTable hashTable;
     package AndroidLibrary[] loadedLibraries;
+
+    void[][] stubMaps;
+    size_t currentMapOffset = 0;
+    void[][] segments;
 
     public void*[string] hooks;
 
@@ -74,14 +80,9 @@ public class AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        auto mmapped_alloc = mmap(null, allocSize, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANON, -1, 0);
-        if (mmapped_alloc == MAP_FAILED) {
-            throw new LoaderException("Cannot allocate the memory: " ~ to!string(errno));
-        }
-        memoryTable[MemoryBlock(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize)] = this;
-        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) mmapped_alloc, cast(size_t) mmapped_alloc + allocSize, libraryName);
-        allocation = mmapped_alloc[0..allocSize];
+        allocation = MmapAllocator.instance.allocate(allocSize);
+        memoryTable[MemoryBlock(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize)] = this;
+        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize, libraryName);
 
         size_t fileStart;
         size_t fileEnd;
@@ -144,7 +145,7 @@ public class AndroidLibrary {
         }
 
         if (allocation) {
-            munmap(allocation.ptr, allocation.length);
+            MmapAllocator.instance.deallocate(allocation);
         }
     }
 
@@ -182,7 +183,7 @@ public class AndroidLibrary {
                     addend = *cast(size_t*) (cast(size_t) allocation.ptr + offset);
                 }
             }
-            auto symbol = getSymbolImplementation(getSymbolName(dynamicSymbolTable[symbolIndex]));
+            auto symbol = getSymbolImplementation(&dynamicStringTable[dynamicSymbolTable[symbolIndex].st_name]);
 
             auto location = cast(size_t*) (cast(size_t) allocation.ptr + offset);
 
@@ -205,6 +206,35 @@ public class AndroidLibrary {
         }
     }
 
+    private void* buildStub(char* name) {
+        ubyte[] code = buildStubCode(name);
+        if (stubMaps.length == 0 || currentMapOffset + code.length > stubMaps[$ - 1].length) {
+            stubMaps ~= MmapAllocator.instance.allocate(pageSize);
+            currentMapOffset = 0;
+        }
+
+        void[] currentStubMap = stubMaps[$ - 1];
+
+        mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_WRITE);
+        currentStubMap[currentMapOffset..currentMapOffset + code.length] = code;
+        mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_EXEC);
+
+        void* address = &currentStubMap[currentMapOffset];
+        currentMapOffset += code.length;
+        return address;
+    }
+
+    private ubyte[] buildStubCode(char* name) {
+        // generates x86_64 assembler code for `undefinedSymbol(name)`
+        // it's never going to return back so we don't care about not saving registers.
+        import provision.symbols;
+        return [
+            ub!0x48, ub!0xBF, ] ~ name.ubytes() ~ [ // mov name %rdi
+            ub!0x48, ub!0xB8, ] ~ (&undefinedSymbol).ubytes() ~ [ // mov &undefinedSymbol %rax
+            ub!0xFF, ub!0xE0 // jmp *%rax
+        ];
+    }
+
     private string getSymbolName(ElfW!"Sym" symbol) {
         return cast(string) fromStringz(&dynamicStringTable[symbol.st_name]);
     }
@@ -213,14 +243,18 @@ public class AndroidLibrary {
         return cast(string) fromStringz(&sectionNamesTable[section.sh_name]);
     }
 
-    void* getSymbolImplementation(string symbolName) {
+    void* getSymbolImplementation(char* name) {
+        string symbolName = cast(string) name.fromStringz();
         void** hook = symbolName in hooks;
         if (hook) {
             return *hook;
         }
 
         import provision.symbols;
-        return lookupSymbol(symbolName);
+        auto sym = lookupSymbol(symbolName);
+        if (!sym)
+            sym = buildStub(name);
+        return sym;
     }
 
     void* load(string symbolName) {
@@ -256,12 +290,35 @@ AndroidLibrary memoryOwner(size_t address) {
     return null;
 }
 
-import core.sys.linux.execinfo;
-pragma(inline, true) AndroidLibrary rootLibrary() {
-    enum MAXFRAMES = 4;
-    void*[MAXFRAMES] callstack;
-    auto numframes = backtrace(callstack.ptr, MAXFRAMES);
-    return memoryOwner(cast(size_t) callstack[numframes - 1]);
+version (linux) {
+    import core.sys.linux.execinfo;
+    pragma(inline, true) AndroidLibrary rootLibrary() {
+        enum MAXFRAMES = 4;
+        void*[MAXFRAMES] callstack;
+        auto numframes = backtrace(callstack.ptr, MAXFRAMES);
+        return memoryOwner(cast(size_t) callstack[numframes - 1]);
+    }
+} else version (Windows) {
+    version (LDC) { // Seems to work consistently, but LLVM only.
+        pragma(LDC_intrinsic, "llvm.returnaddress")
+        ubyte* return_address(int);
+
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary(ubyte* address = return_address(0)) {
+            assert(address != null);
+            return memoryOwner(cast(size_t) address);
+        }
+    } else { // Works on a real Windows machine, but not Wine
+        import core.sys.windows.stacktrace;
+        pragma(inline, true) AndroidLibrary rootLibrary() {
+            auto callstack = StackTrace.trace();
+            auto address = cast(size_t) callstack[$ - 1];
+            assert(address != 0);
+            return memoryOwner(address);
+        }
+    }
+} else {
+    static assert("Unsupported platform.");
 }
 
 interface SymbolHashTable {
@@ -419,6 +476,14 @@ template R_GENERIC(string relocationType) {
     enum R_GENERIC = mixin("R_" ~ relocationArch ~ "_" ~ relocationType);
 }
 
+template ub(ubyte a) {
+    enum ub = a;
+}
+
+ubyte[T.sizeof] ubytes(T)(T val) {
+    return *cast(ubyte[T.sizeof]*) &val;
+}
+
 size_t pageFloor(size_t number) {
     return number & pageMask;
 }
@@ -446,7 +511,7 @@ class LoaderException: Exception {
 }
 
 class UndefinedSymbolException: Exception {
-    this(string file = __FILE__, size_t line = __LINE__) {
-        super("An undefined symbol has been called!", file, line);
+    this(string symbol, string file = __FILE__, size_t line = __LINE__) {
+        super(format!"An undefined symbol has been called: %s."(symbol), file, line);
     }
 }

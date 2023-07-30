@@ -9,6 +9,7 @@ import std.getopt;
 import std.math;
 import std.net.curl;
 import std.parallelism;
+import process = std.process;
 import std.path;
 import std.zip;
 
@@ -49,9 +50,20 @@ void main(string[] args) {
     serverConfig.port = 6969;
 
     bool rememberMachine = true;
-    string configurationPath = expandTilde("~/.config/Provision");
     bool onlyInit = false;
     bool apkDownloadAllowed = true;
+    version (Windows) {
+        string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
+    } else {
+        string configurationPath;
+        string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
+        if (xdgConfigPath) {
+            configurationPath = xdgConfigPath.buildPath("Provision");
+        } else {
+            configurationPath = expandTilde("~/.config/Provision/");
+        }
+    }
+
     auto helpInformation = getopt(
         args,
         "n|host", format!"The hostname to bind to (default: %s)"(serverConfig.hostname), &serverConfig.hostname,
@@ -72,7 +84,7 @@ void main(string[] args) {
         file.mkdirRecurse(configurationPath);
     }
 
-    string libraryPath = configurationPath.buildPath("lib/");
+    string libraryPath = configurationPath.buildPath("lib/").buildPath(architectureIdentifier ~ "/");
 
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
     auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
@@ -164,7 +176,12 @@ void main(string[] args) {
             import std.datetime.systime;
             import std.datetime.timezone;
             import core.time;
-            auto time = Clock.currTime();
+            version (Windows) {
+                import std.datetime.timezone;
+                auto time = Clock.currTime(UTC());
+            } else {
+                auto time = Clock.currTime();
+            }
 
             auto otp = adi.requestOTP(dsId);
 
