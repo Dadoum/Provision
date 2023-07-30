@@ -42,12 +42,9 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          cat << EOF | tee /etc/apt/sources.list.d/gdc-backports.list
-          deb http://ppa.launchpad.net/ubuntu-toolchain-r/ppa/ubuntu jammy main
-          deb-src http://ppa.launchpad.net/ubuntu-toolchain-r/ppa/ubuntu jammy main
-          EOF
-          apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 60C317803A41BA51845E371A1E9377A2BA9EF27F
           apt-get update
+          apt-get install -y software-properties-common
+          add-apt-repository ppa:ubuntu-toolchain-r/ppa
           apt-get install -y git gdc-13-i686-linux-gnu dub libz-dev
 
       - uses: actions/checkout@v3
