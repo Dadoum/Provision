@@ -84,7 +84,7 @@ void main(string[] args) {
         file.mkdirRecurse(configurationPath);
     }
 
-    string libraryPath = configurationPath.buildPath("lib/");
+    string libraryPath = configurationPath.buildPath("lib/").buildPath(architectureIdentifier ~ "/");
 
     auto coreADIPath = libraryPath.buildPath("libCoreADI.so");
     auto SSCPath = libraryPath.buildPath("libstoreservicescore.so");
