@@ -45,7 +45,7 @@ jobs:
           apt-get update
           apt-get install -y software-properties-common
           add-apt-repository ppa:ubuntu-toolchain-r/ppa
-          apt-get install -y git gdc-13-i686-linux-gnu dub libz-dev
+          apt-get install -y git gdc-13-i686-linux-gnu dub libz-dev elfutils
 
       - uses: actions/checkout@v3
         with:
