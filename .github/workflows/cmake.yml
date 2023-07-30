@@ -55,15 +55,15 @@ jobs:
         run: dub build :anisette-server -b release --compiler=i686-linux-gnu-gdc-13 -c "static"
 
       - name: Rename
-        run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-i686"
+        run: mv "bin/provision_anisette-server" "bin/anisette-server-i686"
 
       - name: Put debug symbols in a separate file
-        run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-i686.dbg" "${{github.workspace}}/bin/anisette-server-i686"
+        run: eu-strip --strip-debug -f "bin/anisette-server-i686.dbg" "bin/anisette-server-i686"
 
       - uses: actions/upload-artifact@v3
         with:
           name: anisette-server-i686
           path: |
-            ${{github.workspace}}/bin/anisette-server-i686
-            ${{github.workspace}}/bin/anisette-server-i686.dbg
+            bin/anisette-server-i686
+            bin/anisette-server-i686.dbg
 

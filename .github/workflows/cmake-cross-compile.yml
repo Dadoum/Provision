@@ -27,17 +27,17 @@ jobs:
       run: dub build :anisette-server -b release --compiler=aarch64-linux-gnu-gdc-13 -c "static"
 
     - name: Rename
-      run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-aarch64"
+      run: mv "bin/provision_anisette-server" "bin/anisette-server-aarch64"
 
     - name: Put debug symbols in a separate file
-      run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-aarch64.dbg" "${{github.workspace}}/bin/anisette-server-aarch64"
+      run: eu-strip --strip-debug -f "bin/anisette-server-aarch64.dbg" "bin/anisette-server-aarch64"
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-aarch64
         path: |
-          ${{github.workspace}}/bin/anisette-server-aarch64
-          ${{github.workspace}}/bin/anisette-server-aarch64.dbg
+          bin/anisette-server-aarch64
+          bin/anisette-server-aarch64.dbg
 
   build-anisette-server-armv7:
     runs-on: ubuntu-latest
@@ -59,14 +59,14 @@ jobs:
       run: dub build :anisette-server -b release --compiler=arm-linux-gnueabihf-gdc-13 -c "static"
 
     - name: Rename
-      run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-armv7"
+      run: mv "bin/provision_anisette-server" "bin/anisette-server-armv7"
 
     - name: Put debug symbols in a separate file
-      run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-armv7.dbg" "${{github.workspace}}/bin/anisette-server-armv7"
+      run: eu-strip --strip-debug -f "bin/anisette-server-armv7.dbg" "bin/anisette-server-armv7"
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-armv7
         path: |
-          ${{github.workspace}}/bin/anisette-server-armv7
-          ${{github.workspace}}/bin/anisette-server-armv7.dbg
+          bin/anisette-server-armv7
+          bin/anisette-server-armv7.dbg
