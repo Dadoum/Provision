@@ -9,8 +9,8 @@ targetPath "bin"
 sourcePaths "lib"
 importPaths "lib"
 
-dependency "requests" version="~>2.0.9"
-dependency "slf4d" version="~>2.1.1"
+dependency "requests" version="~>2"
+dependency "slf4d" version="~>2"
 
 configuration "plist-d" {
     dependency "plist" version="~master"
@@ -31,7 +31,7 @@ subPackage {
     sourcePaths "retrieve_headers"
 
     dependency "provision" version="*"
-    lflags "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libws2_32.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libmincore.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libwsock32.a" platform="gdc"
+    // lflags "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libws2_32.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libmincore.a" "/usr/x86_64-w64-mingw32ucrt/sys-root/mingw/lib/libwsock32.a" platform="gdc"
 }
 
 subPackage {

@@ -16,20 +16,26 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y gdc-12-aarch64-linux-gnu dub libz-dev
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
+        sudo apt-get update && sudo apt-get install -y gdc-13-aarch64-linux-gnu dub libz-dev
 
     - name: Build
-      run: dub build :anisette-server -b release --compiler=aarch64-linux-gnu-gdc-12 -c "static"
+      run: dub build :anisette-server -b release --compiler=aarch64-linux-gnu-gdc-13 -c "static"
 
     - name: Rename
       run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-aarch64"
+
+    - name: Put debug symbols in a separate file
+      run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-aarch64.dbg" "${{github.workspace}}/bin/anisette-server-aarch64"
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-aarch64
         path: |
           ${{github.workspace}}/bin/anisette-server-aarch64
-          
+          ${{github.workspace}}/bin/anisette-server-aarch64.dbg
+
   build-anisette-server-armv7:
     runs-on: ubuntu-22.04
 
@@ -39,16 +45,22 @@ jobs:
         submodules: recursive
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y gdc-12-arm-linux-gnueabihf dub libz-dev
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
+        sudo apt-get update && sudo apt-get install -y gdc-13-arm-linux-gnueabihf dub libz-dev
 
     - name: Build
-      run: dub build :anisette-server -b release --compiler=arm-linux-gnueabihf-gdc-12 -c "static"
+      run: dub build :anisette-server -b release --compiler=arm-linux-gnueabihf-gdc-13 -c "static"
 
     - name: Rename
       run: mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-armv7"
+
+    - name: Put debug symbols in a separate file
+      run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-armv7.dbg" "${{github.workspace}}/bin/anisette-server-armv7"
 
     - uses: actions/upload-artifact@v3
       with:
         name: anisette-server-armv7
         path: |
           ${{github.workspace}}/bin/anisette-server-armv7
+          ${{github.workspace}}/bin/anisette-server-armv7.dbg

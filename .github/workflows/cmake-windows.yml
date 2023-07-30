@@ -20,13 +20,16 @@ jobs:
           compiler: ldc-latest
 
       - name: Build
-        run: dub build :anisette-server -b release -c "static"
+        run: dub build :anisette-server -b release-debug -c "static"
 
       - name: Rename
-        run: mv "${{github.workspace}}/bin/provision_anisette-server.exe" "${{github.workspace}}/bin/anisette-server-x86_64.exe"
+        run: |
+          mv "${{github.workspace}}/bin/provision_anisette-server.exe" "${{github.workspace}}/bin/anisette-server-x86_64.exe"
+          mv "${{github.workspace}}/bin/provision_anisette-server.pdb" "${{github.workspace}}/bin/anisette-server-x86_64.pdb"
 
       - uses: actions/upload-artifact@v3
         with:
           name: anisette-server-x86_64
           path: |
             ${{github.workspace}}/bin/anisette-server-x86_64.exe
+            ${{github.workspace}}/bin/anisette-server-x86_64.pdb
