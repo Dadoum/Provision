@@ -60,7 +60,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: anisette-server-x86_64
+          name: anisette-server-macOS-x86_64
           path: |
             ${{github.workspace}}/bin/anisette-server-macOS-x86_64
 
@@ -118,6 +118,6 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: anisette-server-arm64
+          name: anisette-server-macOS-arm64
           path: |
             ${{github.workspace}}/bin/anisette-server-macOS-arm64
