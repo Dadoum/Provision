@@ -13,6 +13,7 @@ import slf4d;
 
 import provision.compat.general;
 import provision.compat.windows;
+import provision.compat.macos;
 import provision.compat.linux;
 
 __gshared:
@@ -34,8 +35,14 @@ private @sysv extern (C) int emptyStub() {
     return 0;
 }
 
-package @sysv noreturn undefinedSymbol(immutable char* symbol) {
-    throw new UndefinedSymbolException(symbol.fromStringz());
+version (X86_64) {
+    package @sysv noreturn undefinedSymbol(immutable char* symbol) {
+        throw new UndefinedSymbolException(symbol.fromStringz());
+    }
+} else {
+    package @sysv noreturn undefinedSymbol() {
+        throw new UndefinedSymbolException("(unknown)".fromStringz());
+    }
 }
 
 private @sysv extern (C) AndroidLibrary dlopenWrapper(const char* name) {
@@ -52,7 +59,8 @@ private @sysv extern (C) AndroidLibrary dlopenWrapper(const char* name) {
             lib = new AndroidLibrary(cast(string) name.fromStringz());
         }
         return lib;
-    } catch (Throwable) {
+    } catch (Exception ex) {
+        getLogger().debugF!"Library loading failed! %s. Returning null."(ex);
         return null;
     }
 }

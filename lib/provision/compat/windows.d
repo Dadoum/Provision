@@ -12,6 +12,8 @@ import std.conv;
 import std.datetime;
 import std.string;
 
+import std_edit.linux_stat;
+
 import slf4d;
 
 import provision.compat.general;
@@ -22,27 +24,6 @@ private extern (C) {
     struct timespec {
         time_t tv_sec;
         long tv_nsec;
-    }
-
-    struct linux_stat {
-        ulong st_dev;
-        ulong st_ino;
-        ulong st_nlink;
-        uint st_mode;
-        uint st_uid;
-        uint st_gid;
-        uint __pad0;
-        ulong st_rdev;
-        long st_size;
-        long st_blksize;
-        long st_blocks;
-        long st_atime;
-        long st_atimensec;
-        long st_mtime;
-        long st_mtimensec;
-        long st_ctime;
-        long st_ctimensec;
-        long[3] __unused;
     }
 
     size_t _chsize(ulong handle, ulong length);
@@ -151,49 +132,6 @@ const(char)* toWindowsPath(const(char)* c) {
         .toStringz();
 }
 
-int lstat(const(char)* path, linux_stat* out_) {
-    struct_stat stat_windows;
-    getLogger().traceF!"CALL // lstat: %s"(path.toWindowsPath.fromStringz);
-    int ret = stat(path.toWindowsPath(), &stat_windows);
-
-    uint mode = octal!555;
-
-    if (stat_windows.st_mode & 0b11) {
-        mode |= octal!200;
-    }
-
-    if (stat_windows.st_mode & 0x4000) {
-        mode |= octal!40000;
-    }
-
-    auto atime = stat_windows.st_atime / 10000000;
-    auto mtime = stat_windows.st_mtime / 10000000;
-    auto ctime = stat_windows.st_ctime / 10000000;
-
-    *out_ = linux_stat(
-        stat_windows.st_dev,
-        stat_windows.st_ino,
-        stat_windows.st_nlink,
-        mode,
-        stat_windows.st_uid,
-        stat_windows.st_gid,
-        0,
-        stat_windows.st_rdev,
-        stat_windows.st_size,
-        0,
-        0,
-        atime,
-        0,
-        mtime,
-        0,
-        ctime,
-        0,
-        [0, 0, 0]
-    );
-
-    return ret;
-}
-
 int open(const(char)* path, int oflag) {
     getLogger().trace("CALL // open");
 
@@ -229,45 +167,74 @@ int write(int fd, void* buf, uint count) {
     return _write(fd, buf, count);
 }
 
-int fstat(int fd, linux_stat* out_) {
-    struct_stat stat_windows;
+int fstat(int fd, stat_linux_t* out_) {
+    struct_stat stat_struc;
     getLogger().trace("CALL // fstat");
-    int ret = core.sys.windows.stat.fstat(fd, &stat_windows);
+    int ret = core.sys.windows.stat.fstat(fd, &stat_struc);
 
     uint mode = octal!555;
 
-    if (stat_windows.st_mode & octal!11) {
+    if (stat_struc.st_mode & octal!11) {
         mode |= octal!200;
     }
 
-    if (stat_windows.st_mode & octal!4000) {
+    if (stat_struc.st_mode & octal!4000) {
         mode |= octal!40000;
     }
 
-    auto atime = stat_windows.st_atime / 10000000;
-    auto mtime = stat_windows.st_mtime / 10000000;
-    auto ctime = stat_windows.st_ctime / 10000000;
+    auto atime = stat_struc.st_atime / 10000000;
+    auto mtime = stat_struc.st_mtime / 10000000;
+    auto ctime = stat_struc.st_ctime / 10000000;
 
-    *out_ = linux_stat(
-        stat_windows.st_dev,
-        stat_windows.st_ino,
-        stat_windows.st_nlink,
-        mode,
-        stat_windows.st_uid,
-        stat_windows.st_gid,
-        0,
-        stat_windows.st_rdev,
-        stat_windows.st_size,
-        0,
-        0,
-        atime,
-        0,
-        mtime,
-        0,
-        ctime,
-        0,
-            [0, 0, 0]
-    );
+    *out_ = stat_linux_t();
+    out_.st_dev = stat_struc.st_dev;
+    out_.st_ino = stat_struc.st_ino;
+    out_.st_mode = mode;
+    out_.st_nlink = stat_struc.st_nlink;
+    out_.st_uid = stat_struc.st_uid;
+    out_.st_gid = stat_struc.st_gid;
+    out_.st_rdev = stat_struc.st_rdev;
+    out_.st_size = stat_struc.st_size;
+    out_.st_atime = atime;
+    out_.st_mtime = mtime;
+    out_.st_ctime = ctime;
+    out_.st_ino = stat_struc.st_ino;
+
+    return ret;
+}
+
+int lstat(const(char)* path, stat_linux_t* out_) {
+    struct_stat stat_struc;
+    getLogger().traceF!"CALL // lstat: %s"(path.toWindowsPath.fromStringz);
+    int ret = stat(path.toWindowsPath(), &stat_struc);
+
+    uint mode = octal!555;
+
+    if (stat_struc.st_mode & 0b11) {
+        mode |= octal!200;
+    }
+
+    if (stat_struc.st_mode & 0x4000) {
+        mode |= octal!40000;
+    }
+
+    auto atime = stat_struc.st_atime / 10000000;
+    auto mtime = stat_struc.st_mtime / 10000000;
+    auto ctime = stat_struc.st_ctime / 10000000;
+
+    *out_ = stat_linux_t();
+    out_.st_dev = stat_struc.st_dev;
+    out_.st_ino = stat_struc.st_ino;
+    out_.st_mode = mode;
+    out_.st_nlink = stat_struc.st_nlink;
+    out_.st_uid = stat_struc.st_uid;
+    out_.st_gid = stat_struc.st_gid;
+    out_.st_rdev = stat_struc.st_rdev;
+    out_.st_size = stat_struc.st_size;
+    out_.st_atime = atime;
+    out_.st_mtime = mtime;
+    out_.st_ctime = ctime;
+    out_.st_ino = stat_struc.st_ino;
 
     return ret;
 }

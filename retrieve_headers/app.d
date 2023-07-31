@@ -37,7 +37,7 @@ int main(string[] args) {
 
     version (Windows) {
         string configurationPath = process.environment["LocalAppData"].buildPath("Provision");
-    } else {
+    } else version (linux) {
         string configurationPath;
         string xdgConfigPath = process.environment.get("XDG_CONFIG_HOME");
         if (xdgConfigPath) {
@@ -45,6 +45,8 @@ int main(string[] args) {
         } else {
             configurationPath = expandTilde("~/.config/Provision/");
         }
+    } else {
+        string configurationPath = "./Provision-data/";
     }
 
     if (!file.exists(configurationPath)) {

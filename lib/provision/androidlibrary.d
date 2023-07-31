@@ -28,6 +28,7 @@ import provision.compat.windows;
 public class AndroidLibrary {
     package MmFile elfFile;
     package void[] allocation;
+    package size_t shift;
 
     package char[] sectionNamesTable;
     package char[] dynamicStringTable;
@@ -44,6 +45,8 @@ public class AndroidLibrary {
     private ElfW!"Shdr"[] relocationSections;
 
     public this(string libraryName, void*[string] hooks = null) {
+        auto log = getLogger();
+
         elfFile = new MmFile(libraryName);
         if (hooks) this.hooks = hooks;
 
@@ -51,24 +54,38 @@ public class AndroidLibrary {
         auto programHeaders = elfFile.identifyArray!(ElfW!"Phdr")(elfHeader.e_phoff, elfHeader.e_phnum);
 
         size_t minimum = size_t.max;
-        size_t maximumFile = size_t.min;
         size_t maximumMemory = size_t.min;
 
         size_t headerStart;
         size_t headerEnd;
         size_t headerMemoryEnd;
 
+        shift = 0;
+        int adjacentProtection = 0;
+
+        log.traceF!"Page size: 0x%x"(pageSize);
+
+        enum originalPageSize = 0x1000;
         foreach (programHeader; programHeaders) {
             if (programHeader.p_type == PT_LOAD) {
                 headerStart = programHeader.p_vaddr;
                 headerEnd = programHeader.p_vaddr + programHeader.p_filesz;
                 headerMemoryEnd = programHeader.p_vaddr + programHeader.p_memsz;
 
+                if (pageSize > originalPageSize && (adjacentProtection | programHeader.p_flags) == (PF_R | PF_W | PF_X)) {
+                    if (shift) {
+                        throw new LoaderException("Cannot load the library on your system! The page size is too big!");
+                    }
+                    shift = ((pageCeil(headerStart) - headerStart) + originalPageSize) & ~(originalPageSize - 1);
+                    log.traceF!"Mandating a shift of %d to hopefully fix page size."(shift);
+                    adjacentProtection = 0;
+                }
+                log.traceF!"Program header protection: %b"(programHeader.p_flags);
+
+                adjacentProtection |= programHeader.p_flags;
+
                 if (headerStart < minimum) {
                     minimum = headerStart;
-                }
-                if (headerEnd > maximumFile) {
-                    maximumFile = headerEnd;
                 }
                 if (headerMemoryEnd > maximumMemory) {
                     maximumMemory = headerMemoryEnd;
@@ -80,9 +97,9 @@ public class AndroidLibrary {
         auto alignedMaximumMemory = pageCeil(maximumMemory);
 
         auto allocSize = alignedMaximumMemory - alignedMinimum;
-        allocation = MmapAllocator.instance.allocate(allocSize);
+        allocation = MmapAllocator.instance.allocate(allocSize + shift)[shift..$];
         memoryTable[MemoryBlock(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize)] = this;
-        getLogger().traceF!"Allocating %x - %x for %s"(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize, libraryName);
+        log.traceF!"Allocating 0x%x - 0x%x for %s (shifted by %d)"(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocSize, libraryName, shift);
 
         size_t fileStart;
         size_t fileEnd;
@@ -94,9 +111,20 @@ public class AndroidLibrary {
                 fileStart = programHeader.p_offset;
                 fileEnd = programHeader.p_offset + programHeader.p_filesz;
 
+                auto protectionResult = mprotect(cast(void*) pageFloor(cast(size_t) allocation.ptr + headerStart), pageCeil(cast(size_t) allocation.ptr + programHeader.p_vaddr + programHeader.p_memsz) - pageFloor(cast(size_t) allocation.ptr + headerStart), PROT_READ | PROT_WRITE);
+
+                if (protectionResult != 0) {
+                    throw new LoaderException("Cannot protect the memory correctly.");
+                }
+
+                log.traceF!"Program header alloc: %x - %x"(allocation.ptr + headerStart - alignedMinimum, allocation.ptr + headerEnd - alignedMinimum);
                 allocation[headerStart - alignedMinimum..headerEnd - alignedMinimum] = elfFile[fileStart..fileEnd];
 
-                auto protectionResult = mprotect(allocation.ptr + pageFloor(headerStart), pageCeil(headerEnd) - pageFloor(headerStart), programHeader.memoryProtection());
+                log.traceF!"Program header protection: %b"(programHeader.p_flags);
+                auto prot = programHeader.memoryProtection();
+                protectionResult = mprotect(cast(void*) pageFloor(cast(size_t) allocation.ptr + headerStart), pageCeil(cast(size_t) allocation.ptr + programHeader.p_vaddr + programHeader.p_memsz) - pageFloor(cast(size_t) allocation.ptr + headerStart), prot
+                    // | PROT_READ | PROT_WRITE | PROT_EXEC
+                );
 
                 if (protectionResult != 0) {
                     throw new LoaderException("Cannot protect the memory correctly.");
@@ -104,6 +132,7 @@ public class AndroidLibrary {
             }
         }
 
+        log.trace("Parsing sections");
         auto sectionHeaders = elfFile.identifyArray!(ElfW!"Shdr")(elfHeader.e_shoff, elfHeader.e_shnum);
         auto sectionStrTable = sectionHeaders[elfHeader.e_shstrndx];
         sectionNamesTable = cast(char[]) elfFile[sectionStrTable.sh_offset..sectionStrTable.sh_offset + sectionStrTable.sh_size];
@@ -145,7 +174,7 @@ public class AndroidLibrary {
         }
 
         if (allocation) {
-            MmapAllocator.instance.deallocate(allocation);
+            MmapAllocator.instance.deallocate((allocation.ptr - shift)[0..allocation.length + shift]);
         }
     }
 
@@ -207,21 +236,26 @@ public class AndroidLibrary {
     }
 
     private void* buildStub(char* name) {
-        ubyte[] code = buildStubCode(name);
-        if (stubMaps.length == 0 || currentMapOffset + code.length > stubMaps[$ - 1].length) {
-            stubMaps ~= MmapAllocator.instance.allocate(pageSize);
-            currentMapOffset = 0;
+        version (X86_64) {
+            ubyte[] code = buildStubCode(name);
+            if (stubMaps.length == 0 || currentMapOffset + code.length > stubMaps[$ - 1].length) {
+                stubMaps ~= MmapAllocator.instance.allocate(pageSize);
+                currentMapOffset = 0;
+            }
+
+            void[] currentStubMap = stubMaps[$ - 1];
+
+            mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_WRITE);
+            currentStubMap[currentMapOffset..currentMapOffset + code.length] = code;
+            mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_EXEC);
+
+            void* address = &currentStubMap[currentMapOffset];
+            currentMapOffset += code.length;
+            return address;
+        } else {
+            import provision.symbols;
+            return &undefinedSymbol;
         }
-
-        void[] currentStubMap = stubMaps[$ - 1];
-
-        mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_WRITE);
-        currentStubMap[currentMapOffset..currentMapOffset + code.length] = code;
-        mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_EXEC);
-
-        void* address = &currentStubMap[currentMapOffset];
-        currentMapOffset += code.length;
-        return address;
     }
 
     private ubyte[] buildStubCode(char* name) {
@@ -298,27 +332,25 @@ version (linux) {
         auto numframes = backtrace(callstack.ptr, MAXFRAMES);
         return memoryOwner(cast(size_t) callstack[numframes - 1]);
     }
-} else version (Windows) {
-    version (LDC) { // Seems to work consistently, but LLVM only.
-        pragma(LDC_intrinsic, "llvm.returnaddress")
-        ubyte* return_address(int);
+} else version (LDC) { // Seems to work consistently, but LLVM only.
+    pragma(LDC_intrinsic, "llvm.returnaddress")
+    ubyte* return_address(int);
 
-        import core.sys.windows.stacktrace;
-        pragma(inline, true) AndroidLibrary rootLibrary(ubyte* address = return_address(0)) {
-            assert(address != null);
-            return memoryOwner(cast(size_t) address);
-        }
-    } else { // Works on a real Windows machine, but not Wine
-        import core.sys.windows.stacktrace;
-        pragma(inline, true) AndroidLibrary rootLibrary() {
-            auto callstack = StackTrace.trace();
-            auto address = cast(size_t) callstack[$ - 1];
-            assert(address != 0);
-            return memoryOwner(address);
-        }
+    import core.sys.windows.stacktrace;
+    pragma(inline, true) AndroidLibrary rootLibrary(ubyte* address = return_address(0)) {
+        assert(address != null);
+        return memoryOwner(cast(size_t) address);
+    }
+} else version (Windows) { // Works on a real Windows machine, but not Wine
+    import core.sys.windows.stacktrace;
+    pragma(inline, true) AndroidLibrary rootLibrary() {
+        auto callstack = StackTrace.trace();
+        auto address = cast(size_t) callstack[$ - 1];
+        assert(address != 0);
+        return memoryOwner(address);
     }
 } else {
-    static assert("Unsupported platform.");
+    static assert(false, "Unsupported platform.");
 }
 
 interface SymbolHashTable {
