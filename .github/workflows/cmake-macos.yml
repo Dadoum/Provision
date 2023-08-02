@@ -14,7 +14,6 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/checkout@v2
       - uses: dlang-community/setup-dlang@v1
         with:
           compiler: ldc-1.33.0
