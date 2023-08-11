@@ -173,6 +173,10 @@ public class AndroidLibrary {
             destroy(library);
         }
 
+        if (elfFile) {
+            destroy(elfFile);
+        }
+
         if (allocation) {
             MmapAllocator.instance.deallocate((allocation.ptr - shift)[0..allocation.length + shift]);
         }
