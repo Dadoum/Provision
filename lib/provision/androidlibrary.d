@@ -143,6 +143,10 @@ public class AndroidLibrary {
             destroy(library);
         }
 
+        if (elfFile) {
+            destroy(elfFile);
+        }
+
         if (allocation) {
             munmap(allocation.ptr, allocation.length);
         }
