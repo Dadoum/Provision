@@ -35,7 +35,7 @@ private @sysv extern (C) int emptyStub() {
     return 0;
 }
 
-version (X86_64) {
+version (StubMaps) {
     package @sysv noreturn undefinedSymbol(immutable char* symbol) {
         throw new UndefinedSymbolException(symbol.fromStringz());
     }

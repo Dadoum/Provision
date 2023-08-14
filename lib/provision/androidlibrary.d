@@ -26,19 +26,20 @@ import std_edit.link;
 import provision.compat.windows;
 
 public class AndroidLibrary {
-    package MmFile elfFile;
-    package void[] allocation;
-    package size_t shift;
+    MmFile elfFile;
+    void[] allocation;
+    size_t shift;
 
-    package char[] sectionNamesTable;
-    package char[] dynamicStringTable;
-    package ElfW!"Sym"[] dynamicSymbolTable;
-    package SymbolHashTable hashTable;
-    package AndroidLibrary[] loadedLibraries;
+    char[] sectionNamesTable;
+    char[] dynamicStringTable;
+    ElfW!"Sym"[] dynamicSymbolTable;
+    SymbolHashTable hashTable;
+    AndroidLibrary[] loadedLibraries;
 
-    void[][] stubMaps;
-    size_t currentMapOffset = 0;
-    void[][] segments;
+    version (StubMaps) {
+        void[][] stubMaps;
+        size_t currentMapOffset = 0;
+    }
 
     public void*[string] hooks;
 
@@ -173,12 +174,54 @@ public class AndroidLibrary {
             destroy(library);
         }
 
-        if (elfFile) {
-            destroy(elfFile);
+        version (StubMaps) {
+            foreach (stubMap; stubMaps) {
+                MmapAllocator.instance.deallocate(stubMap);
+            }
+
+            if (stubMaps) {
+                destroy(stubMaps);
+            }
         }
 
         if (allocation) {
+            auto memBlock = MemoryBlock(cast(size_t) allocation.ptr, cast(size_t) allocation.ptr + allocation.length);
+            if (memBlock in memoryTable) {
+                memoryTable.remove(memBlock);
+            }
             MmapAllocator.instance.deallocate((allocation.ptr - shift)[0..allocation.length + shift]);
+        }
+
+        if (allocation) {
+            destroy(allocation);
+        }
+
+        if (relocationSections) {
+            destroy(relocationSections);
+        }
+
+        if (sectionNamesTable) {
+            destroy(sectionNamesTable);
+        }
+
+        if (dynamicStringTable) {
+            destroy(dynamicStringTable);
+        }
+
+        if (dynamicSymbolTable) {
+            destroy(dynamicSymbolTable);
+        }
+
+        if (hashTable) {
+            destroy(hashTable);
+        }
+
+        if (loadedLibraries) {
+            destroy(loadedLibraries);
+        }
+
+        if (hooks) {
+            destroy(hooks);
         }
     }
 
@@ -239,38 +282,40 @@ public class AndroidLibrary {
         }
     }
 
-    private void* buildStub(char* name) {
-        version (X86_64) {
-            ubyte[] code = buildStubCode(name);
-            if (stubMaps.length == 0 || currentMapOffset + code.length > stubMaps[$ - 1].length) {
-                stubMaps ~= MmapAllocator.instance.allocate(pageSize);
-                currentMapOffset = 0;
+    version (StubMaps) {
+        private void* buildStub(char* name) {
+            version (X86_64) {
+                ubyte[] code = buildStubCode(name);
+                if (stubMaps.length == 0 || currentMapOffset + code.length > stubMaps[$ - 1].length) {
+                    stubMaps ~= MmapAllocator.instance.allocate(pageSize);
+                    currentMapOffset = 0;
+                }
+
+                void[] currentStubMap = stubMaps[$ - 1];
+
+                mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_WRITE);
+                currentStubMap[currentMapOffset..currentMapOffset + code.length] = code;
+                mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_EXEC);
+
+                void* address = &currentStubMap[currentMapOffset];
+                currentMapOffset += code.length;
+                return address;
+            } else {
+                import provision.symbols;
+                return &undefinedSymbol;
             }
-
-            void[] currentStubMap = stubMaps[$ - 1];
-
-            mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_WRITE);
-            currentStubMap[currentMapOffset..currentMapOffset + code.length] = code;
-            mprotect(currentStubMap.ptr, currentStubMap.length, PROT_READ | PROT_EXEC);
-
-            void* address = &currentStubMap[currentMapOffset];
-            currentMapOffset += code.length;
-            return address;
-        } else {
-            import provision.symbols;
-            return &undefinedSymbol;
         }
-    }
 
-    private ubyte[] buildStubCode(char* name) {
-        // generates x86_64 assembler code for `undefinedSymbol(name)`
-        // it's never going to return back so we don't care about not saving registers.
-        import provision.symbols;
-        return [
-            ub!0x48, ub!0xBF, ] ~ name.ubytes() ~ [ // mov name %rdi
-            ub!0x48, ub!0xB8, ] ~ (&undefinedSymbol).ubytes() ~ [ // mov &undefinedSymbol %rax
-            ub!0xFF, ub!0xE0 // jmp *%rax
-        ];
+        private ubyte[] buildStubCode(char* name) {
+            // generates x86_64 assembler code for `undefinedSymbol(name)`
+            // it's never going to return back so we don't care about not saving registers.
+            import provision.symbols;
+            return [
+                ub!0x48, ub!0xBF, ] ~ name.ubytes() ~ [ // mov name %rdi
+                ub!0x48, ub!0xB8, ] ~ (&undefinedSymbol).ubytes() ~ [ // mov &undefinedSymbol %rax
+                ub!0xFF, ub!0xE0 // jmp *%rax
+            ];
+        }
     }
 
     private string getSymbolName(ElfW!"Sym" symbol) {
@@ -290,8 +335,13 @@ public class AndroidLibrary {
 
         import provision.symbols;
         auto sym = lookupSymbol(symbolName);
-        if (!sym)
-            sym = buildStub(name);
+        version (StubMaps) {
+            if (!sym)
+                sym = buildStub(name);
+        } else {
+            if (!sym)
+                sym = &undefinedSymbol;
+        }
         return sym;
     }
 
