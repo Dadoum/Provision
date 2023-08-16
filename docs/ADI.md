@@ -47,6 +47,16 @@ and load library from specific places instead of making a registry lookup as doe
 
 TODO make a table for ADI
 
+ADI error prefix: -45xxx ÷\
+Note: some FairPlay errors can occur within ADI, like -42049.
+
 TODO make a table for FairPlay
 
-TODO make a table for FootHill
+FairPlay error prefix: -42xxx
+
+TODO make a table for FootHill \
+TODO check its error code
+
+TODO make a table for Absinthe (NAC)
+
+Absinthe (NAC) error prefix is -44xxx
