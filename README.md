@@ -36,7 +36,7 @@ If you wish to run Anisette within docker to host a server public or privately. 
 and run the following command:
 
 ```bash
-docker run -d -v provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
+docker run -d -v ${PWD}/provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
 ```
 
 The above command will pull the image and also run it in the background. The volume 
