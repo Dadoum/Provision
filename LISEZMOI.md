@@ -35,7 +35,7 @@ Si vous souhaitez créer un serveur Anisette pour votre usage personnel ou crée
 Docker ou Podman. Dans ce cas, il vous suffira de lancer la commande suivante pour configurer un serveur directement :
 
 ```bash
-docker run -d -v provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
+docker run -d -v ${PWD}/provision_config:/home/Chester/.config/Provision/ --restart=always -p 6969:6969 --name anisette dadoum/anisette-server:latest
 ```
 
 Cette commande récupèrera l'image Docker et l'exécutera immédiatemnt. Le volume
