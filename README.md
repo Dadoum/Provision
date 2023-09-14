@@ -128,3 +128,6 @@ void main() {
 ## Support
 
 Donations are welcome with GitHub Sponsors.
+
+## installation
+Deploy to render
