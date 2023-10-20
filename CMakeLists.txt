@@ -47,7 +47,7 @@ else()
         FetchContent_Declare(
             plist_proj
             GIT_REPOSITORY https://github.com/Dadoum/libplist-d
-            GIT_TAG d494cf3fe79a2bb20583173c0c8cf85ef33b719e
+            GIT_TAG d4b3793d9ff5f64325cd1cedb2ced31b51523ec1
             PATCH_COMMAND ${DUB_DIRECTORY}/CMakeTmp/DubToCMake -c static -s plist-d
         )
         FetchContent_MakeAvailable(plist_proj)
