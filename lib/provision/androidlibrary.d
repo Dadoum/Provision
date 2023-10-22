@@ -77,7 +77,7 @@ public class AndroidLibrary {
                     if (shift) {
                         throw new LoaderException("Cannot load the library on your system! The page size is too big!");
                     }
-                    shift = ((pageCeil(headerStart) - headerStart) + originalPageSize) & ~(originalPageSize - 1);
+                    shift = ((pageCeil(headerStart) - headerStart) + originalPageSize - 1) & ~(originalPageSize - 1);
                     log.traceF!"Mandating a shift of %d to hopefully fix page size."(shift);
                     adjacentProtection = 0;
                 }
