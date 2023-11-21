@@ -132,8 +132,11 @@ public class ADI {
         public ubyte[] machineIdentifier;
         private ADI adi;
 
-        @disable this();
-        @disable this(this);
+        this(this) {
+            synchronizationResumeMetadata = synchronizationResumeMetadata.dup;
+            machineIdentifier = machineIdentifier.dup;
+            adi = null;
+        }
 
         this(ADI adiInstance, ubyte* srm, uint srmLength, ubyte* mid, uint midLength) {
             adi = adiInstance;
@@ -142,8 +145,10 @@ public class ADI {
         }
 
         ~this() {
-            adi.dispose(synchronizationResumeMetadata.ptr);
-            adi.dispose(machineIdentifier.ptr);
+            if (adi) {
+                adi.dispose(synchronizationResumeMetadata.ptr);
+                adi.dispose(machineIdentifier.ptr);
+            }
         }
     }
 
@@ -185,8 +190,10 @@ public class ADI {
         public uint session;
         private ADI adi;
 
-        @disable this();
-        @disable this(this);
+        this(this) {
+            clientProvisioningIntermediateMetadata = clientProvisioningIntermediateMetadata.dup;
+            adi = null;
+        }
 
         this(ADI adiInstance, ubyte* cpim, uint cpimLength, uint session) {
             adi = adiInstance;
@@ -195,7 +202,9 @@ public class ADI {
         }
 
         ~this() {
-            adi.dispose(clientProvisioningIntermediateMetadata.ptr);
+            if (adi) {
+                adi.dispose(clientProvisioningIntermediateMetadata.ptr);
+            }
         }
     }
 
@@ -237,8 +246,11 @@ public class ADI {
         public ubyte[] machineIdentifier;
         private ADI adi;
 
-        @disable this();
-        @disable this(this);
+        this(this) {
+            oneTimePassword = oneTimePassword.dup;
+            machineIdentifier = machineIdentifier.dup;
+            adi = null;
+        }
 
         this(ADI adiInstance, ubyte* otp, uint otpLength, ubyte* mid, uint midLength) {
             adi = adiInstance;
@@ -247,8 +259,10 @@ public class ADI {
         }
 
         ~this() {
-            adi.dispose(oneTimePassword.ptr);
-            adi.dispose(machineIdentifier.ptr);
+            if (adi) {
+                adi.dispose(oneTimePassword.ptr);
+                adi.dispose(machineIdentifier.ptr);
+            }
         }
     }
 
@@ -295,8 +309,10 @@ public class Device {
     // string romAddress;
     // string machineSerialNumber;
 
-    bool initialized = false;
+    bool _initialized = false;
     string path;
+
+    bool initialized() { return _initialized; }
 
     this(string filePath) {
         path = filePath;
@@ -307,7 +323,7 @@ public class Device {
                 serverFriendlyDescription = deviceFile[serverFriendlyDescriptionJson].str();
                 adiIdentifier = deviceFile[adiIdentifierJson].str();
                 localUserUUID = deviceFile[localUserUUIDJson].str();
-                initialized = true;
+                _initialized = true;
             } catch (Throwable) { /+ do nothing +/ }
         }
     }
@@ -320,7 +336,7 @@ public class Device {
     public void write() {
         if (path) {
             file.write(path, deviceData.toString());
-            initialized = true;
+            _initialized = true;
         }
     }
 }
