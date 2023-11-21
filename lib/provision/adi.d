@@ -128,27 +128,37 @@ public class ADI {
     }
 
     struct SynchronizationResumeMetadata {
-        public ubyte[] synchronizationResumeMetadata;
-        public ubyte[] machineIdentifier;
+        public ubyte[] _synchronizationResumeMetadata;
+        public ubyte[] _machineIdentifier;
         private ADI adi;
 
         this(this) {
-            synchronizationResumeMetadata = synchronizationResumeMetadata.dup;
-            machineIdentifier = machineIdentifier.dup;
+            _synchronizationResumeMetadata = _synchronizationResumeMetadata.dup;
+            _machineIdentifier = _machineIdentifier.dup;
             adi = null;
         }
 
         this(ADI adiInstance, ubyte* srm, uint srmLength, ubyte* mid, uint midLength) {
             adi = adiInstance;
-            synchronizationResumeMetadata = srm[0..srmLength];
-            machineIdentifier = mid[0..midLength];
+            _synchronizationResumeMetadata = srm[0..srmLength];
+            _machineIdentifier = mid[0..midLength];
         }
 
         ~this() {
             if (adi) {
-                adi.dispose(synchronizationResumeMetadata.ptr);
-                adi.dispose(machineIdentifier.ptr);
+                adi.dispose(_synchronizationResumeMetadata.ptr);
+                adi.dispose(_machineIdentifier.ptr);
             }
+        }
+
+        pragma(inline, true)
+        auto synchronizationResumeMetadata() {
+            return _synchronizationResumeMetadata;
+        }
+
+        pragma(inline, true)
+        auto machineIdentifier() {
+            return _machineIdentifier;
         }
     }
 
@@ -186,25 +196,35 @@ public class ADI {
     }
 
     struct ClientProvisioningIntermediateMetadata {
-        public ubyte[] clientProvisioningIntermediateMetadata;
-        public uint session;
+        public ubyte[] _clientProvisioningIntermediateMetadata;
+        public uint _session;
         private ADI adi;
 
         this(this) {
-            clientProvisioningIntermediateMetadata = clientProvisioningIntermediateMetadata.dup;
+            _clientProvisioningIntermediateMetadata = _clientProvisioningIntermediateMetadata.dup;
             adi = null;
         }
 
         this(ADI adiInstance, ubyte* cpim, uint cpimLength, uint session) {
             adi = adiInstance;
-            clientProvisioningIntermediateMetadata = cpim[0..cpimLength];
-            this.session = session;
+            _clientProvisioningIntermediateMetadata = cpim[0..cpimLength];
+            this._session = session;
         }
 
         ~this() {
             if (adi) {
-                adi.dispose(clientProvisioningIntermediateMetadata.ptr);
+                adi.dispose(_clientProvisioningIntermediateMetadata.ptr);
             }
+        }
+
+        pragma(inline, true)
+        auto clientProvisioningIntermediateMetadata() {
+            return _clientProvisioningIntermediateMetadata;
+        }
+
+        pragma(inline, true)
+        auto session() {
+            return _session;
         }
     }
 
@@ -242,27 +262,37 @@ public class ADI {
     }
 
     struct OneTimePassword {
-        public ubyte[] oneTimePassword;
-        public ubyte[] machineIdentifier;
+        public ubyte[] _oneTimePassword;
+        public ubyte[] _machineIdentifier;
         private ADI adi;
 
         this(this) {
-            oneTimePassword = oneTimePassword.dup;
-            machineIdentifier = machineIdentifier.dup;
+            _oneTimePassword = _oneTimePassword.dup;
+            _machineIdentifier = _machineIdentifier.dup;
             adi = null;
         }
 
         this(ADI adiInstance, ubyte* otp, uint otpLength, ubyte* mid, uint midLength) {
             adi = adiInstance;
-            oneTimePassword = otp[0..otpLength];
-            machineIdentifier = mid[0..midLength];
+            _oneTimePassword = otp[0..otpLength];
+            _machineIdentifier = mid[0..midLength];
         }
 
         ~this() {
             if (adi) {
-                adi.dispose(oneTimePassword.ptr);
-                adi.dispose(machineIdentifier.ptr);
+                adi.dispose(_oneTimePassword.ptr);
+                adi.dispose(_machineIdentifier.ptr);
             }
+        }
+
+        pragma(inline, true)
+        auto oneTimePassword() {
+            return _oneTimePassword;
+        }
+
+        pragma(inline, true)
+        auto machineIdentifier() {
+            return _machineIdentifier;
         }
     }
 
