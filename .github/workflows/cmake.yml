@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
-          sudo apt-get update && sudo apt-get install -y gdc-13 dub libz-dev elfutils
+          sudo apt-get update && sudo apt-get install -y gdc dub libz-dev elfutils
 
       - name: Build
         run: dub build :anisette-server -b release --compiler=gdc-13 -c "static"
