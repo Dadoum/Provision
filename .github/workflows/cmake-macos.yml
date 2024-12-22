@@ -7,7 +7,7 @@ env:
 
 jobs:
   build-anisette-server-macOS-x86_64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
             ${{github.workspace}}/bin/anisette-server-macOS-x86_64
 
   build-anisette-server-macOS-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3

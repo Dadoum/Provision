@@ -8,7 +8,7 @@ env:
 
 jobs:
   build-anisette-server-aarch64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: ubuntu:23.04
 
     steps:
@@ -40,7 +40,7 @@ jobs:
           bin/anisette-server-aarch64.dbg
 
   build-anisette-server-armv7:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: ubuntu:23.04
 
     steps:
