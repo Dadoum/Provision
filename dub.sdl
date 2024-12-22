@@ -18,7 +18,7 @@ dependency "slf4d" version="~>2"
 
 configuration "libplist" {
     versions "LibPlist"
-    dependency "plist-d" repository="git+https://github.com/Dadoum/libplist-d.git" version="7e5990ea64577bd786b4a2cfff2d3609f22cc8b2"
+    dependency "plist-d" repository="git+https://github.com/Dadoum/libplist-d.git" version="6fdaa60d62bbf7c55044069e8f03cbe74401c444"
 }
 
 subPackage {

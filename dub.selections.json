@@ -7,7 +7,7 @@
 		"handy-httpd": "5.2.1",
 		"httparsed": "1.2.1",
 		"plist": "~master",
-		"plist-d": {"version":"7e5990ea64577bd786b4a2cfff2d3609f22cc8b2","repository":"git+https://github.com/Dadoum/libplist-d.git"},
+		"plist-d": {"version":"6fdaa60d62bbf7c55044069e8f03cbe74401c444","repository":"git+https://github.com/Dadoum/libplist-d.git"},
 		"requests": "2.1.2",
 		"slf4d": "2.1.1",
 		"test_allocator": "0.3.4",
