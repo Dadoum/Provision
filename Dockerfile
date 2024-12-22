@@ -1,5 +1,5 @@
 # Base for builder
-FROM debian:unstable-slim AS builder
+FROM debian:bookworm-20241202 AS builder
 # Deps for builder
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates ldc git clang dub libz-dev \
  && apt-get clean \
