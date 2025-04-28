@@ -26,7 +26,7 @@ jobs:
           mv "${{github.workspace}}/bin/provision_anisette-server.exe" "${{github.workspace}}/bin/anisette-server-windows-x86_64.exe"
           mv "${{github.workspace}}/bin/provision_anisette-server.pdb" "${{github.workspace}}/bin/anisette-server-windows-x86_64.pdb"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: anisette-server-windows-x86_64
           path: |

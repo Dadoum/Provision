@@ -32,7 +32,7 @@ jobs:
       - name: Put debug symbols in a separate file
         run: eu-strip --strip-debug -f "${{github.workspace}}/bin/anisette-server-x86_64.dbg" "${{github.workspace}}/bin/anisette-server-x86_64"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: anisette-server-x86_64
           path: |
@@ -61,7 +61,7 @@ jobs:
       - name: Put debug symbols in a separate file
         run: eu-strip --strip-debug -f "bin/anisette-server-i686.dbg" "bin/anisette-server-i686"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: anisette-server-i686
           path: |

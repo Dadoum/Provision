@@ -57,7 +57,7 @@ jobs:
         run: |
           mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-macOS-x86_64"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: anisette-server-macOS-x86_64
           path: |
@@ -115,7 +115,7 @@ jobs:
         run: |
           mv "${{github.workspace}}/bin/provision_anisette-server" "${{github.workspace}}/bin/anisette-server-macOS-arm64"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: anisette-server-macOS-arm64
           path: |
