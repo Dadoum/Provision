@@ -440,7 +440,7 @@ public class ProvisioningSession {
 
         import std.datetime.systime;
 
-        request.headers["X-Apple-I-Client-Time"] = Clock.currTime().stripMilliseconds().toISOExtString();
+        request.addHeaders([ "X-Apple-I-Client-Time": Clock.currTime().stripMilliseconds().toISOExtString() ]);
         string startProvisioningPlist = request.post(urlBag["midStartProvisioning"],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
@@ -472,7 +472,7 @@ public class ProvisioningSession {
         scope auto cpim = adi.startProvisioning(dsId, spim);
         scope (failure) try { adi.destroyProvisioning(cpim.session); } catch(Throwable) {}
 
-        request.headers["X-Apple-I-Client-Time"] = Clock.currTime().stripMilliseconds().toISOExtString();
+        request.addHeaders([ "X-Apple-I-Client-Time": Clock.currTime().stripMilliseconds().toISOExtString() ]);
         string endProvisioningPlist = request.post(urlBag["midFinishProvisioning"], format!"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
