@@ -72,6 +72,20 @@ public class ADI {
         androidInvoke!pADISetAndroidID(identifier.ptr, cast(uint) identifier.length).unwrapADIError();
     }
 
+    /// The routing information Apple assigned to this machine.
+    ///
+    /// Apple returns it as `X-Apple-I-MD-RINFO` when the machine finishes
+    /// being provisioned. It is what Apple routes the machine with, so it is
+    /// the value to hand out instead of a hardcoded one.
+    private ulong __routingInformation = 0;
+    public ulong routingInformation() {
+        return __routingInformation;
+    }
+
+    public void routingInformation(ulong value) {
+        __routingInformation = value;
+    }
+
     public this(string libraryPath) {
         string storeServicesCorePath = libraryPath.buildPath("libstoreservicescore.so");
         if (!file.exists(storeServicesCorePath)) {
@@ -508,6 +522,9 @@ public class ProvisioningSession {
                 trustKey = Base64.decode((cast(PlistElementString) spimResponse["tk"]).value);
             }
         }
+
+        // Apple told us how to route this machine, keep it around.
+        adi.routingInformation = routingInformation;
 
         adi.endProvisioning(cpim.session, persistentTokenMetadata, trustKey);
     }
